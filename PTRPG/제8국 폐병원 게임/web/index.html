@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101a18"><title>PTRPG · 제8국 폐병원</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="combat.css"></head>
+<body>
+<main id="game" aria-label="제8국 폐병원">
+  <div class="environment"></div><div class="shade"></div>
+  <header><div class="brand"><span class="cross">+</span><div><small>CONCEPTERRA / PTRPG</small><strong>제8국 폐병원</strong></div></div><div id="location"></div><nav><button data-open="traits" title="고유 특성" aria-label="고유 특성"><img src="assets/sparkles.svg" alt=""></button><button data-open="map" title="병원 배치도" aria-label="병원 배치도"><img src="assets/map.svg" alt=""></button><button data-open="inventory" title="소지품" aria-label="소지품"><img src="assets/backpack.svg" alt=""></button><button data-open="journal" title="기록" aria-label="기록"><img src="assets/book-open.svg" alt=""></button><button data-open="menu" title="메뉴" aria-label="메뉴"><img src="assets/menu.svg" alt=""></button></nav></header>
+  <aside class="objective"><small>현재 목표</small><span id="objective"></span></aside>
+  <div id="party" class="party"></div>
+  <section id="center" class="center"></section>
+  <section id="story" class="story" aria-live="polite"></section>
+  <section id="choices" class="choices"></section>
+  <footer><span id="floor-label"></span><span id="save-status">기록 준비됨</span><button id="rules">판정 규칙</button></footer>
+</main>
+<dialog id="modal"><button class="close" aria-label="닫기">×</button><div id="modal-content"></div></dialog>
+<div id="toast" role="status"></div>
+<link rel="stylesheet" href="multiplayer.css"><script src="data.js"></script><script src="documents.js"></script><script src="expansion.js"></script><script src="narrator.js"></script><script src="engine.js"></script><script src="combat-data.js"></script><script src="combat.js"></script><script src="multiplayer.js"></script><script src="app.js"></script>
+</body></html>

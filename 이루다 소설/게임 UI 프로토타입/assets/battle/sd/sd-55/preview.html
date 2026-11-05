@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SD 5.5 비율 검수</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#171b1c;color:#edf1f0;font:15px Arial,sans-serif;letter-spacing:0}header{padding:18px 24px;border-bottom:1px solid #465154;display:flex;align-items:center;gap:20px;flex-wrap:wrap}h1{font-size:20px;margin:0}label{display:flex;gap:8px;align-items:center}main{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0}.item{min-width:0;border-right:1px solid #394044;border-bottom:1px solid #394044;padding:16px}.title{display:flex;justify-content:space-between;gap:12px}.approx{color:#91cad3}.stage{height:560px;position:relative;overflow:hidden;background:#22282a;margin-top:12px}.stage img{position:absolute;width:auto;max-width:none;user-select:none;-webkit-user-drag:none}.guide{position:absolute;inset:0;pointer-events:none}.guide i{position:absolute;left:0;right:0;border-top:1px dashed #6faaad;color:#a5c6c8;font-style:normal;font-size:11px;padding-left:5px}.hide .guide{display:none}a{color:#d0dde0;text-underline-offset:3px}.links{margin-top:12px;display:flex;gap:18px}small{color:#bcc6c7}@media(max-width:900px){main{grid-template-columns:repeat(2,minmax(0,1fr))}.stage{height:460px}}@media(max-width:520px){main{grid-template-columns:1fr}}
+</style></head><body><header><h1>기본 SD / 5.5등신 목표</h1><label><input id="grid" type="checkbox" checked>기준선</label><small>표시 등신은 머리 외곽 기준의 수동 근사치입니다.</small></header><main></main><script src="review-data.js"></script><script>
+const main=document.querySelector('main');
+for(const data of window.sd55Review){
+ const section=document.createElement('section');section.className='item';
+ section.innerHTML='<div class="title"><strong>'+data.name+'</strong><span class="approx">약 '+data.approxHeads.toFixed(2)+'등신</span></div><div class="stage"><img draggable="false" alt="'+data.name+'"><div class="guide"></div></div><div class="links"><a href="'+encodeURI(data.file)+'" target="_blank">PNG 원본</a></div>';
+ const img=section.querySelector('img');img.src=data.file;const stage=section.querySelector('.stage'),guide=section.querySelector('.guide');
+ function layout(){const visibleHeight=stage.clientHeight-48,s=visibleHeight/(data.sole-data.crown);img.style.height=data.height*s+'px';img.style.left=(stage.clientWidth-data.width*s)/2+'px';img.style.top=(24-data.crown*s)+'px';guide.replaceChildren();for(let n=0;n<=5.5;n+=n===5?.5:1){const line=document.createElement('i');line.style.top=(24+visibleHeight*n/5.5)+'px';line.textContent=n===0?'0 / 정수리':n===1?'1 / 목표 턱선':n===5.5?'5.5 / 발바닥':n;guide.append(line);}}
+ main.append(section);new ResizeObserver(layout).observe(stage);layout();
+}
+document.querySelector('#grid').addEventListener('change',event=>document.body.classList.toggle('hide',!event.target.checked));
+</script></body></html>

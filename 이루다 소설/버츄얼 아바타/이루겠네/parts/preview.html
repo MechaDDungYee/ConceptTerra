@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>이루겠네 분리 파츠</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#181a1d;color:#f4f3f1;font:15px system-ui,sans-serif}header{padding:18px 24px;border-bottom:1px solid #42444a}h1{font-size:20px;margin:0 0 6px}p{margin:0;color:#b7b8bd;line-height:1.5}main{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;padding:16px}figure{margin:0;border:1px solid #44464b;background:#202228}figcaption{padding:10px 12px;border-bottom:1px solid #44464b;font-weight:600}figure>div{height:250px;display:grid;place-items:center;background:repeating-conic-gradient(#373a3f 0 25%,#2b2e32 0 50%) 0 0/20px 20px}img{max-width:94%;max-height:94%;object-fit:contain}
+  </style>
+</head>
+<body>
+  <header><h1>이루겠네 분리 파츠</h1><p>아래는 초기 초안입니다. <a href="../aligned_source/head_turn/preview.html" style="color:#e7c889">고개 회전 원화 보기</a> · <a href="../aligned_source/preview.html" style="color:#e7c889">정렬된 분리 원화 보기</a></p></header>
+  <main id="parts"></main>
+  <script>
+    const names=[['back-hair.png','뒷머리'],['lower-body.png','하체'],['right-arm.png','오른팔 · 문양'],['left-arm.png','왼팔'],['torso-core.png','제복 몸통 · 팔 분리'],['face-base.png','얼굴 바탕'],['face-neck.png','표정 포함 얼굴 참고'],['eyes-open.png','눈 뜸'],['eyes-closed.png','눈 감음'],['mouth-closed.png','입 닫음'],['mouth-open.png','입 열림'],['front-hair.png','앞머리']];
+    document.getElementById('parts').replaceChildren(...names.map(([file,label])=>{const fig=document.createElement('figure');const title=document.createElement('figcaption');title.textContent=label;const box=document.createElement('div');const img=document.createElement('img');img.src=file;img.alt=label;box.append(img);fig.append(title,box);return fig}));
+  </script>
+</body>
+</html>

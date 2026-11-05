@@ -1,0 +1,41 @@
+{
+  "id": "eojil",
+  "name": "이루어질",
+  "reference": "D:\\콘셉트테라\\이루다 소설\\게임 UI 프로토타입\\assets\\battle\\sd\\00_이루어질_SD_v2.png",
+  "standing": "D:\\콘셉트테라\\이루다 소설\\게임 UI 프로토타입\\assets\\standing\\00_이루어질_스탠딩.png",
+  "batch": 3,
+  "frames": [
+    {
+      "key": "skill-3-hit-3",
+      "label": "계획 수정 · 3타",
+      "skillName": "계획 수정",
+      "hit": 3,
+      "pose": "Skill 3 named 계획 수정, 관통, hit 3 of 3: decisive two-finger pointing thrust. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. "
+    },
+    {
+      "key": "skill-4-hit-1",
+      "label": "결말 주석 · 1타",
+      "skillName": "결말 주석",
+      "hit": 1,
+      "pose": "Skill 4 named 결말 주석, 관통, hit 1 of 1: forward fingertip thrust. Initiating committed motion, visibly different silhouette from adjacent attacks. Strongest normal skill, wider stable stance and forceful extension."
+    },
+    {
+      "key": "overdrive-hit-1",
+      "label": "결말 주석 · 개념 폭주 · 1타",
+      "skillName": "결말 주석 · 개념 폭주",
+      "hit": 1,
+      "pose": "Special concept overdrive 결말 주석 · 개념 폭주, hit 1: forward fingertip thrust, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions"
+    },
+    {
+      "key": "overdrive-hit-2",
+      "label": "결말 주석 · 개념 폭주 · 2타",
+      "skillName": "결말 주석 · 개념 폭주",
+      "hit": 2,
+      "pose": "Special concept overdrive 결말 주석 · 개념 폭주, hit 2: cross-body palm thrust, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions"
+    }
+  ],
+  "identity": "Draw ONLY 이루어질, the same person in every cell. Tablet retained in left hand; deliberate precise pointing thrusts with right hand, sharply controlled geometric blue prediction marks.",
+  "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-babf3f50-69a7-440a-874c-818da0851b2f.png",
+  "prompt": "Use case: identity-preserve. Rebuild transparent game combat pose art from the APPROVED BASIC IDLE SD, not from any old motion. Reference 1 is immutable anatomy, face and simplified cel-art master. Reference 2 is ONLY invisible 2x2 grid layout.\nCRITICAL: match the idle's SMALL anatomical head and LONGER limbs, NOT a super-deformed generic chibi. Crown-to-chin skull height approximately ONE FIFTH of upright-equivalent crown-to-sole height; skull width approximately 19%, hair can extend beyond skull. Neck visible. Do not enlarge the eyes/face for expression. Preserve exact shoulder width, torso, upper/lower arm and thigh/calf lengths from reference1. Same gloves, boots, costume, tie, accessories and equipment size/handedness. Two arms and two hands only, continuous joints, correct thumbs. Orthographic 3/4 facing screen RIGHT, no foreshortened legs.\nEXACT 2 columns x 2 rows, 4 equal portrait cells, row-major. Native request 3072x4096 PNG with real transparent alpha. ALL figures including hair/weapons within middle 70% of cell: 15% padding all edges. Feet at 85% cell height for grounded poses. Upright-equivalent body height 70% cell height, constant pixel scale across cells. Bent knees or recoil lower crown naturally, never resize a crouch to standing height. Same head size across cells. Every pose genuinely redrawn. No scenery, floor, shadow, halos, floating fragments, extra limbs, extra people, labels, visible grid or enormous cartoon head. Maintain original line density and flat shadows.\n\nCharacter 이루어질: Draw ONLY 이루어질, the same person in every cell. Tablet retained in left hand; deliberate precise pointing thrusts with right hand, sharply controlled geometric blue prediction marks.\nRequired row-major poses:\n1: Skill 3 named 계획 수정, 관통, hit 3 of 3: decisive two-finger pointing thrust. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. \n2: Skill 4 named 결말 주석, 관통, hit 1 of 1: forward fingertip thrust. Initiating committed motion, visibly different silhouette from adjacent attacks. Strongest normal skill, wider stable stance and forceful extension.\n3: Special concept overdrive 결말 주석 · 개념 폭주, hit 1: forward fingertip thrust, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions\n4: Special concept overdrive 결말 주석 · 개념 폭주, hit 2: cross-body palm thrust, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions",
+  "review": "pending-proportion-comparison"
+}

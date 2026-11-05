@@ -1,0 +1,27 @@
+{
+  "key": "hurt",
+  "label": "피격",
+  "pose": "distinct hit reaction: chest recoils, face winces, arms instinctively protect abdomen, no wounds or gore",
+  "prompt": "Localized precise edit of reference1 combat sprite. Reference2 is approved basic SD for head proportions. Reduce ONLY skull, face and upper hair volume by about14%, retaining identity, lavender bows and white flower and sleepy eyes; head crown-to-chin about240px in1086x1448 canvas. Anchor chin and neck naturally. Preserve reference1 pose, body scale and boots positions, two arms/two hands, bunny held in LEFT arm and RIGHT hand protecting abdomen. Keep coat buckles, blue-lavender lining, bulb badge, long flowing hair. Do not shrink entire person or change body/pose. One complete transparent PNG1086x1448 portrait, no labels, scenery, shadow, sheet, body parts or extra fingers.",
+  "status": "pending",
+  "src": "eojyeo/hurt.png",
+  "nativeSize": [
+    1086,
+    1448
+  ],
+  "visibleBounds": [
+    116,
+    70,
+    1034,
+    1406
+  ],
+  "footPivotApprox": [
+    673,
+    1406
+  ],
+  "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-ec61ab4c-4bc0-450b-aaf4-7ec310a89280.png",
+  "review": "머리 축소 수정",
+  "alphaChecked": true,
+  "applied": false,
+  "revision": "20261009-eojyeo-v2"
+}

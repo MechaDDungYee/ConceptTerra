@@ -1,0 +1,992 @@
+{
+  "format": "single-complete-pose",
+  "applied": false,
+  "completed": 34,
+  "total": 143,
+  "frames": [
+    {
+      "id": "eojil",
+      "name": "이루어질",
+      "key": "move",
+      "label": "충돌 접근",
+      "pose": "Controlled forward running stride toward RIGHT. Right pen hand held ready at waist, left tablet tucked near chest, coat and hair trail LEFT. Moderate lean and one bent knee; grounded leading foot.",
+      "prompt": "Precise localized image edit. Reference1 is the EDIT TARGET, an existing single complete transparent combat sprite of Iru-eojil. Reference2 is her approved basic SD for HEAD SIZE ONLY. Reduce reference1's anatomical head (skull, face and top hair volume) by roughly12 percent, keeping chin/neck connection anchored naturally, to match reference2 crown-to-chin about237px at1086x1448 resolution. Keep the existing face identity, eyes, expression, hair ornament and earrings. Long trailing hair stays attached naturally. Change ONLY head scale and the small neck/hair transition required. Preserve EXACT running/interception pose of reference1, body size, shoulder/arm/leg lengths, foot positions, black gold coat with blue lining, round lightbulb sleeve badge, right hand fountain pen and left hand tablet. Exactly two arms and hands. Do NOT scale entire character, change pose, shrink limbs, change equipment, add effects or move feet. Same1086x1448 portrait framing, transparent RGBA background, full figure. One single complete image, no parts, no sheet, no text.",
+      "status": "pending",
+      "src": "eojil/move.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        34,
+        121,
+        1070,
+        1406
+      ],
+      "footPivotApprox": [
+        931,
+        1406
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-865af338-7f07-41a2-9afe-846317e49df4.png",
+      "review": "머리 축소 수정",
+      "alphaChecked": true,
+      "applied": false,
+      "revision": "20261009-head-small"
+    },
+    {
+      "id": "eojil",
+      "name": "이루어질",
+      "key": "clash",
+      "label": "충돌",
+      "pose": "Braced interception toward RIGHT: right hand grips pen raised diagonally before chest as if redirecting an incoming weapon. Left hand retains tablet safely. Two feet firm, knees slightly bent; not an attack follow-through.",
+      "prompt": "Precise localized image edit. Reference1 is the EDIT TARGET, an existing single complete transparent combat sprite of Iru-eojil. Reference2 is her approved basic SD for HEAD SIZE ONLY. Reduce reference1's anatomical head (skull, face and top hair volume) by roughly12 percent, keeping chin/neck connection anchored naturally, to match reference2 crown-to-chin about237px at1086x1448 resolution. Keep the existing face identity, eyes, expression, hair ornament and earrings. Long trailing hair stays attached naturally. Change ONLY head scale and the small neck/hair transition required. Preserve EXACT running/interception pose of reference1, body size, shoulder/arm/leg lengths, foot positions, black gold coat with blue lining, round lightbulb sleeve badge, right hand fountain pen and left hand tablet. Exactly two arms and hands. Do NOT scale entire character, change pose, shrink limbs, change equipment, add effects or move feet. Same1086x1448 portrait framing, transparent RGBA background, full figure. One single complete image, no parts, no sheet, no text.",
+      "status": "pending",
+      "src": "eojil/clash.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        63,
+        101,
+        1041,
+        1412
+      ],
+      "footPivotApprox": [
+        366,
+        1412
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-5ac7eda8-1f54-4344-8ce6-d21cf75ffc0b.png",
+      "review": "머리 축소 수정",
+      "alphaChecked": true,
+      "applied": false,
+      "revision": "20261009-head-small"
+    },
+    {
+      "id": "eojil",
+      "name": "이루어질",
+      "key": "clash-loss",
+      "label": "충돌 패배",
+      "pose": "Stagger backward toward LEFT, torso recoils and right pen hand is pushed aside downward; left tablet retained. Pained but alive expression, bent knees, no falling onto floor.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference3 only correct Team1 sleeve badge. Draw only 이루어질. Adult woman, long black hair, gold flower hairpin, blue diamond earrings, gray-blue eyes, black/gold long coat with royal-blue lining and tie, two gold waist buckles, black/gold gloves and boots. Tablet in anatomical LEFT hand; small nibbed writing pen in anatomical RIGHT hand for attacks.\nPOSE: Stagger backward toward LEFT, torso recoils and right pen hand is pushed aside downward; left tablet retained. Pained but alive expression, bent knees, no falling onto floor.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 237px, upright crown-to-sole 1297px (5.47heads), in1086x1448 reference coordinates. Head should remain 16.37% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1375; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference3 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nAdditional calibration: reference2 is approved single attack only for SMALL HEAD SIZE/face and rendering scale, NOT its pose. Keep the head as small as reference2 (~230px crown-to-chin on1086x1448canvas). Do not use the oversized head often seen on running/chibi art. Reference3 is the sleeve logo. The original reference1 anatomy stays authoritative.",
+      "status": "pending",
+      "src": "eojil/clash-loss.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        76,
+        77,
+        1038,
+        1401
+      ],
+      "footPivotApprox": [
+        507,
+        1401
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-4ad97c58-a795-4253-a343-024569ead76f.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojil",
+      "name": "이루어질",
+      "key": "clash-win",
+      "label": "충돌 승리",
+      "pose": "Successful parry follow-through: sweep right pen hand outward toward RIGHT to deflect a strike, confident focused expression. Left tablet retained, torso upright and feet firm. No victory dance.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference3 only correct Team1 sleeve badge. Draw only 이루어질. Adult woman, long black hair, gold flower hairpin, blue diamond earrings, gray-blue eyes, black/gold long coat with royal-blue lining and tie, two gold waist buckles, black/gold gloves and boots. Tablet in anatomical LEFT hand; small nibbed writing pen in anatomical RIGHT hand for attacks.\nPOSE: Successful parry follow-through: sweep right pen hand outward toward RIGHT to deflect a strike, confident focused expression. Left tablet retained, torso upright and feet firm. No victory dance.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 237px, upright crown-to-sole 1297px (5.47heads), in1086x1448 reference coordinates. Head should remain 16.37% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1375; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference3 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nAdditional calibration: reference2 is approved single attack only for SMALL HEAD SIZE/face and rendering scale, NOT its pose. Keep the head as small as reference2 (~230px crown-to-chin on1086x1448canvas). Do not use the oversized head often seen on running/chibi art. Reference3 is the sleeve logo. The original reference1 anatomy stays authoritative.",
+      "status": "pending",
+      "src": "eojil/clash-win.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        45,
+        74,
+        1057,
+        1390
+      ],
+      "footPivotApprox": [
+        355,
+        1390
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-f04b3a07-682c-45c5-9465-3f5938f5db26.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojil",
+      "name": "이루어질",
+      "key": "hurt",
+      "label": "피격",
+      "pose": "distinct hit reaction: chest recoils, face winces, arms instinctively protect abdomen, no wounds or gore",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어질. Adult woman, long black hair, gold flower hairpin, blue diamond earrings, gray-blue eyes, black/gold long coat with royal-blue lining and tie, two gold waist buckles, black/gold gloves and boots. Tablet in anatomical LEFT hand; small nibbed writing pen in anatomical RIGHT hand for attacks.\nPOSE: distinct hit reaction: chest recoils, face winces, arms instinctively protect abdomen, no wounds or gore\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 237px, upright crown-to-sole 1297px (5.47heads), in1086x1448 reference coordinates. Head should remain 16.37% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1375; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.",
+      "status": "saved",
+      "src": "eojil/hurt.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "footPivotApprox": [
+        711,
+        1430
+      ],
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "applied": false
+    },
+    {
+      "id": "eojil",
+      "name": "이루어질",
+      "key": "defense",
+      "label": "이루어질 · 회피",
+      "pose": "Lateral evasive lean away toward LEFT with knees moderately bent, torso pulls back from an imagined right-side strike. Right pen hand drawn close, left tablet retained. Feet grounded, head same size; no shrinking limb lengths.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference3 only correct Team1 sleeve badge. Draw only 이루어질. Adult woman, long black hair, gold flower hairpin, blue diamond earrings, gray-blue eyes, black/gold long coat with royal-blue lining and tie, two gold waist buckles, black/gold gloves and boots. Tablet in anatomical LEFT hand; small nibbed writing pen in anatomical RIGHT hand for attacks.\nPOSE: Lateral evasive lean away toward LEFT with knees moderately bent, torso pulls back from an imagined right-side strike. Right pen hand drawn close, left tablet retained. Feet grounded, head same size; no shrinking limb lengths.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 237px, upright crown-to-sole 1297px (5.47heads), in1086x1448 reference coordinates. Head should remain 16.37% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1375; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference3 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nAdditional calibration: reference2 is approved single attack only for SMALL HEAD SIZE/face and rendering scale, NOT its pose. Keep the head as small as reference2 (~230px crown-to-chin on1086x1448canvas). Do not use the oversized head often seen on running/chibi art. Reference3 is the sleeve logo. The original reference1 anatomy stays authoritative.",
+      "status": "pending",
+      "src": "eojil/defense.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        49,
+        98,
+        1066,
+        1390
+      ],
+      "footPivotApprox": [
+        371,
+        1390
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-1315401a-7056-4eb7-b6d6-fc6551626ed5.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojil",
+      "name": "이루어질",
+      "key": "skill-1-hit-1",
+      "label": "결말 예측 · 1타",
+      "skillName": "결말 예측",
+      "hit": 1,
+      "pose": "결말 예측, animation phase 1: right pen-nib forward thrust with left tablet retained. Distinct complete pose, all equipment retained.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어질. Adult woman, long black hair, gold flower hairpin, blue diamond earrings, gray-blue eyes, black/gold long coat with royal-blue lining and tie, two gold waist buckles, black/gold gloves and boots. Tablet in anatomical LEFT hand; small nibbed writing pen in anatomical RIGHT hand for attacks.\nPOSE: 결말 예측, animation phase 1: right pen-nib forward thrust with left tablet retained. Distinct complete pose, all equipment retained.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 237px, upright crown-to-sole 1297px (5.47heads), in1086x1448 reference coordinates. Head should remain 16.37% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1375; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.",
+      "status": "saved",
+      "src": "eojil/skill-1-hit-1.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "footPivotApprox": [
+        618,
+        1399
+      ],
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "applied": false
+    },
+    {
+      "id": "eojil",
+      "name": "이루어질",
+      "key": "skill-1-hit-2",
+      "label": "결말 예측 · 2타",
+      "skillName": "결말 예측",
+      "hit": 2,
+      "pose": "Second strike of 결말 예측: right pen hand redirects the nib along a rising diagonal toward RIGHT. Left hand holds tablet at hip. Wrist and nib clearly point right, different arm path from straight first thrust.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference3 only correct Team1 sleeve badge. Draw only 이루어질. Adult woman, long black hair, gold flower hairpin, blue diamond earrings, gray-blue eyes, black/gold long coat with royal-blue lining and tie, two gold waist buckles, black/gold gloves and boots. Tablet in anatomical LEFT hand; small nibbed writing pen in anatomical RIGHT hand for attacks.\nPOSE: Second strike of 결말 예측: right pen hand redirects the nib along a rising diagonal toward RIGHT. Left hand holds tablet at hip. Wrist and nib clearly point right, different arm path from straight first thrust.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 237px, upright crown-to-sole 1297px (5.47heads), in1086x1448 reference coordinates. Head should remain 16.37% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1375; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference3 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nAdditional calibration: reference2 is approved single attack only for SMALL HEAD SIZE/face and rendering scale, NOT its pose. Keep the head as small as reference2 (~230px crown-to-chin on1086x1448canvas). Do not use the oversized head often seen on running/chibi art. Reference3 is the sleeve logo. The original reference1 anatomy stays authoritative.",
+      "status": "pending",
+      "src": "eojil/skill-1-hit-2.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        27,
+        102,
+        1083,
+        1411
+      ],
+      "footPivotApprox": [
+        637,
+        1411
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-53532491-1945-44a5-8588-ef42d610463f.png",
+      "review": "펜촉 여백 재검수",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojil",
+      "name": "이루어질",
+      "key": "skill-2-hit-1",
+      "label": "확신의 일격 · 1타",
+      "skillName": "확신의 일격",
+      "hit": 1,
+      "pose": "First strike of 확신의 일격: precise low forward pen-nib thrust toward RIGHT aimed at an opening, right elbow extended below chest, left tablet held near chest, firm grounded stance.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference3 only correct Team1 sleeve badge. Draw only 이루어질. Adult woman, long black hair, gold flower hairpin, blue diamond earrings, gray-blue eyes, black/gold long coat with royal-blue lining and tie, two gold waist buckles, black/gold gloves and boots. Tablet in anatomical LEFT hand; small nibbed writing pen in anatomical RIGHT hand for attacks.\nPOSE: First strike of 확신의 일격: precise low forward pen-nib thrust toward RIGHT aimed at an opening, right elbow extended below chest, left tablet held near chest, firm grounded stance.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 237px, upright crown-to-sole 1297px (5.47heads), in1086x1448 reference coordinates. Head should remain 16.37% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1375; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference3 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nAdditional calibration: reference2 is approved single attack only for SMALL HEAD SIZE/face and rendering scale, NOT its pose. Keep the head as small as reference2 (~230px crown-to-chin on1086x1448canvas). Do not use the oversized head often seen on running/chibi art. Reference3 is the sleeve logo. The original reference1 anatomy stays authoritative.",
+      "status": "pending",
+      "src": "eojil/skill-2-hit-1.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        20,
+        95,
+        1064,
+        1398
+      ],
+      "footPivotApprox": [
+        306,
+        1398
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-e9fd86cc-d76d-4f57-8394-4311735f2b79.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojil",
+      "name": "이루어질",
+      "key": "skill-2-hit-2",
+      "label": "확신의 일격 · 2타",
+      "skillName": "확신의 일격",
+      "hit": 2,
+      "pose": "Finishing strike of 확신의 일격: sharply retract the RIGHT pen hand toward right hip after pulling the nib free, elbow flexed, tablet in left hand, torso twists slightly back. Not another forward thrust.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference3 only correct Team1 sleeve badge. Draw only 이루어질. Adult woman, long black hair, gold flower hairpin, blue diamond earrings, gray-blue eyes, black/gold long coat with royal-blue lining and tie, two gold waist buckles, black/gold gloves and boots. Tablet in anatomical LEFT hand; small nibbed writing pen in anatomical RIGHT hand for attacks.\nPOSE: Finishing strike of 확신의 일격: sharply retract the RIGHT pen hand toward right hip after pulling the nib free, elbow flexed, tablet in left hand, torso twists slightly back. Not another forward thrust.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 237px, upright crown-to-sole 1297px (5.47heads), in1086x1448 reference coordinates. Head should remain 16.37% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1375; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference3 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nAdditional calibration: reference2 is approved single attack only for SMALL HEAD SIZE/face and rendering scale, NOT its pose. Keep the head as small as reference2 (~230px crown-to-chin on1086x1448canvas). Do not use the oversized head often seen on running/chibi art. Reference3 is the sleeve logo. The original reference1 anatomy stays authoritative.",
+      "status": "pending",
+      "src": "eojil/skill-2-hit-2.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        29,
+        47,
+        1061,
+        1414
+      ],
+      "footPivotApprox": [
+        662,
+        1414
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-1030c0d0-e92e-4c46-ae50-86ca44ead075.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojil",
+      "name": "이루어질",
+      "key": "skill-3-hit-1",
+      "label": "계획 수정 · 1타",
+      "skillName": "계획 수정",
+      "hit": 1,
+      "pose": "First strike of 계획 수정: measured RIGHT pen thrust high toward RIGHT at chest level along a predicted trajectory. Left tablet slightly angled as she reads it, eyes focused forward.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference3 only correct Team1 sleeve badge. Draw only 이루어질. Adult woman, long black hair, gold flower hairpin, blue diamond earrings, gray-blue eyes, black/gold long coat with royal-blue lining and tie, two gold waist buckles, black/gold gloves and boots. Tablet in anatomical LEFT hand; small nibbed writing pen in anatomical RIGHT hand for attacks.\nPOSE: First strike of 계획 수정: measured RIGHT pen thrust high toward RIGHT at chest level along a predicted trajectory. Left tablet slightly angled as she reads it, eyes focused forward.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 237px, upright crown-to-sole 1297px (5.47heads), in1086x1448 reference coordinates. Head should remain 16.37% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1375; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference3 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nAdditional calibration: reference2 is approved single attack only for SMALL HEAD SIZE/face and rendering scale, NOT its pose. Keep the head as small as reference2 (~230px crown-to-chin on1086x1448canvas). Do not use the oversized head often seen on running/chibi art. Reference3 is the sleeve logo. The original reference1 anatomy stays authoritative.",
+      "status": "pending",
+      "src": "eojil/skill-3-hit-1.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        35,
+        94,
+        1074,
+        1391
+      ],
+      "footPivotApprox": [
+        368,
+        1391
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-0dd59593-3ac6-4eb1-a3a6-bcda65b4e08a.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojil",
+      "name": "이루어질",
+      "key": "skill-3-hit-2",
+      "label": "계획 수정 · 2타",
+      "skillName": "계획 수정",
+      "hit": 2,
+      "pose": "Second strike of 계획 수정: change pen trajectory across body diagonally downward toward RIGHT, nib leading, right elbow partly bent, left tablet stays low out of the stroke.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference3 only correct Team1 sleeve badge. Draw only 이루어질. Adult woman, long black hair, gold flower hairpin, blue diamond earrings, gray-blue eyes, black/gold long coat with royal-blue lining and tie, two gold waist buckles, black/gold gloves and boots. Tablet in anatomical LEFT hand; small nibbed writing pen in anatomical RIGHT hand for attacks.\nPOSE: Second strike of 계획 수정: change pen trajectory across body diagonally downward toward RIGHT, nib leading, right elbow partly bent, left tablet stays low out of the stroke.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 237px, upright crown-to-sole 1297px (5.47heads), in1086x1448 reference coordinates. Head should remain 16.37% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1375; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference3 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nAdditional calibration: reference2 is approved single attack only for SMALL HEAD SIZE/face and rendering scale, NOT its pose. Keep the head as small as reference2 (~230px crown-to-chin on1086x1448canvas). Do not use the oversized head often seen on running/chibi art. Reference3 is the sleeve logo. The original reference1 anatomy stays authoritative.",
+      "status": "pending",
+      "src": "eojil/skill-3-hit-2.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        59,
+        84,
+        1066,
+        1411
+      ],
+      "footPivotApprox": [
+        352,
+        1411
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-5f5f6f20-8900-4b66-ac38-d8dc462070a7.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojil",
+      "name": "이루어질",
+      "key": "skill-3-hit-3",
+      "label": "계획 수정 · 3타",
+      "skillName": "계획 수정",
+      "hit": 3,
+      "pose": "Final strike of 계획 수정: compact decisive forward RIGHT pen extension on a new lower trajectory, feet braced and shoulders square; left tablet tucked close. Distinct from high first strike.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference3 only correct Team1 sleeve badge. Draw only 이루어질. Adult woman, long black hair, gold flower hairpin, blue diamond earrings, gray-blue eyes, black/gold long coat with royal-blue lining and tie, two gold waist buckles, black/gold gloves and boots. Tablet in anatomical LEFT hand; small nibbed writing pen in anatomical RIGHT hand for attacks.\nPOSE: Final strike of 계획 수정: compact decisive forward RIGHT pen extension on a new lower trajectory, feet braced and shoulders square; left tablet tucked close. Distinct from high first strike.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 237px, upright crown-to-sole 1297px (5.47heads), in1086x1448 reference coordinates. Head should remain 16.37% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1375; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference3 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nAdditional calibration: reference2 is approved single attack only for SMALL HEAD SIZE/face and rendering scale, NOT its pose. Keep the head as small as reference2 (~230px crown-to-chin on1086x1448canvas). Do not use the oversized head often seen on running/chibi art. Reference3 is the sleeve logo. The original reference1 anatomy stays authoritative.",
+      "status": "pending",
+      "src": "eojil/skill-3-hit-3.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        46,
+        94,
+        1071,
+        1395
+      ],
+      "footPivotApprox": [
+        407,
+        1395
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-a4f11927-a306-4efc-acb0-58f4dfc5def5.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojil",
+      "name": "이루어질",
+      "key": "skill-4-hit-1",
+      "label": "결말 주석 · 1타",
+      "skillName": "결말 주석",
+      "hit": 1,
+      "pose": "Strong 결말 주석 strike: deliberate emphatic RIGHT pen-nib thrust toward RIGHT, left tablet held upright at chest as if confirming the ending, forceful but restrained stable stance. No extra objects or effects.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference3 only correct Team1 sleeve badge. Draw only 이루어질. Adult woman, long black hair, gold flower hairpin, blue diamond earrings, gray-blue eyes, black/gold long coat with royal-blue lining and tie, two gold waist buckles, black/gold gloves and boots. Tablet in anatomical LEFT hand; small nibbed writing pen in anatomical RIGHT hand for attacks.\nPOSE: Strong 결말 주석 strike: deliberate emphatic RIGHT pen-nib thrust toward RIGHT, left tablet held upright at chest as if confirming the ending, forceful but restrained stable stance. No extra objects or effects.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 237px, upright crown-to-sole 1297px (5.47heads), in1086x1448 reference coordinates. Head should remain 16.37% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1375; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference3 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nAdditional calibration: reference2 is approved single attack only for SMALL HEAD SIZE/face and rendering scale, NOT its pose. Keep the head as small as reference2 (~230px crown-to-chin on1086x1448canvas). Do not use the oversized head often seen on running/chibi art. Reference3 is the sleeve logo. The original reference1 anatomy stays authoritative.",
+      "status": "pending",
+      "src": "eojil/skill-4-hit-1.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        23,
+        64,
+        1076,
+        1405
+      ],
+      "footPivotApprox": [
+        589,
+        1405
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-ab38c6bd-5a43-42a4-b305-5ca58f5df0c1.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojil",
+      "name": "이루어질",
+      "key": "overdrive-hit-1",
+      "label": "결말 주석 · 개념 폭주 · 1타",
+      "skillName": "결말 주석 · 개념 폭주",
+      "hit": 1,
+      "pose": "Concept overdrive opening: raise RIGHT pen beside head angled toward RIGHT, LEFT tablet upright near sternum as if finding the ending. Upright same-size body and head, no outfit transformation, no giant effect.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference3 only correct Team1 sleeve badge. Draw only 이루어질. Adult woman, long black hair, gold flower hairpin, blue diamond earrings, gray-blue eyes, black/gold long coat with royal-blue lining and tie, two gold waist buckles, black/gold gloves and boots. Tablet in anatomical LEFT hand; small nibbed writing pen in anatomical RIGHT hand for attacks.\nPOSE: Concept overdrive opening: raise RIGHT pen beside head angled toward RIGHT, LEFT tablet upright near sternum as if finding the ending. Upright same-size body and head, no outfit transformation, no giant effect.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 237px, upright crown-to-sole 1297px (5.47heads), in1086x1448 reference coordinates. Head should remain 16.37% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1375; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference3 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nAdditional calibration: reference2 is approved single attack only for SMALL HEAD SIZE/face and rendering scale, NOT its pose. Keep the head as small as reference2 (~230px crown-to-chin on1086x1448canvas). Do not use the oversized head often seen on running/chibi art. Reference3 is the sleeve logo. The original reference1 anatomy stays authoritative.",
+      "status": "pending",
+      "src": "eojil/overdrive-hit-1.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        78,
+        32,
+        1001,
+        1418
+      ],
+      "footPivotApprox": [
+        627,
+        1418
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-a479a021-d129-4320-91f9-a156d6b0eb4c.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojil",
+      "name": "이루어질",
+      "key": "overdrive-hit-2",
+      "label": "결말 주석 · 개념 폭주 · 2타",
+      "skillName": "결말 주석 · 개념 폭주",
+      "hit": 2,
+      "pose": "Concept overdrive linking stroke: sweep RIGHT pen in broad horizontal arc toward RIGHT at chest height, LEFT tablet retained near hip, mild torso turn. Full pen and both hands visible, no effect covering anatomy.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference3 only correct Team1 sleeve badge. Draw only 이루어질. Adult woman, long black hair, gold flower hairpin, blue diamond earrings, gray-blue eyes, black/gold long coat with royal-blue lining and tie, two gold waist buckles, black/gold gloves and boots. Tablet in anatomical LEFT hand; small nibbed writing pen in anatomical RIGHT hand for attacks.\nPOSE: Concept overdrive linking stroke: sweep RIGHT pen in broad horizontal arc toward RIGHT at chest height, LEFT tablet retained near hip, mild torso turn. Full pen and both hands visible, no effect covering anatomy.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 237px, upright crown-to-sole 1297px (5.47heads), in1086x1448 reference coordinates. Head should remain 16.37% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1375; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference3 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nAdditional calibration: reference2 is approved single attack only for SMALL HEAD SIZE/face and rendering scale, NOT its pose. Keep the head as small as reference2 (~230px crown-to-chin on1086x1448canvas). Do not use the oversized head often seen on running/chibi art. Reference3 is the sleeve logo. The original reference1 anatomy stays authoritative.",
+      "status": "pending",
+      "src": "eojil/overdrive-hit-2.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        41,
+        62,
+        1073,
+        1415
+      ],
+      "footPivotApprox": [
+        342,
+        1415
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-9006d91f-b9cd-4b28-8447-c283ab747704.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojil",
+      "name": "이루어질",
+      "key": "overdrive-hit-3",
+      "label": "결말 주석 · 개념 폭주 · 3타",
+      "skillName": "결말 주석 · 개념 폭주",
+      "hit": 3,
+      "pose": "Concept overdrive conclusion: forceful short downward-diagonal RIGHT pen-nib finishing stroke toward RIGHT, left tablet held close, knees lightly braced. Same body proportions and clothing, no giant effect.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference3 only correct Team1 sleeve badge. Draw only 이루어질. Adult woman, long black hair, gold flower hairpin, blue diamond earrings, gray-blue eyes, black/gold long coat with royal-blue lining and tie, two gold waist buckles, black/gold gloves and boots. Tablet in anatomical LEFT hand; small nibbed writing pen in anatomical RIGHT hand for attacks.\nPOSE: Concept overdrive conclusion: forceful short downward-diagonal RIGHT pen-nib finishing stroke toward RIGHT, left tablet held close, knees lightly braced. Same body proportions and clothing, no giant effect.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 237px, upright crown-to-sole 1297px (5.47heads), in1086x1448 reference coordinates. Head should remain 16.37% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1375; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference3 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nAdditional calibration: reference2 is approved single attack only for SMALL HEAD SIZE/face and rendering scale, NOT its pose. Keep the head as small as reference2 (~230px crown-to-chin on1086x1448canvas). Do not use the oversized head often seen on running/chibi art. Reference3 is the sleeve logo. The original reference1 anatomy stays authoritative.",
+      "status": "pending",
+      "src": "eojil/overdrive-hit-3.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        59,
+        80,
+        1049,
+        1396
+      ],
+      "footPivotApprox": [
+        331,
+        1396
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-82b70c30-0e73-4d63-8711-8d6bec68cdd7.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojyeo",
+      "name": "이루어져",
+      "key": "move",
+      "label": "충돌 접근",
+      "pose": "forward running stride, torso leaned toward right, one leading foot near ground, coat trailing left",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어져. Sleepy adult woman, purple-black long hair, lavender bow and flower, violet eyes, padded black/lavender coat, white rabbit plush retained. No sword; coat/blanket and pessimistic dream gestures.\nPOSE: forward running stride, torso leaned toward right, one leading foot near ground, coat trailing left\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 243px, upright crown-to-sole 1315px (5.41heads), in1086x1448 reference coordinates. Head should remain 16.78% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1402; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nAdditional strict calibration: SMALL anatomical head, 240px crown-to-chin at1086x1448, not cute enlarged-head chibi. Bunny cradled firmly in anatomical LEFT arm at chest, RIGHT hand holds coat edge low while taking one restrained running step. Two hands only. Preserve original slim adult body proportions and leg lengths. No new weapons or detached blanket. A bent stride must not cause entire character to be enlarged.",
+      "status": "pending",
+      "src": "eojyeo/move.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        66,
+        57,
+        1029,
+        1407
+      ],
+      "footPivotApprox": [
+        880,
+        1407
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-c60a19c0-41bf-4dbf-adee-fd86827e5cb6.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojyeo",
+      "name": "이루어져",
+      "key": "clash",
+      "label": "충돌",
+      "pose": "firm forward interception pose, braced front leg, tool or forearm raised to meet an incoming strike from the right",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어져. Sleepy adult woman, purple-black long hair, lavender bow and flower, violet eyes, padded black/lavender coat, white rabbit plush retained. No sword; coat/blanket and pessimistic dream gestures.\nPOSE: firm forward interception pose, braced front leg, tool or forearm raised to meet an incoming strike from the right\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 243px, upright crown-to-sole 1315px (5.41heads), in1086x1448 reference coordinates. Head should remain 16.78% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1402; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nAdditional strict calibration: SMALL anatomical head, 240px crown-to-chin at1086x1448, not cute enlarged-head chibi. Bunny cradled firmly in anatomical LEFT arm at chest, RIGHT hand raises padded coat fold to intercept attack from right. Two hands only. Preserve original slim adult body proportions and leg lengths. No new weapons or detached blanket. A bent stride must not cause entire character to be enlarged.",
+      "status": "pending",
+      "src": "eojyeo/clash.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        125,
+        93,
+        1077,
+        1398
+      ],
+      "footPivotApprox": [
+        587,
+        1398
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-8c2a5a94-872a-43bf-8f03-d2d8a546958d.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojyeo",
+      "name": "이루어져",
+      "key": "clash-loss",
+      "label": "충돌 패배",
+      "pose": "stagger backward toward left, torso recoiling, bent knees, equipment retained, pained but alive",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어져. Sleepy adult woman, purple-black long hair, lavender bow and flower, violet eyes, padded black/lavender coat, white rabbit plush retained. No sword; coat/blanket and pessimistic dream gestures.\nPOSE: stagger backward toward left, torso recoiling, bent knees, equipment retained, pained but alive\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 243px, upright crown-to-sole 1315px (5.41heads), in1086x1448 reference coordinates. Head should remain 16.78% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1402; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nAdditional strict calibration: SMALL anatomical head, 240px crown-to-chin at1086x1448, not cute enlarged-head chibi. Bunny cradled firmly in anatomical LEFT arm at chest, RIGHT hand grips coat edge while torso reels back to left. Two hands only. Preserve original slim adult body proportions and leg lengths. No new weapons or detached blanket. A bent stride must not cause entire character to be enlarged.",
+      "status": "pending",
+      "src": "eojyeo/clash-loss.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        165,
+        80,
+        1012,
+        1406
+      ],
+      "footPivotApprox": [
+        787,
+        1406
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-d34e0643-b571-4d33-aef1-8ae0bc925bdb.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojyeo",
+      "name": "이루어져",
+      "key": "clash-win",
+      "label": "충돌 승리",
+      "pose": "confident forward follow-through, stable stance, tool or fist directed right, not a victory dance",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어져. Sleepy adult woman, purple-black long hair, lavender bow and flower, violet eyes, padded black/lavender coat, white rabbit plush retained. No sword; coat/blanket and pessimistic dream gestures.\nPOSE: confident forward follow-through, stable stance, tool or fist directed right, not a victory dance\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 243px, upright crown-to-sole 1315px (5.41heads), in1086x1448 reference coordinates. Head should remain 16.78% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1402; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nOverride pose detail: RIGHT hand sweeps coat fold outward to screen right after parrying, weight on frontfoot. Exactlytwoarms andtwohands. Bunny always in LEFT arm. Anatomical head SMALL at240px crown-to-chin in1086x1448 scale, same face and body proportions as BASE. Do not upscale crouch. No detached blanket or new weapons; actual garment moves. All feet/head safely inside canvas. Right leg foreground if thighs overlap.",
+      "status": "pending",
+      "src": "eojyeo/clash-win.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        47,
+        28,
+        1076,
+        1417
+      ],
+      "footPivotApprox": [
+        688,
+        1417
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-cbef7615-7ecb-4906-ac61-68684913603d.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojyeo",
+      "name": "이루어져",
+      "key": "hurt",
+      "label": "피격",
+      "pose": "distinct hit reaction: chest recoils, face winces, arms instinctively protect abdomen, no wounds or gore",
+      "prompt": "Localized precise edit of reference1 combat sprite. Reference2 is approved basic SD for head proportions. Reduce ONLY skull, face and upper hair volume by about14%, retaining identity, lavender bows and white flower and sleepy eyes; head crown-to-chin about240px in1086x1448 canvas. Anchor chin and neck naturally. Preserve reference1 pose, body scale and boots positions, two arms/two hands, bunny held in LEFT arm and RIGHT hand protecting abdomen. Keep coat buckles, blue-lavender lining, bulb badge, long flowing hair. Do not shrink entire person or change body/pose. One complete transparent PNG1086x1448 portrait, no labels, scenery, shadow, sheet, body parts or extra fingers.",
+      "status": "pending",
+      "src": "eojyeo/hurt.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        116,
+        70,
+        1034,
+        1406
+      ],
+      "footPivotApprox": [
+        673,
+        1406
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-ec61ab4c-4bc0-450b-aaf4-7ec310a89280.png",
+      "review": "머리 축소 수정",
+      "alphaChecked": true,
+      "applied": false,
+      "revision": "20261009-eojyeo-v2"
+    },
+    {
+      "id": "eojyeo",
+      "name": "이루어져",
+      "key": "defense",
+      "label": "이루어져 · 방어",
+      "pose": "broad braced guard, both forearms protect head and chest",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어져. Sleepy adult woman, purple-black long hair, lavender bow and flower, violet eyes, padded black/lavender coat, white rabbit plush retained. No sword; coat/blanket and pessimistic dream gestures.\nPOSE: broad braced guard, both forearms protect head and chest\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 243px, upright crown-to-sole 1315px (5.41heads), in1086x1448 reference coordinates. Head should remain 16.78% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1402; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nOverride pose detail: LEFT arm hugs bunny securely; RIGHT forearm raises thick coat flap as shield at chest, slightly hunched guarded stance. Exactlytwoarms andtwohands. Bunny always in LEFT arm. Anatomical head SMALL at240px crown-to-chin in1086x1448 scale, same face and body proportions as BASE. Do not upscale crouch. No detached blanket or new weapons; actual garment moves. All feet/head safely inside canvas. Right leg foreground if thighs overlap.",
+      "status": "pending",
+      "src": "eojyeo/defense.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        117,
+        67,
+        1009,
+        1420
+      ],
+      "footPivotApprox": [
+        404,
+        1420
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-244317c7-61ce-4b14-9895-6db3720ac1d7.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojyeo",
+      "name": "이루어져",
+      "key": "skill-1-hit-1",
+      "label": "꾸벅꾸벅 · 1타",
+      "skillName": "꾸벅꾸벅",
+      "hit": 1,
+      "pose": "꾸벅꾸벅, animation phase 1: strike outward with coat hem/blanket while retaining bunny. Distinct complete pose, all equipment retained.",
+      "prompt": "Edit reference1 locally, DO NOT enlarge figure or change framing. Change upper-thigh layering so character's anatomical RIGHT leg (starts on SCREEN LEFT hip, foreground leg) overlaps in front of LEFT leg (screen right far hip) at groin. RIGHT thigh contour continues in foreground. Keep both feet in exact original locations. Make sleeve badge upright gold LIGHTBULB with screwbase and gold star-rays. Reference2 badge only. ALL other pixels/layout unchanged in spirit: newly small head and original1086x1448 scale, skull top around70px not touching canvasedge, lowestsoles1420px, top and bottom transparent margin. Preserve face, hand holding coat, bunny leftarm, legs length, coat pose. No zoom, larger body, extra hands, crop. One complete transparent PNG.",
+      "status": "pending",
+      "src": "eojyeo/skill-1-hit-1.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        69,
+        69,
+        1063,
+        1423
+      ],
+      "footPivotApprox": [
+        520,
+        1423
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-5463b0b6-7acb-4119-a987-89b59112d9ee.png",
+      "review": "머리 축소·다리 겹침·문양 수정",
+      "alphaChecked": true,
+      "applied": false,
+      "revision": "20261009-eojyeo-v2"
+    },
+    {
+      "id": "eojyeo",
+      "name": "이루어져",
+      "key": "skill-1-hit-2",
+      "label": "꾸벅꾸벅 · 2타",
+      "skillName": "꾸벅꾸벅",
+      "hit": 2,
+      "pose": "꾸벅꾸벅, animation phase 2: wrap imaginary opponent in blanket gesture, bunny retained. Distinct complete pose, all equipment retained.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어져. Sleepy adult woman, purple-black long hair, lavender bow and flower, violet eyes, padded black/lavender coat, white rabbit plush retained. No sword; coat/blanket and pessimistic dream gestures.\nPOSE: 꾸벅꾸벅, animation phase 2: wrap imaginary opponent in blanket gesture, bunny retained. Distinct complete pose, all equipment retained.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 243px, upright crown-to-sole 1315px (5.41heads), in1086x1448 reference coordinates. Head should remain 16.78% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1402; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nOverride pose detail: RIGHT hand draws coat hem inward across torso in wrapping motion after outward flick; LEFT arm keeps bunny, slightly rotated torso. Exactlytwoarms andtwohands. Bunny always in LEFT arm. Anatomical head SMALL at240px crown-to-chin in1086x1448 scale, same face and body proportions as BASE. Do not upscale crouch. No detached blanket or new weapons; actual garment moves. All feet/head safely inside canvas. Right leg foreground if thighs overlap.",
+      "status": "pending",
+      "src": "eojyeo/skill-1-hit-2.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        175,
+        60,
+        965,
+        1419
+      ],
+      "footPivotApprox": [
+        624,
+        1419
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-9dbf8a7a-f961-4bd2-adf6-9b81d139661b.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojyeo",
+      "name": "이루어져",
+      "key": "skill-2-hit-1",
+      "label": "비관의 잔향 · 1타",
+      "skillName": "비관의 잔향",
+      "hit": 1,
+      "pose": "비관의 잔향, animation phase 1: strike outward with coat hem/blanket while retaining bunny. Distinct complete pose, all equipment retained.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어져. Sleepy adult woman, purple-black long hair, lavender bow and flower, violet eyes, padded black/lavender coat, white rabbit plush retained. No sword; coat/blanket and pessimistic dream gestures.\nPOSE: 비관의 잔향, animation phase 1: strike outward with coat hem/blanket while retaining bunny. Distinct complete pose, all equipment retained.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 243px, upright crown-to-sole 1315px (5.41heads), in1086x1448 reference coordinates. Head should remain 16.78% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1402; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nExact pose override: RIGHT hand extends its own coat hem low toward screen right as low sweeping strike, feet in wide stable stance; LEFT arm holds rabbit. SMALL HEAD matching base at about240px crown-to-chin, no enlarged cute head. Exactly2hands2arms. No detached blanket, sword, effect or additional character. Preserve anatomical limb length, petite adult silhouette. Heads and soles within canvas margin, upright LIGHTBULB sleeve patch.",
+      "status": "pending",
+      "src": "eojyeo/skill-2-hit-1.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        36,
+        95,
+        1085,
+        1399
+      ],
+      "footPivotApprox": [
+        540,
+        1399
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-8164cc20-a530-4441-8583-6e5e654eb8c8.png",
+      "review": "코트 끝 여백 재검수",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojyeo",
+      "name": "이루어져",
+      "key": "skill-2-hit-2",
+      "label": "비관의 잔향 · 2타",
+      "skillName": "비관의 잔향",
+      "hit": 2,
+      "pose": "비관의 잔향, animation phase 2: wrap imaginary opponent in blanket gesture, bunny retained. Distinct complete pose, all equipment retained.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어져. Sleepy adult woman, purple-black long hair, lavender bow and flower, violet eyes, padded black/lavender coat, white rabbit plush retained. No sword; coat/blanket and pessimistic dream gestures.\nPOSE: 비관의 잔향, animation phase 2: wrap imaginary opponent in blanket gesture, bunny retained. Distinct complete pose, all equipment retained.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 243px, upright crown-to-sole 1315px (5.41heads), in1086x1448 reference coordinates. Head should remain 16.78% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1402; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nExact pose override: RIGHT hand pulls coat hem back diagonally toward shoulder, releasing pessimistic echo; slightly leaned back, LEFT arm holds rabbit. SMALL HEAD matching base at about240px crown-to-chin, no enlarged cute head. Exactly2hands2arms. No detached blanket, sword, effect or additional character. Preserve anatomical limb length, petite adult silhouette. Heads and soles within canvas margin, upright LIGHTBULB sleeve patch.",
+      "status": "pending",
+      "src": "eojyeo/skill-2-hit-2.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        39,
+        24,
+        1065,
+        1420
+      ],
+      "footPivotApprox": [
+        685,
+        1420
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-95c4f24f-4131-445a-8d22-1c80519ca638.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojyeo",
+      "name": "이루어져",
+      "key": "skill-3-hit-1",
+      "label": "수면 유도 · 1타",
+      "skillName": "수면 유도",
+      "hit": 1,
+      "pose": "수면 유도, animation phase 1: strike outward with coat hem/blanket while retaining bunny. Distinct complete pose, all equipment retained.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어져. Sleepy adult woman, purple-black long hair, lavender bow and flower, violet eyes, padded black/lavender coat, white rabbit plush retained. No sword; coat/blanket and pessimistic dream gestures.\nPOSE: 수면 유도, animation phase 1: strike outward with coat hem/blanket while retaining bunny. Distinct complete pose, all equipment retained.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 243px, upright crown-to-sole 1315px (5.41heads), in1086x1448 reference coordinates. Head should remain 16.78% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1402; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nExact pose override: RIGHT hand lifts coat hem high to shoulder then casts it forward in broad upward sweep, LEFT arm holds bunny. SMALL HEAD matching base at about240px crown-to-chin, no enlarged cute head. Exactly2hands2arms. No detached blanket, sword, effect or additional character. Preserve anatomical limb length, petite adult silhouette. Heads and soles within canvas margin, upright LIGHTBULB sleeve patch.",
+      "status": "pending",
+      "src": "eojyeo/skill-3-hit-1.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        29,
+        64,
+        1075,
+        1417
+      ],
+      "footPivotApprox": [
+        783,
+        1417
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-7280b11f-1855-41eb-bb7d-a0e293b83ada.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojyeo",
+      "name": "이루어져",
+      "key": "skill-3-hit-2",
+      "label": "수면 유도 · 2타",
+      "skillName": "수면 유도",
+      "hit": 2,
+      "pose": "수면 유도, animation phase 2: wrap imaginary opponent in blanket gesture, bunny retained. Distinct complete pose, all equipment retained.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어져. Sleepy adult woman, purple-black long hair, lavender bow and flower, violet eyes, padded black/lavender coat, white rabbit plush retained. No sword; coat/blanket and pessimistic dream gestures.\nPOSE: 수면 유도, animation phase 2: wrap imaginary opponent in blanket gesture, bunny retained. Distinct complete pose, all equipment retained.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 243px, upright crown-to-sole 1315px (5.41heads), in1086x1448 reference coordinates. Head should remain 16.78% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1402; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nExact pose override: RIGHT hand pulls garment inward around imaginary foe, high-to-low wrapping sweep; bunny cradled LEFT at chest, turned torso. Keep SMALL240px head on1086x1448 scale. Full figure centered with clear50px margins, don't zoom into figure. Exactly two hands/arms and two legs. No literal opponent, no giant effects or separate blanket. Same adult body and boot sizes as BASE. LIGHTBULB sleeve badge upright.",
+      "status": "pending",
+      "src": "eojyeo/skill-3-hit-2.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        72,
+        56,
+        1060,
+        1395
+      ],
+      "footPivotApprox": [
+        562,
+        1395
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-fcf0fdb9-f425-4e9f-8d96-ea0a28d9a994.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojyeo",
+      "name": "이루어져",
+      "key": "skill-3-hit-3",
+      "label": "수면 유도 · 3타",
+      "skillName": "수면 유도",
+      "hit": 3,
+      "pose": "수면 유도, animation phase 3: release pessimistic dream with free hand while hugging bunny. Distinct complete pose, all equipment retained.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어져. Sleepy adult woman, purple-black long hair, lavender bow and flower, violet eyes, padded black/lavender coat, white rabbit plush retained. No sword; coat/blanket and pessimistic dream gestures.\nPOSE: 수면 유도, animation phase 3: release pessimistic dream with free hand while hugging bunny. Distinct complete pose, all equipment retained.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 243px, upright crown-to-sole 1315px (5.41heads), in1086x1448 reference coordinates. Head should remain 16.78% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1402; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nExact pose override: RIGHT hand opens palm gently to screen right releasing a sleeping dream, coat falls back; LEFT arm holds bunny, eyes half closed. Keep SMALL240px head on1086x1448 scale. Full figure centered with clear50px margins, don't zoom into figure. Exactly two hands/arms and two legs. No literal opponent, no giant effects or separate blanket. Same adult body and boot sizes as BASE. LIGHTBULB sleeve badge upright.",
+      "status": "pending",
+      "src": "eojyeo/skill-3-hit-3.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        52,
+        64,
+        1069,
+        1410
+      ],
+      "footPivotApprox": [
+        616,
+        1410
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-2d5a5b0f-f288-4020-b744-156169cca951.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojyeo",
+      "name": "이루어져",
+      "key": "skill-4-hit-1",
+      "label": "비관의 침수 · 1타",
+      "skillName": "비관의 침수",
+      "hit": 1,
+      "pose": "비관의 침수, animation phase 1: strike outward with coat hem/blanket while retaining bunny. Distinct complete pose, all equipment retained.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어져. Sleepy adult woman, purple-black long hair, lavender bow and flower, violet eyes, padded black/lavender coat, white rabbit plush retained. No sword; coat/blanket and pessimistic dream gestures.\nPOSE: 비관의 침수, animation phase 1: strike outward with coat hem/blanket while retaining bunny. Distinct complete pose, all equipment retained.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 243px, upright crown-to-sole 1315px (5.41heads), in1086x1448 reference coordinates. Head should remain 16.78% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1402; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nExact pose override: Decisive RIGHT forearm downward casting gesture with coat hem held, weight shifted onto front foot; LEFT arm hugs bunny. Keep SMALL240px head on1086x1448 scale. Full figure centered with clear50px margins, don't zoom into figure. Exactly two hands/arms and two legs. No literal opponent, no giant effects or separate blanket. Same adult body and boot sizes as BASE. LIGHTBULB sleeve badge upright.",
+      "status": "pending",
+      "src": "eojyeo/skill-4-hit-1.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        73,
+        53,
+        1057,
+        1410
+      ],
+      "footPivotApprox": [
+        490,
+        1410
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-6850caae-d534-46b8-95f5-5537812f1c4a.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojyeo",
+      "name": "이루어져",
+      "key": "overdrive-hit-1",
+      "label": "비관의 침수 · 개념 폭주 · 1타",
+      "skillName": "비관의 침수 · 개념 폭주",
+      "hit": 1,
+      "pose": "비관의 침수 · 개념 폭주, animation phase 1: strike outward with coat hem/blanket while retaining bunny. Distinct complete pose, all equipment retained.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어져. Sleepy adult woman, purple-black long hair, lavender bow and flower, violet eyes, padded black/lavender coat, white rabbit plush retained. No sword; coat/blanket and pessimistic dream gestures.\nPOSE: 비관의 침수 · 개념 폭주, animation phase 1: strike outward with coat hem/blanket while retaining bunny. Distinct complete pose, all equipment retained.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 243px, upright crown-to-sole 1315px (5.41heads), in1086x1448 reference coordinates. Head should remain 16.78% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1402; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nOverride: Preparation for dream flood: RIGHT hand gathers coat edge at shoulder, eyes closed momentarily, LEFT arm hugs bunny, stable bent-knee stance. Small skull same240px crown-to-chin at1086x1448 and slender adult body as BASE, do not enlarge face. Exactly2hands2arms. No floating other body parts, no extra animals/opponents, no giant FX. Head and all boots keep clear margin, no zoom. Upright LIGHTBULB gold sleeve badge.",
+      "status": "pending",
+      "src": "eojyeo/overdrive-hit-1.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        25,
+        72,
+        1067,
+        1403
+      ],
+      "footPivotApprox": [
+        550,
+        1403
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-184cf692-78f4-4812-b42f-4360be7c0113.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojyeo",
+      "name": "이루어져",
+      "key": "overdrive-hit-2",
+      "label": "비관의 침수 · 개념 폭주 · 2타",
+      "skillName": "비관의 침수 · 개념 폭주",
+      "hit": 2,
+      "pose": "비관의 침수 · 개념 폭주, animation phase 2: wrap imaginary opponent in blanket gesture, bunny retained. Distinct complete pose, all equipment retained.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어져. Sleepy adult woman, purple-black long hair, lavender bow and flower, violet eyes, padded black/lavender coat, white rabbit plush retained. No sword; coat/blanket and pessimistic dream gestures.\nPOSE: 비관의 침수 · 개념 폭주, animation phase 2: wrap imaginary opponent in blanket gesture, bunny retained. Distinct complete pose, all equipment retained.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 243px, upright crown-to-sole 1315px (5.41heads), in1086x1448 reference coordinates. Head should remain 16.78% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1402; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nOverride: Dream flood casting: RIGHT hand sweeps broad coat lining forward to screen right from high to waist level, LEFT arm holds rabbit, weight shifts forward. Small skull same240px crown-to-chin at1086x1448 and slender adult body as BASE, do not enlarge face. Exactly2hands2arms. No floating other body parts, no extra animals/opponents, no giant FX. Head and all boots keep clear margin, no zoom. Upright LIGHTBULB gold sleeve badge.",
+      "status": "pending",
+      "src": "eojyeo/overdrive-hit-2.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        43,
+        33,
+        1084,
+        1423
+      ],
+      "footPivotApprox": [
+        529,
+        1423
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-5182215f-1f50-46e2-9935-8f3257b953f6.png",
+      "review": "코트 끝 여백 재검수",
+      "alphaChecked": true,
+      "applied": false
+    },
+    {
+      "id": "eojyeo",
+      "name": "이루어져",
+      "key": "overdrive-hit-3",
+      "label": "비관의 침수 · 개념 폭주 · 3타",
+      "skillName": "비관의 침수 · 개념 폭주",
+      "hit": 3,
+      "pose": "비관의 침수 · 개념 폭주, animation phase 3: release pessimistic dream with free hand while hugging bunny. Distinct complete pose, all equipment retained.",
+      "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어져. Sleepy adult woman, purple-black long hair, lavender bow and flower, violet eyes, padded black/lavender coat, white rabbit plush retained. No sword; coat/blanket and pessimistic dream gestures.\nPOSE: 비관의 침수 · 개념 폭주, animation phase 3: release pessimistic dream with free hand while hugging bunny. Distinct complete pose, all equipment retained.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 243px, upright crown-to-sole 1315px (5.41heads), in1086x1448 reference coordinates. Head should remain 16.78% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1402; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nOverride: Finishing dream flood: RIGHT hand extended with palm downward gently pressing imaginary dream surface, relaxed shoulders, LEFT arm hugs rabbit, coat settling. Small skull same240px crown-to-chin at1086x1448 and slender adult body as BASE, do not enlarge face. Exactly2hands2arms. No floating other body parts, no extra animals/opponents, no giant FX. Head and all boots keep clear margin, no zoom. Upright LIGHTBULB gold sleeve badge.",
+      "status": "pending",
+      "src": "eojyeo/overdrive-hit-3.png",
+      "nativeSize": [
+        1086,
+        1448
+      ],
+      "visibleBounds": [
+        54,
+        58,
+        1042,
+        1414
+      ],
+      "footPivotApprox": [
+        619,
+        1414
+      ],
+      "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-1eabfe87-a49e-4054-85db-5141bef8a621.png",
+      "review": "발 기준점·인체 비율 최종 검수 대기",
+      "alphaChecked": true,
+      "applied": false
+    }
+  ]
+}

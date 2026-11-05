@@ -1,0 +1,37 @@
+{
+  "id": "eojyeo",
+  "name": "이루어져",
+  "reference": "D:\\콘셉트테라\\이루다 소설\\게임 UI 프로토타입\\assets\\battle\\sd\\01_이루어져_SD_v2.png",
+  "standing": "D:\\콘셉트테라\\이루다 소설\\게임 UI 프로토타입\\assets\\standing\\01_이루어져_스탠딩.png",
+  "batch": 0,
+  "frames": [
+    {
+      "key": "hurt",
+      "label": "피격",
+      "pose": "distinct hit reaction: chest recoils, face winces, arms instinctively protect abdomen, no wounds or gore"
+    },
+    {
+      "key": "defense",
+      "label": "이루어져 · 방어",
+      "pose": "broad braced guard, both forearms protect head and chest"
+    },
+    {
+      "key": "skill-1-hit-1",
+      "label": "꾸벅꾸벅 · 1타",
+      "skillName": "꾸벅꾸벅",
+      "hit": 1,
+      "pose": "Skill 1 named 꾸벅꾸벅, 타격, hit 1 of 2: low sleepy palm wave. Initiating committed motion, visibly different silhouette from adjacent attacks. "
+    },
+    {
+      "key": "skill-1-hit-2",
+      "label": "꾸벅꾸벅 · 2타",
+      "skillName": "꾸벅꾸벅",
+      "hit": 2,
+      "pose": "Skill 1 named 꾸벅꾸벅, 타격, hit 2 of 2: swaying shoulder and plush outward. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. "
+    }
+  ],
+  "identity": "Draw ONLY 이루어져, the same person in every cell. Rabbit plush stays with her; sleepy movements release violet dream ribbons, never give her a sword.",
+  "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-d16510fb-f57c-41e9-81c7-ecf53da29cab.png",
+  "prompt": "Use case: identity-preserve. Rebuild transparent game combat pose art from the APPROVED BASIC IDLE SD, not from any old motion. Reference 1 is immutable anatomy, face and simplified cel-art master. Reference 2 is ONLY invisible 2x2 grid layout.\nCRITICAL: match the idle's SMALL anatomical head and LONGER limbs, NOT a super-deformed generic chibi. Crown-to-chin skull height approximately ONE FIFTH of upright-equivalent crown-to-sole height; skull width approximately 19%, hair can extend beyond skull. Neck visible. Do not enlarge the eyes/face for expression. Preserve exact shoulder width, torso, upper/lower arm and thigh/calf lengths from reference1. Same gloves, boots, costume, tie, accessories and equipment size/handedness. Two arms and two hands only, continuous joints, correct thumbs. Orthographic 3/4 facing screen RIGHT, no foreshortened legs.\nEXACT 2 columns x 2 rows, 4 equal portrait cells, row-major. Native request 3072x4096 PNG with real transparent alpha. ALL figures including hair/weapons within middle 70% of cell: 15% padding all edges. Feet at 85% cell height for grounded poses. Upright-equivalent body height 70% cell height, constant pixel scale across cells. Bent knees or recoil lower crown naturally, never resize a crouch to standing height. Same head size across cells. Every pose genuinely redrawn. No scenery, floor, shadow, halos, floating fragments, extra limbs, extra people, labels, visible grid or enormous cartoon head. Maintain original line density and flat shadows.\n\nCharacter 이루어져. Copy costume and anatomy exclusively from reference1. Her anatomical head MUST stay as small as in idle; head/skull height 19% of upright-equivalent full body height, hair is separate. Small face, normal-length torso, long thighs and calves. Required poses:\n1: distinct hit reaction: chest recoils, face winces, arms instinctively protect abdomen, no wounds or gore\n2: broad braced guard, both forearms protect head and chest\n3: Skill 1 named 꾸벅꾸벅, 타격, hit 1 of 2: low sleepy palm wave. Initiating committed motion, visibly different silhouette from adjacent attacks. \n4: Skill 1 named 꾸벅꾸벅, 타격, hit 2 of 2: swaying shoulder and plush outward. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. \nKeep the rabbit plush and ribbon/flower. NO magic circles, glows, visual effects or particles. Just articulated character art. Reference standing/body ratio is STRICT.",
+  "review": "pending-proportion-comparison"
+}

@@ -1,0 +1,28 @@
+{
+  "key": "skill-3-hit-2",
+  "label": "계획 수정 · 2타",
+  "skillName": "계획 수정",
+  "hit": 2,
+  "pose": "Second strike of 계획 수정: change pen trajectory across body diagonally downward toward RIGHT, nib leading, right elbow partly bent, left tablet stays low out of the stroke.",
+  "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference3 only correct Team1 sleeve badge. Draw only 이루어질. Adult woman, long black hair, gold flower hairpin, blue diamond earrings, gray-blue eyes, black/gold long coat with royal-blue lining and tie, two gold waist buckles, black/gold gloves and boots. Tablet in anatomical LEFT hand; small nibbed writing pen in anatomical RIGHT hand for attacks.\nPOSE: Second strike of 계획 수정: change pen trajectory across body diagonally downward toward RIGHT, nib leading, right elbow partly bent, left tablet stays low out of the stroke.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 237px, upright crown-to-sole 1297px (5.47heads), in1086x1448 reference coordinates. Head should remain 16.37% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1375; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference3 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nAdditional calibration: reference2 is approved single attack only for SMALL HEAD SIZE/face and rendering scale, NOT its pose. Keep the head as small as reference2 (~230px crown-to-chin on1086x1448canvas). Do not use the oversized head often seen on running/chibi art. Reference3 is the sleeve logo. The original reference1 anatomy stays authoritative.",
+  "status": "pending",
+  "src": "eojil/skill-3-hit-2.png",
+  "nativeSize": [
+    1086,
+    1448
+  ],
+  "visibleBounds": [
+    59,
+    84,
+    1066,
+    1411
+  ],
+  "footPivotApprox": [
+    352,
+    1411
+  ],
+  "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-5f5f6f20-8900-4b66-ac38-d8dc462070a7.png",
+  "review": "발 기준점·인체 비율 최종 검수 대기",
+  "alphaChecked": true,
+  "applied": false
+}

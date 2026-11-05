@@ -1,0 +1,203 @@
+{
+  "kind": "key-poses",
+  "revision": 2,
+  "canvas": [
+    1536,
+    2048
+  ],
+  "footPivot": [
+    768,
+    1740
+  ],
+  "review": "visual-review-required",
+  "characters": [
+    {
+      "id": "getne",
+      "name": "이루겠네",
+      "reference": "../sd/09_이루겠네_SD_v2.png",
+      "scale": 1.9008849557522123,
+      "frames": [
+        {
+          "key": "move",
+          "label": "충돌 접근",
+          "pose": "forward running stride, torso leaned toward right, one leading foot near ground, coat trailing left",
+          "src": "getne/move-v2.png",
+          "nativeSrc": "getne/native-v2/move.png",
+          "nativeSize": [
+            505,
+            610
+          ],
+          "sheet": "sheets/v2/getne-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "clash",
+          "label": "충돌",
+          "pose": "firm forward interception pose, braced front leg, tool or forearm raised to meet an incoming strike from the right",
+          "src": "getne/clash-v2.png",
+          "nativeSrc": "getne/native-v2/clash.png",
+          "nativeSize": [
+            503,
+            597
+          ],
+          "sheet": "sheets/v2/getne-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "clash-loss",
+          "label": "충돌 패배",
+          "pose": "stagger backward toward left, torso recoiling, bent knees, equipment retained, pained but alive",
+          "src": "getne/clash-loss-v2.png",
+          "nativeSrc": "getne/native-v2/clash-loss.png",
+          "nativeSize": [
+            565,
+            540
+          ],
+          "sheet": "sheets/v2/getne-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "clash-win",
+          "label": "충돌 승리",
+          "pose": "confident forward follow-through, stable stance, tool or fist directed right, not a victory dance",
+          "src": "getne/clash-win-v2.png",
+          "nativeSrc": "getne/native-v2/clash-win.png",
+          "nativeSize": [
+            537,
+            610
+          ],
+          "sheet": "sheets/v2/getne-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "hurt",
+          "label": "피격",
+          "pose": "distinct hit reaction: chest recoils, face winces, arms instinctively protect abdomen, no wounds or gore",
+          "src": "getne/hurt-v2.png",
+          "nativeSrc": "getne/native-v2/hurt.png",
+          "nativeSize": [
+            420,
+            613
+          ],
+          "sheet": "sheets/v2/getne-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "defense",
+          "label": "성문양 방어",
+          "pose": "broad braced guard, both forearms protect head and chest",
+          "src": "getne/defense-v2.png",
+          "nativeSrc": "getne/native-v2/defense.png",
+          "nativeSize": [
+            452,
+            613
+          ],
+          "sheet": "sheets/v2/getne-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-1-hit-1",
+          "label": "하얀 손짓 · 1타",
+          "skillName": "하얀 손짓",
+          "hit": 1,
+          "pose": "Skill 1 named 하얀 손짓, 타격, hit 1 of 1: open-palm white light strike. Initiating committed motion, visibly different silhouette from adjacent attacks. ",
+          "src": "getne/skill-1-hit-1-v2.png",
+          "nativeSrc": "getne/native-v2/skill-1-hit-1.png",
+          "nativeSize": [
+            530,
+            617
+          ],
+          "sheet": "sheets/v2/getne-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-2-hit-1",
+          "label": "성스러운 문양 · 1타",
+          "skillName": "성스러운 문양",
+          "hit": 1,
+          "pose": "Skill 2 named 성스러운 문양, 타격, hit 1 of 1: open-palm white light strike. Initiating committed motion, visibly different silhouette from adjacent attacks. ",
+          "src": "getne/skill-2-hit-1-v2.png",
+          "nativeSrc": "getne/native-v2/skill-2-hit-1.png",
+          "nativeSize": [
+            486,
+            606
+          ],
+          "sheet": "sheets/v2/getne-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-3-hit-1",
+          "label": "히어로처럼! · 1타",
+          "skillName": "히어로처럼!",
+          "hit": 1,
+          "pose": "Skill 3 named 히어로처럼!, 타격, hit 1 of 2: open-palm white light strike. Initiating committed motion, visibly different silhouette from adjacent attacks. ",
+          "src": "getne/skill-3-hit-1-v2.png",
+          "nativeSrc": "getne/native-v2/skill-3-hit-1.png",
+          "nativeSize": [
+            494,
+            618
+          ],
+          "sheet": "sheets/v2/getne-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-3-hit-2",
+          "label": "히어로처럼! · 2타",
+          "skillName": "히어로처럼!",
+          "hit": 2,
+          "pose": "Skill 3 named 히어로처럼!, 타격, hit 2 of 2: draw short sacred mark with fingertip. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. ",
+          "src": "getne/skill-3-hit-2-v2.png",
+          "nativeSrc": "getne/native-v2/skill-3-hit-2.png",
+          "nativeSize": [
+            434,
+            625
+          ],
+          "sheet": "sheets/v2/getne-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-4-hit-1",
+          "label": "괜찮아요, 제가 할게요 · 1타",
+          "skillName": "괜찮아요, 제가 할게요",
+          "hit": 1,
+          "pose": "Skill 4 named 괜찮아요, 제가 할게요, 타격, hit 1 of 1: open-palm white light strike. Initiating committed motion, visibly different silhouette from adjacent attacks. Strongest normal skill, wider stable stance and forceful extension.",
+          "src": "getne/skill-4-hit-1-v2.png",
+          "nativeSrc": "getne/native-v2/skill-4-hit-1.png",
+          "nativeSize": [
+            559,
+            611
+          ],
+          "sheet": "sheets/v2/getne-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "overdrive-hit-1",
+          "label": "하얀 성문양의 약속 · 1타",
+          "skillName": "하얀 성문양의 약속",
+          "hit": 1,
+          "pose": "Special concept overdrive 하얀 성문양의 약속, hit 1: open-palm white light strike, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions",
+          "src": "getne/overdrive-hit-1-v2.png",
+          "nativeSrc": "getne/native-v2/overdrive-hit-1.png",
+          "nativeSize": [
+            477,
+            627
+          ],
+          "sheet": "sheets/v2/getne-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        }
+      ]
+    }
+  ]
+}

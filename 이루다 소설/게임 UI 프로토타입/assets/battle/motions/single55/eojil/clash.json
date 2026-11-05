@@ -1,0 +1,27 @@
+{
+  "key": "clash",
+  "label": "충돌",
+  "pose": "Braced interception toward RIGHT: right hand grips pen raised diagonally before chest as if redirecting an incoming weapon. Left hand retains tablet safely. Two feet firm, knees slightly bent; not an attack follow-through.",
+  "prompt": "Precise localized image edit. Reference1 is the EDIT TARGET, an existing single complete transparent combat sprite of Iru-eojil. Reference2 is her approved basic SD for HEAD SIZE ONLY. Reduce reference1's anatomical head (skull, face and top hair volume) by roughly12 percent, keeping chin/neck connection anchored naturally, to match reference2 crown-to-chin about237px at1086x1448 resolution. Keep the existing face identity, eyes, expression, hair ornament and earrings. Long trailing hair stays attached naturally. Change ONLY head scale and the small neck/hair transition required. Preserve EXACT running/interception pose of reference1, body size, shoulder/arm/leg lengths, foot positions, black gold coat with blue lining, round lightbulb sleeve badge, right hand fountain pen and left hand tablet. Exactly two arms and hands. Do NOT scale entire character, change pose, shrink limbs, change equipment, add effects or move feet. Same1086x1448 portrait framing, transparent RGBA background, full figure. One single complete image, no parts, no sheet, no text.",
+  "status": "pending",
+  "src": "eojil/clash.png",
+  "nativeSize": [
+    1086,
+    1448
+  ],
+  "visibleBounds": [
+    63,
+    101,
+    1041,
+    1412
+  ],
+  "footPivotApprox": [
+    366,
+    1412
+  ],
+  "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-5ac7eda8-1f54-4344-8ce6-d21cf75ffc0b.png",
+  "review": "머리 축소 수정",
+  "alphaChecked": true,
+  "applied": false,
+  "revision": "20261009-head-small"
+}

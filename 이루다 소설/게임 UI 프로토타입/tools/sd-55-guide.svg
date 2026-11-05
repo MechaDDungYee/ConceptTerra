@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="1024" viewBox="0 0 768 1024">
+<rect width="768" height="1024" fill="white"/>
+<g stroke="#9ab6c9" stroke-width="2" stroke-dasharray="7 6">
+<path d="M80 64H680 M80 227.64H680 M80 391.27H680 M80 554.91H680 M80 718.55H680 M80 882.18H680 M80 964H680"/>
+</g>
+<g fill="#bcc4cc" stroke="#394452" stroke-width="4">
+<ellipse cx="408" cy="145.82" rx="62" ry="81.82"/>
+<path d="M387 218L385 261 338 282 310 334 322 450 342 500 337 557 375 590 402 568 434 590 479 558 465 495 480 437 483 327 465 280 433 261 432 216Z"/>
+<path d="M340 281L302 284 279 396 281 504 316 514 326 400 361 313Z M465 282L498 294 522 402 525 508 491 514 489 410 450 323Z"/>
+<path d="M282 500L275 544 308 555 321 509Z M491 507L491 554 526 549 526 504Z"/>
+<path d="M343 550L327 720 314 908 364 916 387 735 401 573Z M407 569L421 735 436 909 486 909 480 720 473 551Z"/>
+<path d="M314 902L305 964H374L363 902Z M437 902L435 964H510L486 902Z"/>
+</g>
+<g fill="#394452" font-family="Arial" font-size="18"><text x="86" y="58">CROWN 0</text><text x="86" y="222">CHIN 1</text><text x="86" y="386">2</text><text x="86" y="550">3</text><text x="86" y="714">4</text><text x="86" y="878">5</text><text x="86" y="989">SOLE 5.5</text></g>
+</svg>

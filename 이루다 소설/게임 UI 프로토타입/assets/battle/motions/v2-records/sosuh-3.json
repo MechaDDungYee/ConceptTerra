@@ -1,0 +1,38 @@
+{
+  "id": "sosuh",
+  "batch": 3,
+  "reference": "D:\\콘셉트테라\\이루다 소설\\게임 UI 프로토타입\\assets\\battle\\sd\\03_이루소서_SD_v2.png",
+  "name": "이루소서",
+  "frames": [
+    {
+      "key": "skill-3-hit-3",
+      "label": "베테랑의 급소 · 3타",
+      "skillName": "베테랑의 급소",
+      "hit": 3,
+      "pose": "Skill 3 named 베테랑의 급소, 참격, hit 3 of 3: precise forward dagger thrust. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. "
+    },
+    {
+      "key": "skill-4-hit-1",
+      "label": "실패자의 낙인 · 1타",
+      "skillName": "실패자의 낙인",
+      "hit": 1,
+      "pose": "Skill 4 named 실패자의 낙인, 참격, hit 1 of 1: horizontal dagger slash. Initiating committed motion, visibly different silhouette from adjacent attacks. Strongest normal skill, wider stable stance and forceful extension."
+    },
+    {
+      "key": "overdrive-hit-1",
+      "label": "인과 절단 · 1타",
+      "skillName": "인과 절단",
+      "hit": 1,
+      "pose": "Special concept overdrive 인과 절단, hit 1: horizontal dagger slash, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions"
+    },
+    {
+      "key": "overdrive-hit-2",
+      "label": "인과 절단 · 2타",
+      "skillName": "인과 절단",
+      "hit": 2,
+      "pose": "Special concept overdrive 인과 절단, hit 2: reverse diagonal dagger cut, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions"
+    }
+  ],
+  "prompt": "Use case: identity-preserve. Asset: HIGH RESOLUTION transparent game key-pose sheet. The sole reference is the APPROVED BASE SD. Preserve it absolutely: identical anatomical skull size relative to shoulders, torso, upper arm, forearm, thigh, shin and hands. NO head enlargement, NO shortening legs, NO chibi redesign. Keep exact same character face, gender, hair, eyes, outfit layers, badges, belt, gloves, boots and equipment. Change ONLY articulated pose, expression and cloth response. Every figure has exactly TWO arms originating at TWO shoulders, TWO hands, TWO legs. Each hand attached to the correct forearm, thumbs on the anatomically correct side; do not grow an additional arm holding the equipment. Avoid crossed/occluded arms: keep wrists and elbow connectivity clearly readable. The reference equipment stays in its anatomical reference hand. No invented weapons or accessories. Face SCREEN RIGHT, shallow three-quarter side view, same drawing scale and head size across cells. Preserve the reference's flat shading and dark outlines.\nRequested native resolution 3072x4096 or highest available. EXACT invisible 2-column by 2-row grid. Each cell is exactly half canvas width and half canvas height, with a STRICT 15% empty transparent safety margin on ALL FOUR sides. Full figure and equipment inside cell safe area. No effects crossing cells. Place the root midpoint at cell center x, resting soles at 85% cell height; running/crouching naturally lowers height, never scale each pose to fill. NO grid lines, labels, background, shadows, glow, text, visible guides or other characters. GENUINE TRANSPARENT ALPHA. Restrained tiny effects only if explicitly requested. Draw one separate figure per requested cell, row-major top-left, top-right, bottom-left, bottom-right. Unused cells completely blank transparent.\nREFERENCE2 is the exact layout stencil, NOT art style. Redraw figures strictly WITHIN its teal safe rectangles. Leave all white safety space and magenta grid-line positions TRANSPARENT in output. No guide line must remain. This includes weapons, hair, boots, extended fingers and cloth. Entire pose must fit WITHOUT growing the head or shrinking just the body. Reduce shared scale for all four cells if necessary. Anatomical right/left follow reference1 not screen directions. Exactly the same 4 invisible cell rectangles; do not rearrange rows or columns.\nLIMIT EXTENSION: all fingertips, boots, cloth hems and weapons must remain within their own safe box; lower-left pointing hand must not enter lower-right cell. Tiny calm effects only, preserve TWO arms. The skull/torso ratio must match the base SD exactly; do not reinterpret as generic cartoon.\nCharacter 이루소서. Brown ponytail and beard male, right-handed SHORT dagger, blade and grip consistent, left hand empty. No long sword.\nCell 1: Skill 3 named 베테랑의 급소, 참격, hit 3 of 3: precise forward dagger thrust. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. . Keep exactly two connected arms and hands, restrained pose, NO effect rays.\nCell 2: Skill 4 named 실패자의 낙인, 참격, hit 1 of 1: horizontal dagger slash. Initiating committed motion, visibly different silhouette from adjacent attacks. Strongest normal skill, wider stable stance and forceful extension.. Keep exactly two connected arms and hands, restrained pose, NO effect rays.\nCell 3: Special concept overdrive 인과 절단, hit 1: horizontal dagger slash, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions. Keep exactly two connected arms and hands, restrained pose, NO effect rays.\nCell 4: Special concept overdrive 인과 절단, hit 2: reverse diagonal dagger cut, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions. Keep exactly two connected arms and hands, restrained pose, NO effect rays.",
+  "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-7f497054-823e-464f-86f6-9a5769dc92e4.png"
+}

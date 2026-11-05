@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>이루겠네 2D 아바타</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#151519;color:#f3f1ed;font:14px system-ui,sans-serif;display:grid;grid-template-columns:minmax(0,1fr) 250px;min-height:100vh}main{min-height:0;display:grid;place-items:center;overflow:hidden;background:repeating-conic-gradient(#27272d 0 25%,#222229 0 50%) 0 0/24px 24px}canvas{display:block;max-width:100%;max-height:100vh;object-fit:contain}aside{padding:20px;background:#202027;border-left:1px solid #444}h1{font-size:19px;margin:0 0 8px}p{color:#bab9bf;line-height:1.5}label{display:block;margin:18px 0}input[type=range]{width:100%;accent-color:#bf474f}button{width:100%;background:#b33c48;border:0;color:white;padding:11px;cursor:pointer;border-radius:4px}small{display:block;color:#aaa;margin-top:16px;line-height:1.5}@media(max-width:650px){body{grid-template-columns:1fr;grid-template-rows:minmax(0,75vh) auto}aside{border-left:0;border-top:1px solid #444}}
+  </style>
+</head>
+<body>
+  <main><canvas id="avatar" width="1024" height="1536" aria-label="이루겠네 리깅 아바타"></canvas></main>
+  <aside>
+    <h1>이루겠네</h1><p>2D 메시 리깅 미리보기</p>
+    <label>머리 좌우 <input id="headX" type="range" min="-1" max="1" step="0.01" value="0"></label>
+    <label>머리 상하 <input id="headY" type="range" min="-1" max="1" step="0.01" value="0"></label>
+    <label>몸 기울임 <input id="bodyX" type="range" min="-1" max="1" step="0.01" value="0"></label>
+    <label>머리카락 <input id="hair" type="range" min="-1" max="1" step="0.01" value="0"></label>
+    <button id="autoplay" type="button">자동 움직임 끄기</button>
+    <small>포인터를 이미지 위에서 움직이면 머리와 몸이 반응합니다. 슬라이더로 각 움직임을 따로 확인할 수 있습니다.</small>
+  </aside>
+  <script src="rig.js"></script>
+</body>
+</html>

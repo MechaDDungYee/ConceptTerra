@@ -1,0 +1,267 @@
+{
+  "kind": "key-poses",
+  "revision": 2,
+  "canvas": [
+    1536,
+    2048
+  ],
+  "footPivot": [
+    768,
+    1740
+  ],
+  "review": "visual-review-required",
+  "characters": [
+    {
+      "id": "ryeona",
+      "name": "이루려나",
+      "reference": "../sd/08_이루려나_SD_v2.png",
+      "scale": 1.9598540145985401,
+      "frames": [
+        {
+          "key": "move",
+          "label": "충돌 접근",
+          "pose": "forward running stride, torso leaned toward right, one leading foot near ground, coat trailing left",
+          "src": "ryeona/move-v2.png",
+          "nativeSrc": "ryeona/native-v2/move.png",
+          "nativeSize": [
+            484,
+            670
+          ],
+          "sheet": "sheets/v2/ryeona-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "clash",
+          "label": "충돌",
+          "pose": "firm forward interception pose, braced front leg, tool or forearm raised to meet an incoming strike from the right",
+          "src": "ryeona/clash-v2.png",
+          "nativeSrc": "ryeona/native-v2/clash.png",
+          "nativeSize": [
+            518,
+            650
+          ],
+          "sheet": "sheets/v2/ryeona-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "clash-loss",
+          "label": "충돌 패배",
+          "pose": "stagger backward toward left, torso recoiling, bent knees, equipment retained, pained but alive",
+          "src": "ryeona/clash-loss-v2.png",
+          "nativeSrc": "ryeona/native-v2/clash-loss.png",
+          "nativeSize": [
+            548,
+            580
+          ],
+          "sheet": "sheets/v2/ryeona-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "clash-win",
+          "label": "충돌 승리",
+          "pose": "confident forward follow-through, stable stance, tool or fist directed right, not a victory dance",
+          "src": "ryeona/clash-win-v2.png",
+          "nativeSrc": "ryeona/native-v2/clash-win.png",
+          "nativeSize": [
+            509,
+            644
+          ],
+          "sheet": "sheets/v2/ryeona-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "hurt",
+          "label": "피격",
+          "pose": "distinct hit reaction: chest recoils, face winces, arms instinctively protect abdomen, no wounds or gore",
+          "src": "ryeona/hurt-v2.png",
+          "nativeSrc": "ryeona/native-v2/hurt.png",
+          "nativeSize": [
+            422,
+            637
+          ],
+          "sheet": "sheets/v2/ryeona-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "defense",
+          "label": "점멸 회피",
+          "pose": "low lateral dodge, bent knees, torso pulled backward, preserve balance",
+          "src": "ryeona/defense-v2.png",
+          "nativeSrc": "ryeona/native-v2/defense.png",
+          "nativeSize": [
+            509,
+            488
+          ],
+          "sheet": "sheets/v2/ryeona-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-1-hit-1",
+          "label": "스패너 튕기기 · 1타",
+          "skillName": "스패너 튕기기",
+          "hit": 1,
+          "pose": "Skill 1 named 스패너 튕기기, 타격, hit 1 of 2: wrench flick from wrist. Initiating committed motion, visibly different silhouette from adjacent attacks. ",
+          "src": "ryeona/skill-1-hit-1-v2.png",
+          "nativeSrc": "ryeona/native-v2/skill-1-hit-1.png",
+          "nativeSize": [
+            464,
+            602
+          ],
+          "sheet": "sheets/v2/ryeona-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-1-hit-2",
+          "label": "스패너 튕기기 · 2타",
+          "skillName": "스패너 튕기기",
+          "hit": 2,
+          "pose": "Skill 1 named 스패너 튕기기, 타격, hit 2 of 2: throw compact pyrotechnic charge. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. ",
+          "src": "ryeona/skill-1-hit-2-v2.png",
+          "nativeSrc": "ryeona/native-v2/skill-1-hit-2.png",
+          "nativeSize": [
+            478,
+            641
+          ],
+          "sheet": "sheets/v2/ryeona-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-2-hit-1",
+          "label": "깜짝 폭죽 · 1타",
+          "skillName": "깜짝 폭죽",
+          "hit": 1,
+          "pose": "Skill 2 named 깜짝 폭죽, 타격, hit 1 of 1: wrench flick from wrist. Initiating committed motion, visibly different silhouette from adjacent attacks. ",
+          "src": "ryeona/skill-2-hit-1-v2.png",
+          "nativeSrc": "ryeona/native-v2/skill-2-hit-1.png",
+          "nativeSize": [
+            427,
+            670
+          ],
+          "sheet": "sheets/v2/ryeona-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-3-hit-1",
+          "label": "불량품 대폭발 · 1타",
+          "skillName": "불량품 대폭발",
+          "hit": 1,
+          "pose": "Skill 3 named 불량품 대폭발, 타격, hit 1 of 3: wrench flick from wrist. Initiating committed motion, visibly different silhouette from adjacent attacks. ",
+          "src": "ryeona/skill-3-hit-1-v2.png",
+          "nativeSrc": "ryeona/native-v2/skill-3-hit-1.png",
+          "nativeSize": [
+            441,
+            630
+          ],
+          "sheet": "sheets/v2/ryeona-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-3-hit-2",
+          "label": "불량품 대폭발 · 2타",
+          "skillName": "불량품 대폭발",
+          "hit": 2,
+          "pose": "Skill 3 named 불량품 대폭발, 타격, hit 2 of 3: throw compact pyrotechnic charge. Reverse-direction linking strike, visibly different silhouette from adjacent attacks. ",
+          "src": "ryeona/skill-3-hit-2-v2.png",
+          "nativeSrc": "ryeona/native-v2/skill-3-hit-2.png",
+          "nativeSize": [
+            539,
+            598
+          ],
+          "sheet": "sheets/v2/ryeona-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-3-hit-3",
+          "label": "불량품 대폭발 · 3타",
+          "skillName": "불량품 대폭발",
+          "hit": 3,
+          "pose": "Skill 3 named 불량품 대폭발, 타격, hit 3 of 3: press detonator while bracing. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. ",
+          "src": "ryeona/skill-3-hit-3-v2.png",
+          "nativeSrc": "ryeona/native-v2/skill-3-hit-3.png",
+          "nativeSize": [
+            436,
+            592
+          ],
+          "sheet": "sheets/v2/ryeona-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-4-hit-1",
+          "label": "하룬식 기계장난 · 1타",
+          "skillName": "하룬식 기계장난",
+          "hit": 1,
+          "pose": "Skill 4 named 하룬식 기계장난, 타격, hit 1 of 1: wrench flick from wrist. Initiating committed motion, visibly different silhouette from adjacent attacks. Strongest normal skill, wider stable stance and forceful extension.",
+          "src": "ryeona/skill-4-hit-1-v2.png",
+          "nativeSrc": "ryeona/native-v2/skill-4-hit-1.png",
+          "nativeSize": [
+            467,
+            686
+          ],
+          "sheet": "sheets/v2/ryeona-3.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "overdrive-hit-1",
+          "label": "주황색 불량품 축제 · 1타",
+          "skillName": "주황색 불량품 축제",
+          "hit": 1,
+          "pose": "Special concept overdrive 주황색 불량품 축제, hit 1: wrench flick from wrist, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions",
+          "src": "ryeona/overdrive-hit-1-v2.png",
+          "nativeSrc": "ryeona/native-v2/overdrive-hit-1.png",
+          "nativeSize": [
+            474,
+            660
+          ],
+          "sheet": "sheets/v2/ryeona-3.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "overdrive-hit-2",
+          "label": "주황색 불량품 축제 · 2타",
+          "skillName": "주황색 불량품 축제",
+          "hit": 2,
+          "pose": "Special concept overdrive 주황색 불량품 축제, hit 2: throw compact pyrotechnic charge, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions",
+          "src": "ryeona/overdrive-hit-2-v2.png",
+          "nativeSrc": "ryeona/native-v2/overdrive-hit-2.png",
+          "nativeSize": [
+            475,
+            643
+          ],
+          "sheet": "sheets/v2/ryeona-3.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "overdrive-hit-3",
+          "label": "주황색 불량품 축제 · 3타",
+          "skillName": "주황색 불량품 축제",
+          "hit": 3,
+          "pose": "Special concept overdrive 주황색 불량품 축제, hit 3: press detonator while bracing, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions",
+          "src": "ryeona/overdrive-hit-3-v2.png",
+          "nativeSrc": "ryeona/native-v2/overdrive-hit-3.png",
+          "nativeSize": [
+            493,
+            582
+          ],
+          "sheet": "sheets/v2/ryeona-3.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        }
+      ]
+    }
+  ]
+}

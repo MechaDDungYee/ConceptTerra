@@ -1,0 +1,101 @@
+window.sd55Review = [
+  {
+    "name": "이루어질",
+    "file": "00_이루어질_SD_55_grid.png",
+    "crown": 78,
+    "chin": 315,
+    "sole": 1375,
+    "approxHeads": 5.47,
+    "width": 1086,
+    "height": 1448,
+    "hasAlpha": true
+  },
+  {
+    "name": "이루어져",
+    "file": "01_이루어져_SD_55_final.png",
+    "crown": 87,
+    "chin": 330,
+    "sole": 1402,
+    "approxHeads": 5.41,
+    "width": 1086,
+    "height": 1448,
+    "hasAlpha": true
+  },
+  {
+    "name": "이루어라",
+    "file": "02_이루어라_SD_55_final.png",
+    "crown": 68,
+    "chin": 327,
+    "sole": 1410,
+    "approxHeads": 5.18,
+    "width": 1086,
+    "height": 1448,
+    "hasAlpha": true
+  },
+  {
+    "name": "이루소서",
+    "file": "03_이루소서_SD_55_grid.png",
+    "crown": 12,
+    "chin": 261,
+    "sole": 1409,
+    "approxHeads": 5.61,
+    "width": 1086,
+    "height": 1448,
+    "hasAlpha": true
+  },
+  {
+    "name": "이루어도",
+    "file": "05_이루어도_SD_55_final.png",
+    "crown": 54,
+    "chin": 290,
+    "sole": 1400,
+    "approxHeads": 5.7,
+    "width": 1086,
+    "height": 1448,
+    "hasAlpha": true
+  },
+  {
+    "name": "이루게나",
+    "file": "06_이루게나_SD_55_grid.png",
+    "crown": 80,
+    "chin": 306,
+    "sole": 1376,
+    "approxHeads": 5.73,
+    "width": 1086,
+    "height": 1448,
+    "hasAlpha": true
+  },
+  {
+    "name": "이루도록",
+    "file": "07_이루도록_SD_55_final.png",
+    "crown": 35,
+    "chin": 289,
+    "sole": 1410,
+    "approxHeads": 5.41,
+    "width": 1086,
+    "height": 1448,
+    "hasAlpha": true
+  },
+  {
+    "name": "이루려나",
+    "file": "08_이루려나_SD_55_final.png",
+    "crown": 112,
+    "chin": 358,
+    "sole": 1387,
+    "approxHeads": 5.18,
+    "width": 1086,
+    "height": 1448,
+    "hasAlpha": true
+  },
+  {
+    "name": "이루겠네",
+    "file": "09_이루겠네_SD_55_final.png",
+    "crown": 20,
+    "chin": 290,
+    "sole": 1433,
+    "approxHeads": 5.23,
+    "width": 1086,
+    "height": 1448,
+    "hasAlpha": true
+  }
+];

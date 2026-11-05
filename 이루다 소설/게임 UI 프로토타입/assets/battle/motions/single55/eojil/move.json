@@ -1,0 +1,27 @@
+{
+  "key": "move",
+  "label": "충돌 접근",
+  "pose": "Controlled forward running stride toward RIGHT. Right pen hand held ready at waist, left tablet tucked near chest, coat and hair trail LEFT. Moderate lean and one bent knee; grounded leading foot.",
+  "prompt": "Precise localized image edit. Reference1 is the EDIT TARGET, an existing single complete transparent combat sprite of Iru-eojil. Reference2 is her approved basic SD for HEAD SIZE ONLY. Reduce reference1's anatomical head (skull, face and top hair volume) by roughly12 percent, keeping chin/neck connection anchored naturally, to match reference2 crown-to-chin about237px at1086x1448 resolution. Keep the existing face identity, eyes, expression, hair ornament and earrings. Long trailing hair stays attached naturally. Change ONLY head scale and the small neck/hair transition required. Preserve EXACT running/interception pose of reference1, body size, shoulder/arm/leg lengths, foot positions, black gold coat with blue lining, round lightbulb sleeve badge, right hand fountain pen and left hand tablet. Exactly two arms and hands. Do NOT scale entire character, change pose, shrink limbs, change equipment, add effects or move feet. Same1086x1448 portrait framing, transparent RGBA background, full figure. One single complete image, no parts, no sheet, no text.",
+  "status": "pending",
+  "src": "eojil/move.png",
+  "nativeSize": [
+    1086,
+    1448
+  ],
+  "visibleBounds": [
+    34,
+    121,
+    1070,
+    1406
+  ],
+  "footPivotApprox": [
+    931,
+    1406
+  ],
+  "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-865af338-7f07-41a2-9afe-846317e49df4.png",
+  "review": "머리 축소 수정",
+  "alphaChecked": true,
+  "applied": false,
+  "revision": "20261009-head-small"
+}

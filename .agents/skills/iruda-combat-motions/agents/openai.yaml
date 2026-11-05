@@ -1,0 +1,4 @@
+interface:
+  display_name: "이루다 전투 모션 제작"
+  short_description: "승인된 스탠딩·SD를 기준으로 전투 상태와 타수별 모션 제작"
+  default_prompt: "Use $iruda-combat-motions to create transparent combat key poses while preserving approved character proportions."

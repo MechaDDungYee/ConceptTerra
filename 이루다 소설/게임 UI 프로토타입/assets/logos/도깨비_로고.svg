@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="title">
+  <title id="title">도깨비 전면부 로고</title>
+  <defs>
+    <linearGradient id="armor" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#343b45"/>
+      <stop offset=".48" stop-color="#141922"/>
+      <stop offset="1" stop-color="#07090d"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe8a2"/>
+      <stop offset=".5" stop-color="#c99b45"/>
+      <stop offset="1" stop-color="#76552a"/>
+    </linearGradient>
+    <filter id="blueGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2.6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <path d="M17 82 30 43c4-13 15-22 29-23h42c14 1 25 10 29 23l13 39-16 44H33L17 82Z" fill="#07090d" stroke="#0a0c10" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M22 81 35 45c4-10 13-17 25-17h40c12 0 21 7 25 17l13 36-13 36H35L22 81Z" fill="url(#armor)" stroke="url(#gold)" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M36 39 18 23M124 39l18-16" fill="none" stroke="url(#gold)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M42 48h76l11 31H31Z" fill="#0b1119" stroke="#856336" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M44 88h32L62 108H29Z" fill="#10161e" stroke="#e6c577" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M84 88h32l15 20H98Z" fill="#10161e" stroke="#e6c577" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M50 92h18M92 92h18" stroke="#76dcff" stroke-width="6" stroke-linecap="round" filter="url(#blueGlow)"/>
+  <path d="M48 57h64" stroke="#74dfff" stroke-width="5" stroke-linecap="round" opacity=".72" filter="url(#blueGlow)"/>
+  <path d="M62 68h36" stroke="#26374a" stroke-width="9" stroke-linecap="round"/>
+  <path d="M80 70v43" stroke="#d2a85b" stroke-width="5" stroke-linecap="round"/>
+  <path d="M39 119h82M49 130h62" stroke="url(#gold)" stroke-width="6" stroke-linecap="round"/>
+  <path d="M31 80h98" stroke="#59616e" stroke-width="5" stroke-linecap="round"/>
+  <path d="M57 28 51 13M103 28l6-15" stroke="#f0d48a" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="80" cy="101" r="9" fill="#0b1119" stroke="#e6c577" stroke-width="4"/>
+  <path d="M73 101h14" stroke="#76dcff" stroke-width="4" stroke-linecap="round" filter="url(#blueGlow)"/>
+  <path d="M37 45 27 74 36 72M123 45l10 29-9-2" fill="none" stroke="#07090d" stroke-width="6" stroke-linecap="round" opacity=".75"/>
+</svg>

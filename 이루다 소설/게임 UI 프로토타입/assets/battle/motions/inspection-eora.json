@@ -1,0 +1,283 @@
+{
+  "kind": "key-poses",
+  "revision": 2,
+  "canvas": [
+    1536,
+    2048
+  ],
+  "footPivot": [
+    768,
+    1740
+  ],
+  "review": "visual-review-required",
+  "characters": [
+    {
+      "id": "eora",
+      "name": "이루어라",
+      "reference": "../sd/02_이루어라_SD_v2.png",
+      "scale": 1.8613518197573657,
+      "frames": [
+        {
+          "key": "move",
+          "label": "충돌 접근",
+          "pose": "forward running stride, torso leaned toward right, one leading foot near ground, coat trailing left",
+          "src": "eora/move-v2.png",
+          "nativeSrc": "eora/native-v2/move.png",
+          "nativeSize": [
+            516,
+            609
+          ],
+          "sheet": "sheets/v2/eora-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "clash",
+          "label": "충돌",
+          "pose": "firm forward interception pose, braced front leg, tool or forearm raised to meet an incoming strike from the right",
+          "src": "eora/clash-v2.png",
+          "nativeSrc": "eora/native-v2/clash.png",
+          "nativeSize": [
+            456,
+            604
+          ],
+          "sheet": "sheets/v2/eora-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "clash-loss",
+          "label": "충돌 패배",
+          "pose": "stagger backward toward left, torso recoiling, bent knees, equipment retained, pained but alive",
+          "src": "eora/clash-loss-v2.png",
+          "nativeSrc": "eora/native-v2/clash-loss.png",
+          "nativeSize": [
+            507,
+            549
+          ],
+          "sheet": "sheets/v2/eora-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "clash-win",
+          "label": "충돌 승리",
+          "pose": "confident forward follow-through, stable stance, tool or fist directed right, not a victory dance",
+          "src": "eora/clash-win-v2.png",
+          "nativeSrc": "eora/native-v2/clash-win.png",
+          "nativeSize": [
+            473,
+            600
+          ],
+          "sheet": "sheets/v2/eora-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "hurt",
+          "label": "피격",
+          "pose": "distinct hit reaction: chest recoils, face winces, arms instinctively protect abdomen, no wounds or gore",
+          "src": "eora/hurt-v2.png",
+          "nativeSrc": "eora/native-v2/hurt.png",
+          "nativeSize": [
+            401,
+            654
+          ],
+          "sheet": "sheets/v2/eora-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "defense",
+          "label": "이루어라 · 회피",
+          "pose": "low lateral dodge, bent knees, torso pulled backward, preserve balance",
+          "src": "eora/defense-v2.png",
+          "nativeSrc": "eora/native-v2/defense.png",
+          "nativeSize": [
+            499,
+            527
+          ],
+          "sheet": "sheets/v2/eora-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-1-hit-1",
+          "label": "중력 핀 · 1타",
+          "skillName": "중력 핀",
+          "hit": 1,
+          "pose": "Skill 1 named 중력 핀, 타격, hit 1 of 2: low gravity-pinning palm. Initiating committed motion, visibly different silhouette from adjacent attacks. ",
+          "src": "eora/skill-1-hit-1-v2.png",
+          "nativeSrc": "eora/native-v2/skill-1-hit-1.png",
+          "nativeSize": [
+            562,
+            579
+          ],
+          "sheet": "sheets/v2/eora-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-1-hit-2",
+          "label": "중력 핀 · 2타",
+          "skillName": "중력 핀",
+          "hit": 2,
+          "pose": "Skill 1 named 중력 핀, 타격, hit 2 of 2: upturned rearranging hand. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. ",
+          "src": "eora/skill-1-hit-2-v2.png",
+          "nativeSrc": "eora/native-v2/skill-1-hit-2.png",
+          "nativeSize": [
+            422,
+            660
+          ],
+          "sheet": "sheets/v2/eora-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-2-hit-1",
+          "label": "부품 재배열 · 1타",
+          "skillName": "부품 재배열",
+          "hit": 1,
+          "pose": "Skill 2 named 부품 재배열, 타격, hit 1 of 2: low gravity-pinning palm. Initiating committed motion, visibly different silhouette from adjacent attacks. ",
+          "src": "eora/skill-2-hit-1-v2.png",
+          "nativeSrc": "eora/native-v2/skill-2-hit-1.png",
+          "nativeSize": [
+            530,
+            593
+          ],
+          "sheet": "sheets/v2/eora-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-2-hit-2",
+          "label": "부품 재배열 · 2타",
+          "skillName": "부품 재배열",
+          "hit": 2,
+          "pose": "Skill 2 named 부품 재배열, 타격, hit 2 of 2: upturned rearranging hand. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. ",
+          "src": "eora/skill-2-hit-2-v2.png",
+          "nativeSrc": "eora/native-v2/skill-2-hit-2.png",
+          "nativeSize": [
+            411,
+            669
+          ],
+          "sheet": "sheets/v2/eora-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-3-hit-1",
+          "label": "가설 검증 · 1타",
+          "skillName": "가설 검증",
+          "hit": 1,
+          "pose": "Skill 3 named 가설 검증, 타격, hit 1 of 3: low gravity-pinning palm. Initiating committed motion, visibly different silhouette from adjacent attacks. ",
+          "src": "eora/skill-3-hit-1-v2.png",
+          "nativeSrc": "eora/native-v2/skill-3-hit-1.png",
+          "nativeSize": [
+            568,
+            531
+          ],
+          "sheet": "sheets/v2/eora-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-3-hit-2",
+          "label": "가설 검증 · 2타",
+          "skillName": "가설 검증",
+          "hit": 2,
+          "pose": "Skill 3 named 가설 검증, 타격, hit 2 of 3: upturned rearranging hand. Reverse-direction linking strike, visibly different silhouette from adjacent attacks. ",
+          "src": "eora/skill-3-hit-2-v2.png",
+          "nativeSrc": "eora/native-v2/skill-3-hit-2.png",
+          "nativeSize": [
+            436,
+            628
+          ],
+          "sheet": "sheets/v2/eora-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-3-hit-3",
+          "label": "가설 검증 · 3타",
+          "skillName": "가설 검증",
+          "hit": 3,
+          "pose": "Skill 3 named 가설 검증, 타격, hit 3 of 3: strong outward releasing palm. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. ",
+          "src": "eora/skill-3-hit-3-v2.png",
+          "nativeSrc": "eora/native-v2/skill-3-hit-3.png",
+          "nativeSize": [
+            532,
+            604
+          ],
+          "sheet": "sheets/v2/eora-3.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-4-hit-1",
+          "label": "가설 해체식 · 1타",
+          "skillName": "가설 해체식",
+          "hit": 1,
+          "pose": "Skill 4 named 가설 해체식, 타격, hit 1 of 1: low gravity-pinning palm. Initiating committed motion, visibly different silhouette from adjacent attacks. Strongest normal skill, wider stable stance and forceful extension.",
+          "src": "eora/skill-4-hit-1-v2.png",
+          "nativeSrc": "eora/native-v2/skill-4-hit-1.png",
+          "nativeSize": [
+            526,
+            505
+          ],
+          "sheet": "sheets/v2/eora-3.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "overdrive-hit-1",
+          "label": "가설 해체식 · 개념 폭주 · 1타",
+          "skillName": "가설 해체식 · 개념 폭주",
+          "hit": 1,
+          "pose": "Special concept overdrive 가설 해체식 · 개념 폭주, hit 1: low gravity-pinning palm, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions",
+          "src": "eora/overdrive-hit-1-v2.png",
+          "nativeSrc": "eora/native-v2/overdrive-hit-1.png",
+          "nativeSize": [
+            577,
+            544
+          ],
+          "sheet": "sheets/v2/eora-3.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "overdrive-hit-2",
+          "label": "가설 해체식 · 개념 폭주 · 2타",
+          "skillName": "가설 해체식 · 개념 폭주",
+          "hit": 2,
+          "pose": "Special concept overdrive 가설 해체식 · 개념 폭주, hit 2: upturned rearranging hand, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions",
+          "src": "eora/overdrive-hit-2-v2.png",
+          "nativeSrc": "eora/native-v2/overdrive-hit-2.png",
+          "nativeSize": [
+            413,
+            615
+          ],
+          "sheet": "sheets/v2/eora-3.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "overdrive-hit-3",
+          "label": "가설 해체식 · 개념 폭주 · 3타",
+          "skillName": "가설 해체식 · 개념 폭주",
+          "hit": 3,
+          "pose": "Special concept overdrive 가설 해체식 · 개념 폭주, hit 3: strong outward releasing palm, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions",
+          "src": "eora/overdrive-hit-3-v2.png",
+          "nativeSrc": "eora/native-v2/overdrive-hit-3.png",
+          "nativeSize": [
+            560,
+            703
+          ],
+          "sheet": "sheets/v2/eora-4.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        }
+      ]
+    }
+  ]
+}

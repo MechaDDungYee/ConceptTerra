@@ -1,0 +1,29 @@
+{
+  "key": "skill-1-hit-1",
+  "label": "꾸벅꾸벅 · 1타",
+  "skillName": "꾸벅꾸벅",
+  "hit": 1,
+  "pose": "꾸벅꾸벅, animation phase 1: strike outward with coat hem/blanket while retaining bunny. Distinct complete pose, all equipment retained.",
+  "prompt": "Edit reference1 locally, DO NOT enlarge figure or change framing. Change upper-thigh layering so character's anatomical RIGHT leg (starts on SCREEN LEFT hip, foreground leg) overlaps in front of LEFT leg (screen right far hip) at groin. RIGHT thigh contour continues in foreground. Keep both feet in exact original locations. Make sleeve badge upright gold LIGHTBULB with screwbase and gold star-rays. Reference2 badge only. ALL other pixels/layout unchanged in spirit: newly small head and original1086x1448 scale, skull top around70px not touching canvasedge, lowestsoles1420px, top and bottom transparent margin. Preserve face, hand holding coat, bunny leftarm, legs length, coat pose. No zoom, larger body, extra hands, crop. One complete transparent PNG.",
+  "status": "pending",
+  "src": "eojyeo/skill-1-hit-1.png",
+  "nativeSize": [
+    1086,
+    1448
+  ],
+  "visibleBounds": [
+    69,
+    69,
+    1063,
+    1423
+  ],
+  "footPivotApprox": [
+    520,
+    1423
+  ],
+  "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-5463b0b6-7acb-4119-a987-89b59112d9ee.png",
+  "review": "머리 축소·다리 겹침·문양 수정",
+  "alphaChecked": true,
+  "applied": false,
+  "revision": "20261009-eojyeo-v2"
+}

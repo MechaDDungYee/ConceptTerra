@@ -1,0 +1,28 @@
+{
+  "key": "overdrive-hit-2",
+  "label": "비관의 침수 · 개념 폭주 · 2타",
+  "skillName": "비관의 침수 · 개념 폭주",
+  "hit": 2,
+  "pose": "비관의 침수 · 개념 폭주, animation phase 2: wrap imaginary opponent in blanket gesture, bunny retained. Distinct complete pose, all equipment retained.",
+  "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어져. Sleepy adult woman, purple-black long hair, lavender bow and flower, violet eyes, padded black/lavender coat, white rabbit plush retained. No sword; coat/blanket and pessimistic dream gestures.\nPOSE: 비관의 침수 · 개념 폭주, animation phase 2: wrap imaginary opponent in blanket gesture, bunny retained. Distinct complete pose, all equipment retained.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 243px, upright crown-to-sole 1315px (5.41heads), in1086x1448 reference coordinates. Head should remain 16.78% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1402; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nOverride: Dream flood casting: RIGHT hand sweeps broad coat lining forward to screen right from high to waist level, LEFT arm holds rabbit, weight shifts forward. Small skull same240px crown-to-chin at1086x1448 and slender adult body as BASE, do not enlarge face. Exactly2hands2arms. No floating other body parts, no extra animals/opponents, no giant FX. Head and all boots keep clear margin, no zoom. Upright LIGHTBULB gold sleeve badge.",
+  "status": "pending",
+  "src": "eojyeo/overdrive-hit-2.png",
+  "nativeSize": [
+    1086,
+    1448
+  ],
+  "visibleBounds": [
+    43,
+    33,
+    1084,
+    1423
+  ],
+  "footPivotApprox": [
+    529,
+    1423
+  ],
+  "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-5182215f-1f50-46e2-9935-8f3257b953f6.png",
+  "review": "코트 끝 여백 재검수",
+  "alphaChecked": true,
+  "applied": false
+}

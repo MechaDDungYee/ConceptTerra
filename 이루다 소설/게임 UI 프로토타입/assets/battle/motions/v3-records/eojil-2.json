@@ -1,0 +1,41 @@
+{
+  "id": "eojil",
+  "name": "이루어질",
+  "reference": "D:\\콘셉트테라\\이루다 소설\\게임 UI 프로토타입\\assets\\battle\\sd\\00_이루어질_SD_v2.png",
+  "standing": "D:\\콘셉트테라\\이루다 소설\\게임 UI 프로토타입\\assets\\standing\\00_이루어질_스탠딩.png",
+  "batch": 2,
+  "frames": [
+    {
+      "key": "skill-2-hit-1",
+      "label": "확신의 일격 · 1타",
+      "skillName": "확신의 일격",
+      "hit": 1,
+      "pose": "Skill 2 named 확신의 일격, 관통, hit 1 of 2: forward fingertip thrust. Initiating committed motion, visibly different silhouette from adjacent attacks. "
+    },
+    {
+      "key": "skill-2-hit-2",
+      "label": "확신의 일격 · 2타",
+      "skillName": "확신의 일격",
+      "hit": 2,
+      "pose": "Skill 2 named 확신의 일격, 관통, hit 2 of 2: cross-body palm thrust. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. "
+    },
+    {
+      "key": "skill-3-hit-1",
+      "label": "계획 수정 · 1타",
+      "skillName": "계획 수정",
+      "hit": 1,
+      "pose": "Skill 3 named 계획 수정, 관통, hit 1 of 3: forward fingertip thrust. Initiating committed motion, visibly different silhouette from adjacent attacks. "
+    },
+    {
+      "key": "skill-3-hit-2",
+      "label": "계획 수정 · 2타",
+      "skillName": "계획 수정",
+      "hit": 2,
+      "pose": "Skill 3 named 계획 수정, 관통, hit 2 of 3: cross-body palm thrust. Reverse-direction linking strike, visibly different silhouette from adjacent attacks. "
+    }
+  ],
+  "identity": "Draw ONLY 이루어질, the same person in every cell. Tablet retained in left hand; deliberate precise pointing thrusts with right hand, sharply controlled geometric blue prediction marks.",
+  "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-82b541e2-755c-4a0a-8c30-ec9fa42bc259.png",
+  "prompt": "Use case: identity-preserve. Rebuild transparent game combat pose art from the APPROVED BASIC IDLE SD, not from any old motion. Reference 1 is immutable anatomy, face and simplified cel-art master. Reference 2 is ONLY invisible 2x2 grid layout.\nCRITICAL: match the idle's SMALL anatomical head and LONGER limbs, NOT a super-deformed generic chibi. Crown-to-chin skull height approximately ONE FIFTH of upright-equivalent crown-to-sole height; skull width approximately 19%, hair can extend beyond skull. Neck visible. Do not enlarge the eyes/face for expression. Preserve exact shoulder width, torso, upper/lower arm and thigh/calf lengths from reference1. Same gloves, boots, costume, tie, accessories and equipment size/handedness. Two arms and two hands only, continuous joints, correct thumbs. Orthographic 3/4 facing screen RIGHT, no foreshortened legs.\nEXACT 2 columns x 2 rows, 4 equal portrait cells, row-major. Native request 3072x4096 PNG with real transparent alpha. ALL figures including hair/weapons within middle 70% of cell: 15% padding all edges. Feet at 85% cell height for grounded poses. Upright-equivalent body height 70% cell height, constant pixel scale across cells. Bent knees or recoil lower crown naturally, never resize a crouch to standing height. Same head size across cells. Every pose genuinely redrawn. No scenery, floor, shadow, halos, floating fragments, extra limbs, extra people, labels, visible grid or enormous cartoon head. Maintain original line density and flat shadows.\n\nCharacter 이루어질: Draw ONLY 이루어질, the same person in every cell. Tablet retained in left hand; deliberate precise pointing thrusts with right hand, sharply controlled geometric blue prediction marks.\nRequired row-major poses:\n1: Skill 2 named 확신의 일격, 관통, hit 1 of 2: forward fingertip thrust. Initiating committed motion, visibly different silhouette from adjacent attacks. \n2: Skill 2 named 확신의 일격, 관통, hit 2 of 2: cross-body palm thrust. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. \n3: Skill 3 named 계획 수정, 관통, hit 1 of 3: forward fingertip thrust. Initiating committed motion, visibly different silhouette from adjacent attacks. \n4: Skill 3 named 계획 수정, 관통, hit 2 of 3: cross-body palm thrust. Reverse-direction linking strike, visibly different silhouette from adjacent attacks. ",
+  "review": "pending-proportion-comparison"
+}

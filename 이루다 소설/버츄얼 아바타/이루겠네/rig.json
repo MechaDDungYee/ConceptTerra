@@ -1,0 +1,22 @@
+{
+  "name": "이루겠네",
+  "format": "iruda-2d-mesh-rig-v1",
+  "canvas": { "width": 1024, "height": 1536 },
+  "texture": "이루겠네_정면.png",
+  "mesh": { "columns": 16, "rows": 24 },
+  "bones": {
+    "root": { "pivot": [512, 1460] },
+    "torso": { "pivot": [512, 530], "limitDegrees": 7 },
+    "neck": { "pivot": [512, 238], "limitDegrees": 10 },
+    "hairLeft": { "pivot": [386, 211], "limitDegrees": 9 },
+    "hairRight": { "pivot": [635, 211], "limitDegrees": 9 }
+  },
+  "parameters": {
+    "headX": [-1, 1],
+    "headY": [-1, 1],
+    "bodyX": [-1, 1],
+    "breath": [0, 1],
+    "hair": [-1, 1]
+  },
+  "notes": "정면 단일 원화를 연속 메시로 변형하는 리그. 표정/입모양과 큰 팔 동작은 분리 파츠 원화가 있어야 추가할 수 있다."
+}

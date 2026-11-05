@@ -1,0 +1,28 @@
+{
+  "key": "overdrive-hit-1",
+  "label": "결말 주석 · 개념 폭주 · 1타",
+  "skillName": "결말 주석 · 개념 폭주",
+  "hit": 1,
+  "pose": "Concept overdrive opening: raise RIGHT pen beside head angled toward RIGHT, LEFT tablet upright near sternum as if finding the ending. Upright same-size body and head, no outfit transformation, no giant effect.",
+  "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference3 only correct Team1 sleeve badge. Draw only 이루어질. Adult woman, long black hair, gold flower hairpin, blue diamond earrings, gray-blue eyes, black/gold long coat with royal-blue lining and tie, two gold waist buckles, black/gold gloves and boots. Tablet in anatomical LEFT hand; small nibbed writing pen in anatomical RIGHT hand for attacks.\nPOSE: Concept overdrive opening: raise RIGHT pen beside head angled toward RIGHT, LEFT tablet upright near sternum as if finding the ending. Upright same-size body and head, no outfit transformation, no giant effect.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 237px, upright crown-to-sole 1297px (5.47heads), in1086x1448 reference coordinates. Head should remain 16.37% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1375; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference3 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nAdditional calibration: reference2 is approved single attack only for SMALL HEAD SIZE/face and rendering scale, NOT its pose. Keep the head as small as reference2 (~230px crown-to-chin on1086x1448canvas). Do not use the oversized head often seen on running/chibi art. Reference3 is the sleeve logo. The original reference1 anatomy stays authoritative.",
+  "status": "pending",
+  "src": "eojil/overdrive-hit-1.png",
+  "nativeSize": [
+    1086,
+    1448
+  ],
+  "visibleBounds": [
+    78,
+    32,
+    1001,
+    1418
+  ],
+  "footPivotApprox": [
+    627,
+    1418
+  ],
+  "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-a479a021-d129-4320-91f9-a156d6b0eb4c.png",
+  "review": "발 기준점·인체 비율 최종 검수 대기",
+  "alphaChecked": true,
+  "applied": false
+}

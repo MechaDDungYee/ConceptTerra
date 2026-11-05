@@ -1,0 +1,37 @@
+{
+  "id": "eojil",
+  "name": "이루어질",
+  "reference": "D:\\콘셉트테라\\이루다 소설\\게임 UI 프로토타입\\assets\\battle\\sd\\00_이루어질_SD_v2.png",
+  "standing": "D:\\콘셉트테라\\이루다 소설\\게임 UI 프로토타입\\assets\\standing\\00_이루어질_스탠딩.png",
+  "batch": 0,
+  "frames": [
+    {
+      "key": "hurt",
+      "label": "피격",
+      "pose": "distinct hit reaction: chest recoils, face winces, arms instinctively protect abdomen, no wounds or gore"
+    },
+    {
+      "key": "defense",
+      "label": "이루어질 · 회피",
+      "pose": "low lateral dodge, bent knees, torso pulled backward, preserve balance"
+    },
+    {
+      "key": "skill-1-hit-1",
+      "label": "결말 예측 · 1타",
+      "skillName": "결말 예측",
+      "hit": 1,
+      "pose": "Skill 1 named 결말 예측, 관통, hit 1 of 2: forward fingertip thrust. Initiating committed motion, visibly different silhouette from adjacent attacks. "
+    },
+    {
+      "key": "skill-1-hit-2",
+      "label": "결말 예측 · 2타",
+      "skillName": "결말 예측",
+      "hit": 2,
+      "pose": "Skill 1 named 결말 예측, 관통, hit 2 of 2: cross-body palm thrust. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. "
+    }
+  ],
+  "identity": "Draw ONLY 이루어질, the same person in every cell. Tablet retained in left hand; deliberate precise pointing thrusts with right hand, sharply controlled geometric blue prediction marks.",
+  "source": "C:/Users/user/.codex/generated_images/01a0a3e9-e937-7a90-bab2-003dc078396f/exec-62ff6acc-8551-4e3b-97f9-99d0d4997617.png",
+  "prompt": "EDIT / identity-preserve. Create a transparent 2 columns x 2 rows equal-cell game key-pose sheet, largest native portrait resolution. Input 1 is the ONLY anatomical master: approved Irueojil idle SD. Input 2 is GRID LAYOUT ONLY: invisible 2x2 cells, 15% margins each cell; do NOT print grid guides. NEVER copy an older motion. EXACT same anatomical skull size relative to shoulder width, torso length, arm and leg bone lengths as Input1. Do not turn her into a squat chibi. No head enlargement for facial expression. Her full upright-equivalent body/hair height is 900px in the 768x1024 reference; ALL FOUR poses use the same scale, equivalent upright height 70% of each cell, not individually fit-to-height. Bent legs only lower her height. Face and dark long hair, gold flower pin, asymmetrical earrings, black long coat gold edge blue lining, blue tie, twin waist buckles, black gloves, boots and LEFT anatomical hand holding gray tablet all retained exactly. Anatomical right hand attacks. Two arms two hands only, connected elbows/wrists, correct thumb orientation. Orthographic shallow 3/4 facing screen RIGHT, no foreshortening. Same dark outline flat cel shade as approved idle. Four row-major poses: top-left HURT: subtle torso recoil left, knees mildly bent, closed eyes grimace, head exact reference size, tablet retained; top-right DEFENSE: dodge lean back with staggered feet, torso tilt not shorter limbs; bottom-left SKILL1 HIT1: anatomical right index-fingertip thrust right, left hand tablet stays close; bottom-right SKILL1 HIT2: right open palm forward finishing thrust, broad balanced stance. Full figures with all hair, tools and hands in their own cells. Avoid oversize faces, huge eyes, huge hands, short legs, merged arms, floating detached limbs. Genuine transparent alpha, no floor, shadows, aura, labels, numbers, extra people. This is production proportion correction, not style reinterpretation. Compare each pose against Input1; keep anatomical dimensions invariant.",
+  "review": "pending-proportion-comparison"
+}

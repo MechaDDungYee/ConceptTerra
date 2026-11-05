@@ -1,0 +1,33 @@
+{
+  "id": "eojil",
+  "name": "이루어질",
+  "reference": "D:\\콘셉트테라\\이루다 소설\\게임 UI 프로토타입\\assets\\battle\\sd\\00_이루어질_SD_v2.png",
+  "standing": "D:\\콘셉트테라\\이루다 소설\\게임 UI 프로토타입\\assets\\standing\\00_이루어질_스탠딩.png",
+  "batch": 1,
+  "frames": [
+    {
+      "key": "move",
+      "label": "충돌 접근",
+      "pose": "forward running stride, torso leaned toward right, one leading foot near ground, coat trailing left"
+    },
+    {
+      "key": "clash",
+      "label": "충돌",
+      "pose": "firm forward interception pose, braced front leg, tool or forearm raised to meet an incoming strike from the right"
+    },
+    {
+      "key": "clash-loss",
+      "label": "충돌 패배",
+      "pose": "stagger backward toward left, torso recoiling, bent knees, equipment retained, pained but alive"
+    },
+    {
+      "key": "clash-win",
+      "label": "충돌 승리",
+      "pose": "confident forward follow-through, stable stance, tool or fist directed right, not a victory dance"
+    }
+  ],
+  "identity": "Draw ONLY 이루어질, the same person in every cell. Tablet retained in left hand; deliberate precise pointing thrusts with right hand, sharply controlled geometric blue prediction marks.",
+  "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-7e5db596-8a2a-4389-a90e-4b65670ae269.png",
+  "prompt": "Use case identity-preserve, transparent game key-pose sprite sheet. INPUT1 approved 이루어질 idle SD is the immutable anatomy AND style master. INPUT2 grid-layout ONLY. Draw ONLY 이루어질, the same person in every cell. Tablet retained in left hand; deliberate precise pointing thrusts with right hand, sharply controlled geometric blue prediction marks.\nRedraw ONLY poses, never enlarge the skull, face or eyes or shorten limbs compared with INPUT1. Preserve head/shoulder ratio, head/torso ratio, neck, humerus, forearm, thigh, calf, boots and hands. Same black outline, flat cel planes and costume landmarks. Shallow orthographic 3/4 facing RIGHT, no foreshortening.\nEXACT TWO columns TWO rows, four equal portrait cells, transparent background, invisible grid. Request native 3072x4096. Each figure stays within middle 70% of its cell, leave 15% padding around the entire hair, boots, weapons and hands. Upright-equivalent height 70% cell height; SAME drawing scale across all cells. Crouching and leaning lowers the crown, NEVER enlarge pose to fill its cell. Put lowest grounded boot at 85% cell height, centered pelvis at 50% cell width. Do NOT draw grid or labels.\nRow-major cells:\n1: forward running stride, torso leaned toward right, one leading foot near ground, coat trailing left\n2: firm forward interception pose, braced front leg, tool or forearm raised to meet an incoming strike from the right\n3: stagger backward toward left, torso recoiling, bent knees, equipment retained, pained but alive\n4: confident forward follow-through, stable stance, tool or fist directed right, not a victory dance\n\nExactly two anatomically connected arms/hands, correctly directed thumbs; retain equipment handedness and shape from idle. Never use huge hair/skull/eyes to exaggerate reactions. No scenery, floor, shadows, glow, effects, gore, detached limbs or extra people. Anatomical proportions IDENTICAL to approved reference; existing older motion sheets are NOT references.",
+  "review": "pending-proportion-comparison"
+}

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>이루겠네 고개 회전 원화</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #1b1d21; color: #f0f0ee; font: 15px "Malgun Gothic", system-ui, sans-serif; }
+    header { min-height: 58px; display: flex; align-items: center; gap: 16px; padding: 8px 20px; border-bottom: 1px solid #43474d; }
+    h1 { font-size: 17px; font-weight: 600; margin: 0; }
+    header a { color: #cacbd0; margin-left: auto; text-decoration: none; font-size: 13px; }
+    header a:hover { color: #fff; }
+    main { height: calc(100vh - 58px); min-height: 540px; display: grid; grid-template-columns: minmax(0, 1fr) 270px; }
+    .stage { display: flex; align-items: center; justify-content: center; overflow: hidden; min-width: 0; min-height: 0; background: #25282d; }
+    .stage img { display: block; max-height: 100%; max-width: 100%; object-fit: contain; }
+    aside { padding: 20px; border-left: 1px solid #43474d; }
+    aside p { line-height: 1.55; color: #b7b9bc; font-size: 13px; }
+    .angles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .view { display: flex; gap: 8px; margin-top: 12px; }
+    .view button { flex: 1; }
+    button { min-height: 42px; padding: 8px; background: #30353a; border: 1px solid #555b61; border-radius: 3px; color: #f1f1ef; font: inherit; cursor: pointer; }
+    button:hover { background: #414850; }
+    button[aria-pressed=true] { background: #5c4930; border-color: #e6bd78; color: #fff; }
+    button:focus-visible { outline: 2px solid #e6bd78; outline-offset: 2px; }
+    #front { grid-column: 1 / -1; }
+    #info { margin-top: 20px; padding-top: 16px; border-top: 1px solid #43474d; }
+    @media (max-width: 740px) {
+      main { grid-template-columns: 1fr; grid-template-rows: minmax(360px, 65vh) auto; height: auto; }
+      aside { border-left: 0; border-top: 1px solid #43474d; }
+    .stage img { max-height: 65vh; }
+    }
+  </style>
+</head>
+<body>
+  <header><h1>이루겠네 · 고개 회전 원화</h1><a href="../preview.html">분리 레이어</a></header>
+  <main>
+    <div class="stage"><img id="portrait" src="bust_front.png" alt="이루겠네 정면 원화" draggable="false"></div>
+    <aside>
+      <div class="angles" aria-label="고개 각도">
+        <button id="front" data-pose="front" aria-pressed="true">정면</button>
+        <button data-pose="left" aria-pressed="false">왼쪽 60°</button>
+        <button data-pose="right" aria-pressed="false">오른쪽 60°</button>
+        <button data-pose="up" aria-pressed="false">위 25°</button>
+        <button data-pose="down" aria-pressed="false">아래 25°</button>
+      </div>
+      <div class="view" aria-label="보기 범위"><button data-view="bust" aria-pressed="true">상반신</button><button data-view="full" aria-pressed="false">전신</button></div>
+      <p id="info">정면 기준 원화입니다.</p>
+      <p>각 자세는 같은 1024×1536 캔버스에서 몸통과 목 위치를 맞춘 교체용 그림입니다. 중간 각도는 Cubism에서 변형기를 설정해 연결해야 합니다.</p>
+    </aside>
+  </main>
+  <script>
+    const poses = {
+      front: ['../../이루겠네_정면.png', 'bust_front.png', '정면 기준 원화'],
+      left: ['preview_left_60.png', 'bust_left.png', '얼굴이 화면 왼쪽을 향합니다. 귀와 옆머리, 목 옆면이 드러납니다.'],
+      right: ['preview_right_60.png', 'bust_right.png', '얼굴이 화면 오른쪽을 향합니다. 귀와 옆머리, 목 옆면이 드러납니다.'],
+      up: ['preview_up_25.png', 'bust_up.png', '턱 아래와 목 앞면이 드러납니다.'],
+      down: ['preview_down_25.png', 'bust_down.png', '정수리와 아래로 내려온 앞머리가 드러납니다.'],
+    };
+    const portrait = document.querySelector('#portrait');
+    let currentPose = 'front';
+    let currentView = 'bust';
+    function choose(pose) {
+      currentPose = pose;
+      portrait.src = poses[pose][currentView === 'bust' ? 1 : 0];
+      portrait.alt = `이루겠네 ${pose} 원화`;
+      document.querySelector('#info').textContent = poses[pose][2];
+      for (const button of document.querySelectorAll('[data-pose]')) button.setAttribute('aria-pressed', String(button.dataset.pose === pose));
+    }
+    for (const button of document.querySelectorAll('[data-pose]')) button.addEventListener('click', () => choose(button.dataset.pose));
+    for (const button of document.querySelectorAll('[data-view]')) button.addEventListener('click', () => {
+      currentView = button.dataset.view;
+      for (const option of document.querySelectorAll('[data-view]')) option.setAttribute('aria-pressed', String(option === button));
+      choose(currentPose);
+    });
+  </script>
+</body>
+</html>

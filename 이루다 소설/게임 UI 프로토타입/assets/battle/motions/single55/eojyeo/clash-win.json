@@ -1,0 +1,26 @@
+{
+  "key": "clash-win",
+  "label": "충돌 승리",
+  "pose": "confident forward follow-through, stable stance, tool or fist directed right, not a victory dance",
+  "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어져. Sleepy adult woman, purple-black long hair, lavender bow and flower, violet eyes, padded black/lavender coat, white rabbit plush retained. No sword; coat/blanket and pessimistic dream gestures.\nPOSE: confident forward follow-through, stable stance, tool or fist directed right, not a victory dance\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 243px, upright crown-to-sole 1315px (5.41heads), in1086x1448 reference coordinates. Head should remain 16.78% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1402; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nOverride pose detail: RIGHT hand sweeps coat fold outward to screen right after parrying, weight on frontfoot. Exactlytwoarms andtwohands. Bunny always in LEFT arm. Anatomical head SMALL at240px crown-to-chin in1086x1448 scale, same face and body proportions as BASE. Do not upscale crouch. No detached blanket or new weapons; actual garment moves. All feet/head safely inside canvas. Right leg foreground if thighs overlap.",
+  "status": "pending",
+  "src": "eojyeo/clash-win.png",
+  "nativeSize": [
+    1086,
+    1448
+  ],
+  "visibleBounds": [
+    47,
+    28,
+    1076,
+    1417
+  ],
+  "footPivotApprox": [
+    688,
+    1417
+  ],
+  "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-cbef7615-7ecb-4906-ac61-68684913603d.png",
+  "review": "발 기준점·인체 비율 최종 검수 대기",
+  "alphaChecked": true,
+  "applied": false
+}

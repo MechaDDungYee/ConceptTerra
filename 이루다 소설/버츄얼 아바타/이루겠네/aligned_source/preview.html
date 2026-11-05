@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>이루겠네 | 정렬 원화</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Malgun Gothic", sans-serif; color: #eee; background: #15171b; }
+    header { height: 58px; padding: 11px 20px; display: flex; align-items: center; gap: 18px; border-bottom: 1px solid #3a3c42; }
+    h1 { font-size: 18px; margin: 0; }
+    small { color: #aaa; }
+    main { height: calc(100vh - 58px); min-height: 520px; display: grid; grid-template-columns: minmax(420px,1fr) 350px; }
+    .workspace { min-width: 0; overflow: auto; display: flex; justify-content: center; align-items: center; padding: 16px; }
+    canvas { display: block; width: auto; max-width: 100%; height: min(calc(100vh - 90px), 900px); max-height: 100%; aspect-ratio: 2/3; border: 1px solid #595d64; cursor: grab; background: #666; }
+    canvas.dragging { cursor: grabbing; }
+    aside { border-left: 1px solid #3a3c42; display: flex; flex-direction: column; min-height: 0; }
+    .tools { padding: 15px; border-bottom: 1px solid #3a3c42; display: grid; gap: 10px; }
+    .row { display: flex; align-items: center; gap: 8px; }
+    .row label { font-size: 12px; color: #bfc3c8; min-width: 55px; }
+    button, input { font: inherit; }
+    button { background: #2c333b; color: #fff; border: 1px solid #59616b; border-radius: 4px; padding: 7px 10px; cursor: pointer; }
+    button:hover { background: #3c454f; }
+    button:focus-visible, input:focus-visible { outline: 2px solid #e6bd73; }
+    input[type=number] { width: 70px; background: #24282e; color: #fff; border: 1px solid #60636a; border-radius: 3px; padding: 5px; }
+    input[type=range] { flex: 1; accent-color: #dfbd79; }
+    .tools strong { font-size: 13px; color: #e8c37d; overflow-wrap: anywhere; }
+    .layers { overflow: auto; padding: 8px; flex: 1; }
+    .layer { display: grid; grid-template-columns: 25px 1fr auto; align-items: center; min-height: 34px; gap: 5px; padding: 3px 6px; border: 1px solid transparent; font-size: 12px; }
+    .layer.selected { border-color: #b68b4c; background: #303137; }
+    .layer .name { cursor: pointer; overflow-wrap: anywhere; }
+    .layer .offset { color: #9ca3aa; font-family: monospace; font-size: 11px; }
+    .footer { border-top: 1px solid #3a3c42; padding: 10px 15px; color: #aaa; font-size: 11px; line-height: 1.5; }
+    @media (max-width: 860px) { main { grid-template-columns: 1fr; grid-template-rows: minmax(350px, 65vh) 1fr; height: auto; } aside { min-height: 380px; border-left: 0; border-top: 1px solid #3a3c42; } canvas { height: min(60vh, 650px); } }
+  </style>
+</head>
+<body>
+  <header><h1>이루겠네 · 정렬 원화</h1><small>1024 × 1536 · 34개 파츠 · 원화 기준 좌표</small><a href="head_turn/preview.html" style="margin-left:auto;color:#e7c889">고개 회전 원화</a></header>
+  <main>
+    <section class="workspace"><canvas id="stage" width="1024" height="1536" aria-label="분리 원화 미리보기"></canvas></section>
+    <aside>
+      <div class="tools">
+        <strong id="selectedName">파츠를 선택하세요</strong>
+        <div class="row"><label for="offsetX">위치 X</label><input id="offsetX" type="number" step="1"><label for="offsetY">Y</label><input id="offsetY" type="number" step="1"></div>
+        <div class="row"><label for="reference">원본 비교</label><input id="reference" type="range" min="0" max="100" value="0"><output id="referenceValue">0%</output></div>
+        <div class="row"><button id="reset">위치 초기화</button><button id="export">정렬값 저장</button></div>
+      </div>
+      <div class="layers" id="layers"></div>
+      <div class="footer">파츠 이름을 누르고 그림 위에서 끌거나 방향키로 1px씩 조정할 수 있습니다. Shift+방향키는 10px입니다. 원본 비교는 정렬 상태를 확인할 때 사용하세요.</div>
+    </aside>
+  </main>
+  <script src="layers.js"></script>
+  <script>
+    const canvas = document.querySelector('#stage');
+    const ctx = canvas.getContext('2d');
+    const entries = window.ALIGNED_LAYERS.map((entry) => ({ ...entry, image: new Image(), visible: true, dx: 0, dy: 0 }));
+    const original = new Image();
+    original.src = '../이루겠네_정면.png';
+    let selected = -1;
+    let drag = null;
+    const saved = JSON.parse(localStorage.getItem('eogetne_alignment') || '{}');
+    for (const entry of entries) {
+      entry.image.src = entry.file;
+      entry.image.onload = render;
+      if (saved[entry.name]) { entry.dx = saved[entry.name].x || 0; entry.dy = saved[entry.name].y || 0; }
+    }
+    original.onload = render;
+    const layerList = document.querySelector('#layers');
+    function rowFor(entry, index) {
+      const row = document.createElement('div'); row.className = 'layer'; row.dataset.index = index;
+      const check = document.createElement('input'); check.type = 'checkbox'; check.checked = true;
+      check.addEventListener('change', () => { entry.visible = check.checked; render(); });
+      const name = document.createElement('span'); name.className = 'name'; name.textContent = entry.name;
+      name.addEventListener('click', () => select(index));
+      const offset = document.createElement('span'); offset.className = 'offset'; offset.textContent = '0, 0';
+      row.append(check, name, offset); return row;
+    }
+    entries.forEach((entry, index) => layerList.prepend(rowFor(entry, index)));
+    function select(index) {
+      selected = index;
+      for (const row of layerList.children) row.classList.toggle('selected', Number(row.dataset.index) === selected);
+      document.querySelector('#selectedName').textContent = entries[index].name;
+      syncInputs();
+    }
+    function syncInputs() {
+      if (selected < 0) return;
+      document.querySelector('#offsetX').value = entries[selected].dx;
+      document.querySelector('#offsetY').value = entries[selected].dy;
+      const row = layerList.querySelector(`[data-index="${selected}"]`);
+      row.querySelector('.offset').textContent = `${entries[selected].dx}, ${entries[selected].dy}`;
+    }
+    function persist() {
+      const offsets = Object.fromEntries(entries.map((entry) => [entry.name, { x: entry.dx, y: entry.dy }]));
+      localStorage.setItem('eogetne_alignment', JSON.stringify(offsets));
+      syncInputs(); render(); return offsets;
+    }
+    function render() {
+      ctx.clearRect(0, 0, 1024, 1536);
+      ctx.fillStyle = '#44474e'; ctx.fillRect(0, 0, 1024, 1536);
+      for (const entry of entries) if (entry.visible && entry.image.complete && entry.image.naturalWidth) ctx.drawImage(entry.image, entry.dx, entry.dy);
+      const value = Number(document.querySelector('#reference').value) / 100;
+      if (value && original.complete && original.naturalWidth) { ctx.globalAlpha = value; ctx.drawImage(original, 0, 0); ctx.globalAlpha = 1; }
+    }
+    function setOffset(axis, value) { if (selected < 0) return; entries[selected][axis] = Number(value) || 0; persist(); }
+    document.querySelector('#offsetX').addEventListener('input', (event) => setOffset('dx', event.target.value));
+    document.querySelector('#offsetY').addEventListener('input', (event) => setOffset('dy', event.target.value));
+    document.querySelector('#reference').addEventListener('input', (event) => { document.querySelector('#referenceValue').textContent = `${event.target.value}%`; render(); });
+    document.querySelector('#reset').addEventListener('click', () => { for (const entry of entries) { entry.dx = 0; entry.dy = 0; } localStorage.removeItem('eogetne_alignment'); for (const row of layerList.children) row.querySelector('.offset').textContent = '0, 0'; syncInputs(); render(); });
+    document.querySelector('#export').addEventListener('click', () => { const data = JSON.stringify(persist(), null, 2); const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([data], {type: 'application/json'})); link.download = '이루겠네_정렬값.json'; link.click(); URL.revokeObjectURL(link.href); });
+    function canvasPoint(event) { const rect = canvas.getBoundingClientRect(); return {x: (event.clientX - rect.left) * 1024 / rect.width, y: (event.clientY - rect.top) * 1536 / rect.height}; }
+    canvas.addEventListener('pointerdown', (event) => { if (selected < 0) return; const p = canvasPoint(event); drag = { x: p.x, y: p.y, dx: entries[selected].dx, dy: entries[selected].dy }; canvas.setPointerCapture(event.pointerId); canvas.classList.add('dragging'); });
+    canvas.addEventListener('pointermove', (event) => { if (!drag || selected < 0) return; const p = canvasPoint(event); entries[selected].dx = Math.round(drag.dx + p.x - drag.x); entries[selected].dy = Math.round(drag.dy + p.y - drag.y); syncInputs(); render(); });
+    canvas.addEventListener('pointerup', () => { if (drag) persist(); drag = null; canvas.classList.remove('dragging'); });
+    document.addEventListener('keydown', (event) => { if (selected < 0 || event.target.matches('input')) return; const step = event.shiftKey ? 10 : 1; const move = {ArrowLeft: [-step,0], ArrowRight: [step,0], ArrowUp: [0,-step], ArrowDown: [0,step]}[event.key]; if (!move) return; event.preventDefault(); entries[selected].dx += move[0]; entries[selected].dy += move[1]; persist(); });
+    select(entries.length - 1);
+    render();
+  </script>
+</body>
+</html>

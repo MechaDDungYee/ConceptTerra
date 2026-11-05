@@ -1,0 +1,28 @@
+{
+  "key": "skill-3-hit-2",
+  "label": "수면 유도 · 2타",
+  "skillName": "수면 유도",
+  "hit": 2,
+  "pose": "수면 유도, animation phase 2: wrap imaginary opponent in blanket gesture, bunny retained. Distinct complete pose, all equipment retained.",
+  "prompt": "Use case: identity-preserve. ONE single whole-character combat KEY-POSE PNG, not a sheet, not body parts, not a collage. Reference1 approved BASE SD is SOLE anatomy, pixel-scale and simplified cel-shaded style authority. Reference2 only correct Team1 sleeve badge. Draw only 이루어져. Sleepy adult woman, purple-black long hair, lavender bow and flower, violet eyes, padded black/lavender coat, white rabbit plush retained. No sword; coat/blanket and pessimistic dream gestures.\nPOSE: 수면 유도, animation phase 2: wrap imaginary opponent in blanket gesture, bunny retained. Distinct complete pose, all equipment retained.\nHead must NOT grow during action. Retain the EXACT skull/face size, shoulder width, neck, torso, upper/lower arm segment lengths, hands, pelvis, thigh/shin lengths and boots of approved BASE. Its head crown-to-chin is about 243px, upright crown-to-sole 1315px (5.41heads), in1086x1448 reference coordinates. Head should remain 16.78% canvas height. Bent pose naturally shorter, DO NOT upscale to fill image. Portrait 3:4 canvas same framing and pixel scale as BASE; foot support near x543 y1402; entire hair, tools and boots within 5% safe margin. Face screen RIGHT in shallow three-quarter orthographic camera, no foreshortening. Virtual construction grid, NOT drawn.\nExactly TWO arms TWO hands TWO legs, connected shoulders/elbows/wrists, correct thumb directions and equipment handedness. No duplicated hands or weapons. Preserve actual approved face/gender/hair/costume details; do not add ornate elements. On visible outer upper sleeve: reference2 midnight-blue circular badge with gold border, upright vintage LIGHTBULB outline with FILAMENT and SCREW BASE, TEN thin gold rays each ending pointed star. NOT a question mark, sun or random symbol, do not inherit incorrect base badge.\nTransparent RGBA background, no scenery, floor, ground shadow, text, labels, watermarks or giant effects. Full figure at large native resolution, request2172x2896 retaining same subject proportions. Genuine complete redrawn articulated pose, not warped idle.\nExact pose override: RIGHT hand pulls garment inward around imaginary foe, high-to-low wrapping sweep; bunny cradled LEFT at chest, turned torso. Keep SMALL240px head on1086x1448 scale. Full figure centered with clear50px margins, don't zoom into figure. Exactly two hands/arms and two legs. No literal opponent, no giant effects or separate blanket. Same adult body and boot sizes as BASE. LIGHTBULB sleeve badge upright.",
+  "status": "pending",
+  "src": "eojyeo/skill-3-hit-2.png",
+  "nativeSize": [
+    1086,
+    1448
+  ],
+  "visibleBounds": [
+    72,
+    56,
+    1060,
+    1395
+  ],
+  "footPivotApprox": [
+    562,
+    1395
+  ],
+  "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-fcf0fdb9-f425-4e9f-8d96-ea0a28d9a994.png",
+  "review": "발 기준점·인체 비율 최종 검수 대기",
+  "alphaChecked": true,
+  "applied": false
+}

@@ -1,0 +1,101 @@
+const path = require('node:path');
+const assert = require('node:assert/strict');
+const {pathToFileURL} = require('node:url');
+const {chromium} = require('C:/Users/user/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+(async () => {
+ const browser = await chromium.launch({headless:true,channel:'msedge'});
+ try {
+  const page = await browser.newPage({viewport:{width:1440,height:900}});
+  const errors = []; page.on('pageerror',e=>errors.push(e.message));
+  await page.goto(pathToFileURL(path.resolve(__dirname,'../index.html')).href);
+  await page.evaluate(()=>{
+   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='story-view'));
+   startBattleLineup(['sosuh','eodo','ryeona','getne','eojil','eojyeo','eora','gena','dorok']);
+   const u=battleDummy.allies[0]; u.actionCapacity=2; u.hand=[0,1,2];
+   u.skills=u.skills.map(s=>({...s,range:'전체',scope:'적 전체'}));
+   u.queuedActions=[{action:u.skills[0],source:'hand',handIndex:0,targetId:battleDummy.enemies[0].id,decisionOrder:1},{action:u.skills[1],source:'hand',handIndex:1,targetId:battleDummy.enemies[1].id,decisionOrder:2}];
+   syncBattleReservation(u); renderBattleDummy();
+  });
+  const slot=(unit,index)=>page.locator(`[data-slot-unit="${unit}"][data-action-slot="${index}"]`);
+  await slot('sosuh',0).click();
+  assert.equal(await page.evaluate(()=>getBattleActionComparison().left.action.name),await page.evaluate(()=>battleDummy.allies[0].skills[0].name));
+  assert.equal(await page.locator('.unit-info-backdrop').count(),0);
+  await slot('sosuh',1).click();
+  assert.equal(await page.evaluate(()=>getBattleActionComparison().left.action.name),await page.evaluate(()=>battleDummy.allies[0].skills[1].name));
+  await page.locator('[data-skill-index="2"]').dispatchEvent('pointerdown',{button:0,clientX:300,clientY:800});
+  await page.evaluate(()=>assignBattleTarget(battleDummy.enemies[0].id));
+  assert.deepEqual(await page.evaluate(()=>battleDummy.allies[0].queuedActions.map(p=>p.handIndex)),[0,2]);
+  await slot('sosuh',0).click();
+  await page.locator('[data-skill-index="0"]').dispatchEvent('pointerdown',{button:0,clientX:300,clientY:800});
+  await page.evaluate(()=>assignBattleTarget(battleDummy.enemies[1].id));
+  assert.equal(await page.evaluate(()=>battleDummy.allies[0].queuedActions[0].targetId===battleDummy.enemies[1].id),true);
+  await page.evaluate(()=>cancelBattleSelection());
+  const enemyId=await page.evaluate(()=>battleDummy.enemies[0].id);
+  await slot(enemyId,0).click();
+  assert.equal(await page.locator('.battle-card-detail-right').count(),1);
+  const checkArrowSlots = () => page.evaluate(() => {
+   updateBattleArrowPositions();
+   const frame=document.querySelector('#battle-arrow-overlay').getBoundingClientRect();
+   return [...document.querySelectorAll('.action-arc')].every(arc=>{
+    const [unit,index]=arc.dataset.fromSlot.split(':');
+    const slot=document.querySelector(`[data-slot-unit="${unit}"][data-action-slot="${index}"]`);
+    if(!slot)return false;
+    const rect=slot.getBoundingClientRect();
+    const start=arc.getAttribute('d').match(/^M ([\d.-]+) ([\d.-]+)/);
+    return Math.abs(Number(start[1])-(rect.left+rect.width/2-frame.left)/frame.width*8)<.002
+     && Math.abs(Number(start[2])-(rect.top+rect.height/2-frame.top)/frame.height*5)<.002;
+   });
+  });
+  assert.ok(await checkArrowSlots());
+  await page.evaluate(()=>{
+   const u=battleDummy.allies[0],e=battleDummy.enemies[0];
+   e.actionsPerTurn=2;
+   e.preparedAction={...u.skills[0],range:'전체',scope:'적 전체'};e.targetId=u.id;
+   u.queuedActions=[{action:u.skills[0],source:'hand',handIndex:0,targetId:e.id,targetSlot:1,decisionOrder:200}];
+   syncBattleReservation(u);renderBattleDummy();
+  });
+  const pair=await page.evaluate(()=>getBattleSchedule().events.find(e=>e.plans.some(p=>p.id==='sosuh:0')).plans.map(p=>p.id));
+  assert.ok(pair.includes(`${enemyId}:1`));
+  assert.ok(await checkArrowSlots());
+  await page.evaluate(()=>{const u=battleDummy.allies[0];u.queuedActions=[];syncBattleReservation(u);battleDummy.selectedActionSlot=null;battleDummy.selected=u.id;renderBattleDummy();});
+  await page.locator('[data-skill-index="0"]').dispatchEvent('pointerdown',{button:0,clientX:300,clientY:800});
+  await slot('sosuh',0).click();
+  assert.ok(await checkArrowSlots());
+  assert.equal(await page.evaluate(()=>battleDummy.aiming?.unitId),'sosuh');
+  await page.evaluate(()=>assignBattleTarget(battleDummy.enemies[0].id));
+  const from=await slot('sosuh',0).boundingBox();
+  const to=await page.locator(`[data-battle-target="${enemyId}"]`).boundingBox();
+  await page.mouse.move(from.x+from.width/2,from.y+from.height/2);
+  await page.mouse.down();
+  await page.mouse.move(to.x+to.width/2,to.y+to.height/2,{steps:12});
+  await page.mouse.up();
+  assert.equal(await page.evaluate(()=>battleDummy.aiming),null);
+  assert.equal(await page.evaluate(()=>battleDummy.allies[0].queuedActions.length),1);
+  await slot('sosuh',1).click();
+  const card=await page.locator('[data-skill-index="1"]').boundingBox();
+  const empty=await slot('sosuh',1).boundingBox();
+  await page.mouse.move(card.x+card.width/2,card.y+20);
+  await page.mouse.down();
+  await page.mouse.move(empty.x+empty.width/2,empty.y+empty.height/2,{steps:12});
+  await page.mouse.up();
+  assert.equal(await page.evaluate(()=>battleDummy.aiming?.unitId),'sosuh');
+  await page.evaluate(()=>assignBattleTarget(battleDummy.enemies[0].id));
+  assert.deepEqual(await page.evaluate(()=>battleDummy.allies[0].queuedActions.map(p=>p.handIndex)),[0,1]);
+  await page.evaluate(()=>{
+   const u=battleDummy.allies[0],e=battleDummy.enemies[0];
+   e.x=u.x+1; e.y=u.y; e.preparedAction={...u.skills[0],range:'전체',scope:'적 전체'};e.targetId=u.id;
+   u.queuedActions[1].targetId=e.id;u.queuedActions[1].decisionOrder=100;
+   renderBattleDummy();
+  });
+  await slot('sosuh',1).click();
+  assert.equal(await page.evaluate(()=>getBattleActionComparison().clash),true);
+  assert.equal(await page.locator('.battle-card-detail-left').count(),1);
+  assert.equal(await page.locator('.battle-card-detail-right').count(),1);
+  await page.screenshot({path:path.join(__dirname,'action-slots-desktop.png')});
+  await page.setViewportSize({width:844,height:390});
+  await slot('sosuh',0).click();
+  await page.screenshot({path:path.join(__dirname,'action-slots-mobile.png')});
+  assert.deepEqual(errors,[]);
+  console.log('PASS slot-specific card display, replacement, retargeting, enemy inspection, card-to-slot click and slot drag.');
+ } finally {await browser.close();}
+})().catch(e=>{console.error(e);process.exitCode=1;});

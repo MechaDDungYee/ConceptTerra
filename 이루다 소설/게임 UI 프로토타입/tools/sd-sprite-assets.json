@@ -1,0 +1,102 @@
+[
+  {
+    "name": "00_이루어질",
+    "id": "이루어질",
+    "reference": "D:/콘셉트테라/이루다 소설/게임 UI 프로토타입/assets/standing/00_이루어질_스탠딩.png",
+    "note": "Adult woman, long straight black hair, gray-blue eyes, composed focused expression, long black coat with muted blue lining, fitted black uniform and blue tie, black gloves. Hold one slim dark tablet in left arm and open right hand as if directing a tactical move. No weapon.",
+    "prompt": "Simplify this character into an ORIGINAL production-ready SD idle game sprite, transparent background. Keep black-haired adult woman with gray-blue eyes, black long coat blue lining, blue tie, tablet and composed expression. REDUCE DETAIL DRAMATICALLY: total body only 3.5 heads high; head 28% total height; legs only 30% total height; oversized simple boots. Hair made of 6 large shapes, NOT dozens of strands. Broad bold outline, only ONE flat shadow shape per material. NO textured shading, no small wrinkles, NO thigh straps, NO chains, only TWO waist buckles. Sleeve emblem a tiny simple gold lightbulb. Tablet simple solid rectangle. Coat two large tapering panels. Gloved open hand at waist height and tablet held close. Keep a serious tactical miniature, not baby kawaii. Three-quarter view toward screen right, entire figure visible, both feet aligned at bottom. No glowing aura, no background, no floor shadow, no text. Independent paper-cut cel cartoon style.",
+    "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-efb1193e-636a-4e59-891c-dfadf54fb277.png",
+    "target": "assets/battle/sd/00_이루어질_SD.png",
+    "scale": 1
+  },
+  {
+    "name": "01_이루어져",
+    "id": "이루어져",
+    "reference": "D:/콘셉트테라/이루다 소설/게임 UI 프로토타입/assets/standing/01_이루어져_스탠딩.png",
+    "note": "Small sleepy girl, dark purple shoulder-length hair, violet eyes, lavender bow and simple flower hair clip, oversized black padded cloak with lavender lining, black skirt tights and chunky boots. Hold a small plush rabbit close to chest with both hands, half-lidded sleepy eyes, no weapon.",
+    "prompt": "ONE original full-body SD combat idle sprite. Reference1 supplies CHARACTER identity and costume ONLY; Reference2 supplies SD PROPORTIONS and flat rendering style ONLY. Character: Small sleepy girl, dark purple shoulder-length hair, violet eyes, lavender bow and simple flower hair clip, oversized black padded cloak with lavender lining, black skirt tights and chunky boots. Hold a small plush rabbit close to chest with both hands, half-lidded sleepy eyes, no weapon.\nMatch reference2: only 3.5 heads tall, big readable face, short compact legs, large simple boots, broad dark outlines, one flat shadow per surface, hair grouped into 6-8 broad clumps. Simplify uniform to key coat silhouette, blue tie and 2-3 large buckles. NO tiny chains, fabric texture, small wrinkles, realistic rendering, glossy gradients. Muted charcoal with cobalt or lavender character accent. Full body THREE QUARTER facing SCREEN RIGHT, modest grounded idle pose. Both feet aligned at same bottom baseline. All hair and equipment fully inside canvas with 8% padding. Transparent alpha, no backdrop/aura/ground shadow/text. Preserve individuality, no copying existing Limbus designs.",
+    "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-32736de2-f4ec-4691-97f1-308b45c8b461.png",
+    "target": "assets/battle/sd/01_이루어져_SD.png",
+    "scale": 0.83
+  },
+  {
+    "name": "02_이루어라",
+    "id": "이루어라",
+    "reference": "D:/콘셉트테라/이루다 소설/게임 UI 프로토타입/assets/standing/02_이루어라_스탠딩.png",
+    "note": "Young adult man, messy short black hair, pale skin, tired gray eyes. Black utility long coat with blue lining, slightly loosened blue tie, rolled sleeves gloves black trousers and boots. Hold one small mechanical cylinder low in right hand, slightly hunched analytical stance.",
+    "prompt": "ONE original full-body SD combat idle sprite. Reference1 supplies CHARACTER identity and costume ONLY; Reference2 supplies SD PROPORTIONS and flat rendering style ONLY. Character: Young adult man, messy short black hair, pale skin, tired gray eyes. Black utility long coat with blue lining, slightly loosened blue tie, rolled sleeves gloves black trousers and boots. Hold one small mechanical cylinder low in right hand, slightly hunched analytical stance.\nMatch reference2: only 3.5 heads tall, big readable face, short compact legs, large simple boots, broad dark outlines, one flat shadow per surface, hair grouped into 6-8 broad clumps. Simplify uniform to key coat silhouette, blue tie and 2-3 large buckles. NO tiny chains, fabric texture, small wrinkles, realistic rendering, glossy gradients. Muted charcoal with cobalt or lavender character accent. Full body THREE QUARTER facing SCREEN RIGHT, modest grounded idle pose. Both feet aligned at same bottom baseline. All hair and equipment fully inside canvas with 8% padding. Transparent alpha, no backdrop/aura/ground shadow/text. Preserve individuality, no copying existing Limbus designs.",
+    "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-bd78fbf1-99ba-401b-a20e-37edc408019e.png",
+    "target": "assets/battle/sd/02_이루어라_SD.png",
+    "scale": 1
+  },
+  {
+    "name": "03_이루소서",
+    "id": "이루소서",
+    "reference": "D:/콘셉트테라/이루다 소설/게임 UI 프로토타입/assets/standing/03_이루소서_스탠딩.png",
+    "note": "Middle-aged strong man, brown hair tied in low ponytail, full brown beard, stern tired eyes. Black tactical coat blue tie harness trousers knee guards heavy boots. Hold a short combat knife downwards beside right hip, guarded firm stance. NOT young clean-shaven.",
+    "prompt": "ONE original full-body SD combat idle sprite. Reference1 supplies CHARACTER identity and costume ONLY; Reference2 supplies SD PROPORTIONS and flat rendering style ONLY. Character: Middle-aged strong man, brown hair tied in low ponytail, full brown beard, stern tired eyes. Black tactical coat blue tie harness trousers knee guards heavy boots. Hold a short combat knife downwards beside right hip, guarded firm stance. NOT young clean-shaven.\nMatch reference2: only 3.5 heads tall, big readable head, short compact legs, large simple boots, broad dark outlines, one flat shadow per surface, hair grouped into 6-8 broad clumps. Simplify uniform to key coat silhouette, blue tie and 2-3 large buckles. NO tiny chains, fabric texture, small wrinkles, realistic rendering, glossy gradients. Muted charcoal with cobalt accent. Full body THREE QUARTER facing SCREEN RIGHT, modest grounded idle pose. Both feet aligned at same bottom baseline. All hair and equipment fully inside canvas with 8% padding. Transparent alpha, no backdrop/aura/ground shadow/text. Preserve individuality, no copying existing Limbus designs.",
+    "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-9033f63b-9db7-4d76-82a9-1ba975cdd50c.png",
+    "target": "assets/battle/sd/03_이루소서_SD.png",
+    "scale": 1
+  },
+  {
+    "name": "04_이루리",
+    "id": "이루리",
+    "reference": "D:/콘셉트테라/이루다 소설/게임 UI 프로토타입/assets/standing/04_이루리_스탠딩.png",
+    "note": "NONCOMBAT observer: male-bodied figure whose ENTIRE head is a glass lightbulb, no human face, containing exactly ONE angular golden filament. Black long coat muted blue lining black suit blue tie boots gloves. Hold two white papers against chest, hesitant grounded stance, no weapon.",
+    "prompt": "ONE original full-body SD combat idle sprite. Reference1 supplies CHARACTER identity and costume ONLY; Reference2 supplies SD PROPORTIONS and flat rendering style ONLY. Character: NONCOMBAT observer: male-bodied figure whose ENTIRE head is a glass lightbulb, no human face, containing exactly ONE angular golden filament. Black long coat muted blue lining black suit blue tie boots gloves. Hold two white papers against chest, hesitant grounded stance, no weapon.\nMatch reference2: only 3.5 heads tall, big readable head, short compact legs, large simple boots, broad dark outlines, one flat shadow per surface, hair grouped into 6-8 broad clumps. Simplify uniform to key coat silhouette, blue tie and 2-3 large buckles. NO tiny chains, fabric texture, small wrinkles, realistic rendering, glossy gradients. Muted charcoal with cobalt accent. Full body THREE QUARTER facing SCREEN RIGHT, modest grounded idle pose. Both feet aligned at same bottom baseline. All hair and equipment fully inside canvas with 8% padding. Transparent alpha, no backdrop/aura/ground shadow/text. Preserve individuality, no copying existing Limbus designs.",
+    "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-9a699e06-c8ec-4426-a090-bebd75516c0b.png",
+    "target": "assets/battle/sd/04_이루리_SD.png",
+    "scale": 1
+  },
+  {
+    "name": "05_이루어도",
+    "id": "이루어도",
+    "reference": "D:/콘셉트테라/이루다 소설/게임 UI 프로토타입/assets/standing/05_이루어도_스탠딩.png",
+    "note": "Very large broad muscular man, head concealed by a tan paper bag with exactly two black eye holes, no human face. Black oversized tactical coat blue tie trousers heavy boots gloves. Broad low-ready fists and stable wide stance, visibly broader than other characters. Small closed locket, no farming clothes.",
+    "prompt": "ONE original full-body SD combat idle sprite. Reference1 supplies CHARACTER identity and costume ONLY; Reference2 supplies SD PROPORTIONS and flat rendering style ONLY. Character: Very large broad muscular man, head concealed by a tan paper bag with exactly two black eye holes, no human face. Black oversized tactical coat blue tie trousers heavy boots gloves. Broad low-ready fists and stable wide stance, visibly broader than other characters. Small closed locket, no farming clothes.\nMatch reference2: only 3.5 heads tall, big readable head, short compact legs, large simple boots, broad dark outlines, one flat shadow per surface, hair grouped into 6-8 broad clumps. Simplify uniform to key coat silhouette, blue tie and 2-3 large buckles. NO tiny chains, fabric texture, small wrinkles, realistic rendering, glossy gradients. Muted charcoal with cobalt and character accents. Full body THREE QUARTER facing SCREEN RIGHT, modest grounded idle pose. Both feet aligned at same bottom baseline. All hair and equipment fully inside canvas with 8% padding. Transparent alpha, no backdrop/aura/ground shadow/text. Preserve individuality, no copying existing Limbus designs.",
+    "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-0e1f6ad6-c9d6-4f54-b30f-98918e841dd7.png",
+    "target": "assets/battle/sd/05_이루어도_SD.png",
+    "scale": 1.15
+  },
+  {
+    "name": "06_이루게나",
+    "id": "이루게나",
+    "reference": "D:/콘셉트테라/이루다 소설/게임 UI 프로토타입/assets/standing/06_이루게나_스탠딩.png",
+    "note": "Adult fierce woman, long untidy black hair with dark crimson streaks, red eyes, small fangs and facial scars. Black tactical coat rolled sleeves blue tie gloves cargo trousers boots. Hold a broad AXE low in right hand outward beside her body, clearly not a pickaxe. No axe mounted inside thighs, no muzzle or restraint costume. Slight forward ready stance.",
+    "prompt": "ONE original full-body SD combat idle sprite. Reference1 supplies CHARACTER identity and costume ONLY; Reference2 supplies SD PROPORTIONS and flat rendering style ONLY. Character: Adult fierce woman, long untidy black hair with dark crimson streaks, red eyes, small fangs and facial scars. Black tactical coat rolled sleeves blue tie gloves cargo trousers boots. Hold a broad AXE low in right hand outward beside her body, clearly not a pickaxe. No axe mounted inside thighs, no muzzle or restraint costume. Slight forward ready stance.\nMatch reference2: only 3.5 heads tall, big readable head, short compact legs, large simple boots, broad dark outlines, one flat shadow per surface, hair grouped into 6-8 broad clumps. Simplify uniform to key coat silhouette, blue tie and 2-3 large buckles. NO tiny chains, fabric texture, small wrinkles, realistic rendering, glossy gradients. Muted charcoal with cobalt and character accents. Full body THREE QUARTER facing SCREEN RIGHT, modest grounded idle pose. Both feet aligned at same bottom baseline. All hair and equipment fully inside canvas with 8% padding. Transparent alpha, no backdrop/aura/ground shadow/text. Preserve individuality, no copying existing Limbus designs.",
+    "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-0767da06-c50f-478a-ac38-0c53fb57ff7b.png",
+    "target": "assets/battle/sd/06_이루게나_SD.png",
+    "scale": 1
+  },
+  {
+    "name": "07_이루도록",
+    "id": "이루도록",
+    "reference": "D:/콘셉트테라/이루다 소설/게임 UI 프로토타입/assets/standing/07_이루도록_스탠딩.png",
+    "note": "Adult serious man, neatly swept short brown hair and blue eyes. Black tailored tactical long coat, black shirt blue tie symmetrical harness trousers boots gloves. Precise upright tactical stance, one palm forward and other at waist, no invented weapon.",
+    "prompt": "ONE original full-body SD combat idle sprite. Reference1 supplies CHARACTER identity and costume ONLY; Reference2 supplies SD PROPORTIONS and flat rendering style ONLY. Character: Adult serious man, neatly swept short brown hair and blue eyes. Black tailored tactical long coat, black shirt blue tie symmetrical harness trousers boots gloves. Precise upright tactical stance, one palm forward and other at waist, no invented weapon.\nMatch reference2: only 3.5 heads tall, big readable face, short compact legs, large simple boots, broad dark outlines, one flat shadow per surface, hair grouped into 6-8 broad clumps. Simplify uniform to key silhouette, blue tie and 2-3 large buckles. NO tiny chains, fabric texture, small wrinkles, realistic rendering, glossy gradients. Muted charcoal with cobalt and specified character accents. Full body THREE QUARTER facing SCREEN RIGHT, modest grounded idle pose. Both feet aligned at same bottom baseline. All hair and equipment fully inside canvas with 8% padding. Transparent alpha, no backdrop/aura/ground shadow/text. Preserve individuality, no copying existing Limbus designs.",
+    "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-56336908-18c8-4b26-9924-8e4573015cda.png",
+    "target": "assets/battle/sd/07_이루도록_SD.png",
+    "scale": 1
+  },
+  {
+    "name": "08_이루려나",
+    "id": "이루려나",
+    "reference": "D:/콘셉트테라/이루다 소설/게임 UI 프로토타입/assets/standing/08_이루려나_스탠딩.png",
+    "note": "Adult mischievous woman, long messy brown hair, goggles ON TOP OF HEAD, anatomical RIGHT eye orange glowing and left eye dark. Black utility shirt blue tie rolled sleeves cargo trousers boots gloves. Hold compact handheld detonator low, sly grin, no huge explosions, simple pouches.",
+    "prompt": "ONE original full-body SD combat idle sprite. Reference1 supplies CHARACTER identity and costume ONLY; Reference2 supplies SD PROPORTIONS and flat rendering style ONLY. Character: Adult mischievous woman, long messy brown hair, goggles ON TOP OF HEAD, anatomical RIGHT eye orange glowing and left eye dark. Black utility shirt blue tie rolled sleeves cargo trousers boots gloves. Hold compact handheld detonator low, sly grin, no huge explosions, simple pouches.\nMatch reference2: only 3.5 heads tall, big readable face, short compact legs, large simple boots, broad dark outlines, one flat shadow per surface, hair grouped into 6-8 broad clumps. Simplify uniform to key silhouette, blue tie and 2-3 large buckles. NO tiny chains, fabric texture, small wrinkles, realistic rendering, glossy gradients. Muted charcoal with cobalt and specified character accents. Full body THREE QUARTER facing SCREEN RIGHT, modest grounded idle pose. Both feet aligned at same bottom baseline. All hair and equipment fully inside canvas with 8% padding. Transparent alpha, no backdrop/aura/ground shadow/text. Preserve individuality, no copying existing Limbus designs.",
+    "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-fd249368-4ad3-4e17-9df2-9d2d75e6fcd2.png",
+    "target": "assets/battle/sd/08_이루려나_SD.png",
+    "scale": 1
+  },
+  {
+    "name": "09_이루겠네",
+    "id": "이루겠네",
+    "reference": "D:/콘셉트테라/이루다 소설/게임 UI 프로토타입/assets/standing/09_이루겠네_스탠딩.png",
+    "note": "Cheerful young adult woman, very long WHITE hair secured by a prominent RED ribbon, red eyes. Black 1-team shirt blue tie harness cargo trousers boots gloves, simple red badge accents. Open encouraging palm, other hand close to chest, friendly ready stance. NO white priest robe, no wings or halo.",
+    "prompt": "ONE original full-body SD combat idle sprite. Reference1 supplies CHARACTER identity and costume ONLY; Reference2 supplies SD PROPORTIONS and flat rendering style ONLY. Character: Cheerful young adult woman, very long WHITE hair secured by a prominent RED ribbon, red eyes. Black 1-team shirt blue tie harness cargo trousers boots gloves, simple red badge accents. Open encouraging palm, other hand close to chest, friendly ready stance. NO white priest robe, no wings or halo.\nMatch reference2: only 3.5 heads tall, big readable face, short compact legs, large simple boots, broad dark outlines, one flat shadow per surface, hair grouped into 6-8 broad clumps. Simplify uniform to key silhouette, blue tie and 2-3 large buckles. NO tiny chains, fabric texture, small wrinkles, realistic rendering, glossy gradients. Muted charcoal with cobalt and specified character accents. Full body THREE QUARTER facing SCREEN RIGHT, modest grounded idle pose. Both feet aligned at same bottom baseline. All hair and equipment fully inside canvas with 8% padding. Transparent alpha, no backdrop/aura/ground shadow/text. Preserve individuality, no copying existing Limbus designs.",
+    "source": "C:\\Users\\user\\.codex\\generated_images\\01a0a3e9-e937-7a90-bab2-003dc078396f\\exec-6b9b5baf-4ba7-4da8-b76a-47744cb7b7bc.png",
+    "target": "assets/battle/sd/09_이루겠네_SD.png",
+    "scale": 1
+  }
+]

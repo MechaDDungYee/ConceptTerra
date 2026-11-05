@@ -1,0 +1,174 @@
+{
+  "revision": "sd55-original-parts",
+  "kind": "rigid-cutout-key-poses",
+  "canvas": [
+    1800,
+    1800
+  ],
+  "characters": [
+    {
+      "id": "eojil",
+      "name": "이루어질",
+      "source": "../../sd/sd-55/00_이루어질_SD_55_grid.png",
+      "canvas": [
+        1800,
+        1800
+      ],
+      "pivot": [
+        900,
+        1575
+      ],
+      "bodyHeight": 1297,
+      "frames": [
+        {
+          "key": "idle",
+          "label": "원본 SD",
+          "src": "rig55/eojil/idle.png",
+          "review": "joint-review-required"
+        },
+        {
+          "key": "move",
+          "label": "충돌 접근",
+          "pose": "forward running stride, torso leaned toward right, one leading foot near ground, coat trailing left",
+          "src": "rig55/eojil/move.png",
+          "review": "joint-review-required"
+        },
+        {
+          "key": "clash",
+          "label": "충돌",
+          "pose": "firm forward interception pose, braced front leg, tool or forearm raised to meet an incoming strike from the right",
+          "src": "rig55/eojil/clash.png",
+          "review": "joint-review-required"
+        },
+        {
+          "key": "clash-loss",
+          "label": "충돌 패배",
+          "pose": "stagger backward toward left, torso recoiling, bent knees, equipment retained, pained but alive",
+          "src": "rig55/eojil/clash-loss.png",
+          "review": "joint-review-required"
+        },
+        {
+          "key": "clash-win",
+          "label": "충돌 승리",
+          "pose": "confident forward follow-through, stable stance, tool or fist directed right, not a victory dance",
+          "src": "rig55/eojil/clash-win.png",
+          "review": "joint-review-required"
+        },
+        {
+          "key": "hurt",
+          "label": "피격",
+          "pose": "distinct hit reaction: chest recoils, face winces, arms instinctively protect abdomen, no wounds or gore",
+          "src": "rig55/eojil/hurt.png",
+          "review": "joint-review-required"
+        },
+        {
+          "key": "defense",
+          "label": "이루어질 · 회피",
+          "pose": "low lateral dodge, bent knees, torso pulled backward, preserve balance",
+          "src": "rig55/eojil/defense.png",
+          "review": "joint-review-required"
+        },
+        {
+          "key": "skill-1-hit-1",
+          "label": "결말 예측 · 1타",
+          "skillName": "결말 예측",
+          "hit": 1,
+          "pose": "Skill 1 named 결말 예측, 관통, hit 1 of 2: forward fingertip thrust. Initiating committed motion, visibly different silhouette from adjacent attacks. ",
+          "src": "rig55/eojil/skill-1-hit-1.png",
+          "review": "joint-review-required"
+        },
+        {
+          "key": "skill-1-hit-2",
+          "label": "결말 예측 · 2타",
+          "skillName": "결말 예측",
+          "hit": 2,
+          "pose": "Skill 1 named 결말 예측, 관통, hit 2 of 2: cross-body palm thrust. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. ",
+          "src": "rig55/eojil/skill-1-hit-2.png",
+          "review": "joint-review-required"
+        },
+        {
+          "key": "skill-2-hit-1",
+          "label": "확신의 일격 · 1타",
+          "skillName": "확신의 일격",
+          "hit": 1,
+          "pose": "Skill 2 named 확신의 일격, 관통, hit 1 of 2: forward fingertip thrust. Initiating committed motion, visibly different silhouette from adjacent attacks. ",
+          "src": "rig55/eojil/skill-2-hit-1.png",
+          "review": "joint-review-required"
+        },
+        {
+          "key": "skill-2-hit-2",
+          "label": "확신의 일격 · 2타",
+          "skillName": "확신의 일격",
+          "hit": 2,
+          "pose": "Skill 2 named 확신의 일격, 관통, hit 2 of 2: cross-body palm thrust. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. ",
+          "src": "rig55/eojil/skill-2-hit-2.png",
+          "review": "joint-review-required"
+        },
+        {
+          "key": "skill-3-hit-1",
+          "label": "계획 수정 · 1타",
+          "skillName": "계획 수정",
+          "hit": 1,
+          "pose": "Skill 3 named 계획 수정, 관통, hit 1 of 3: forward fingertip thrust. Initiating committed motion, visibly different silhouette from adjacent attacks. ",
+          "src": "rig55/eojil/skill-3-hit-1.png",
+          "review": "joint-review-required"
+        },
+        {
+          "key": "skill-3-hit-2",
+          "label": "계획 수정 · 2타",
+          "skillName": "계획 수정",
+          "hit": 2,
+          "pose": "Skill 3 named 계획 수정, 관통, hit 2 of 3: cross-body palm thrust. Reverse-direction linking strike, visibly different silhouette from adjacent attacks. ",
+          "src": "rig55/eojil/skill-3-hit-2.png",
+          "review": "joint-review-required"
+        },
+        {
+          "key": "skill-3-hit-3",
+          "label": "계획 수정 · 3타",
+          "skillName": "계획 수정",
+          "hit": 3,
+          "pose": "Skill 3 named 계획 수정, 관통, hit 3 of 3: decisive two-finger pointing thrust. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. ",
+          "src": "rig55/eojil/skill-3-hit-3.png",
+          "review": "joint-review-required"
+        },
+        {
+          "key": "skill-4-hit-1",
+          "label": "결말 주석 · 1타",
+          "skillName": "결말 주석",
+          "hit": 1,
+          "pose": "Skill 4 named 결말 주석, 관통, hit 1 of 1: forward fingertip thrust. Initiating committed motion, visibly different silhouette from adjacent attacks. Strongest normal skill, wider stable stance and forceful extension.",
+          "src": "rig55/eojil/skill-4-hit-1.png",
+          "review": "joint-review-required"
+        },
+        {
+          "key": "overdrive-hit-1",
+          "label": "결말 주석 · 개념 폭주 · 1타",
+          "skillName": "결말 주석 · 개념 폭주",
+          "hit": 1,
+          "pose": "Special concept overdrive 결말 주석 · 개념 폭주, hit 1: forward fingertip thrust, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions",
+          "src": "rig55/eojil/overdrive-hit-1.png",
+          "review": "joint-review-required"
+        },
+        {
+          "key": "overdrive-hit-2",
+          "label": "결말 주석 · 개념 폭주 · 2타",
+          "skillName": "결말 주석 · 개념 폭주",
+          "hit": 2,
+          "pose": "Special concept overdrive 결말 주석 · 개념 폭주, hit 2: cross-body palm thrust, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions",
+          "src": "rig55/eojil/overdrive-hit-2.png",
+          "review": "joint-review-required"
+        },
+        {
+          "key": "overdrive-hit-3",
+          "label": "결말 주석 · 개념 폭주 · 3타",
+          "skillName": "결말 주석 · 개념 폭주",
+          "hit": 3,
+          "pose": "Special concept overdrive 결말 주석 · 개념 폭주, hit 3: decisive two-finger pointing thrust, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions",
+          "src": "rig55/eojil/overdrive-hit-3.png",
+          "review": "joint-review-required"
+        }
+      ]
+    }
+  ],
+  "review": "draft-joint-and-occlusion-review-required"
+}

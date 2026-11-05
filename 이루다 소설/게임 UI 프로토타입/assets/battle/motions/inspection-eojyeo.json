@@ -1,0 +1,283 @@
+{
+  "kind": "key-poses",
+  "revision": 2,
+  "canvas": [
+    1536,
+    2048
+  ],
+  "footPivot": [
+    768,
+    1740
+  ],
+  "review": "visual-review-required",
+  "characters": [
+    {
+      "id": "eojyeo",
+      "name": "이루어져",
+      "reference": "../sd/01_이루어져_SD_v2.png",
+      "scale": 1.678780773739742,
+      "frames": [
+        {
+          "key": "move",
+          "label": "충돌 접근",
+          "pose": "forward running stride, torso leaned toward right, one leading foot near ground, coat trailing left",
+          "src": "eojyeo/move-v2.png",
+          "nativeSrc": "eojyeo/native-v2/move.png",
+          "nativeSize": [
+            481,
+            624
+          ],
+          "sheet": "sheets/v2/eojyeo-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "clash",
+          "label": "충돌",
+          "pose": "firm forward interception pose, braced front leg, tool or forearm raised to meet an incoming strike from the right",
+          "src": "eojyeo/clash-v2.png",
+          "nativeSrc": "eojyeo/native-v2/clash.png",
+          "nativeSize": [
+            442,
+            621
+          ],
+          "sheet": "sheets/v2/eojyeo-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "clash-loss",
+          "label": "충돌 패배",
+          "pose": "stagger backward toward left, torso recoiling, bent knees, equipment retained, pained but alive",
+          "src": "eojyeo/clash-loss-v2.png",
+          "nativeSrc": "eojyeo/native-v2/clash-loss.png",
+          "nativeSize": [
+            463,
+            565
+          ],
+          "sheet": "sheets/v2/eojyeo-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "clash-win",
+          "label": "충돌 승리",
+          "pose": "confident forward follow-through, stable stance, tool or fist directed right, not a victory dance",
+          "src": "eojyeo/clash-win-v2.png",
+          "nativeSrc": "eojyeo/native-v2/clash-win.png",
+          "nativeSize": [
+            464,
+            615
+          ],
+          "sheet": "sheets/v2/eojyeo-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "hurt",
+          "label": "피격",
+          "pose": "distinct hit reaction: chest recoils, face winces, arms instinctively protect abdomen, no wounds or gore",
+          "src": "eojyeo/hurt-v2.png",
+          "nativeSrc": "eojyeo/native-v2/hurt.png",
+          "nativeSize": [
+            444,
+            649
+          ],
+          "sheet": "sheets/v2/eojyeo-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "defense",
+          "label": "이루어져 · 방어",
+          "pose": "broad braced guard, both forearms protect head and chest",
+          "src": "eojyeo/defense-v2.png",
+          "nativeSrc": "eojyeo/native-v2/defense.png",
+          "nativeSize": [
+            425,
+            661
+          ],
+          "sheet": "sheets/v2/eojyeo-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-1-hit-1",
+          "label": "꾸벅꾸벅 · 1타",
+          "skillName": "꾸벅꾸벅",
+          "hit": 1,
+          "pose": "Skill 1 named 꾸벅꾸벅, 타격, hit 1 of 2: low sleepy palm wave. Initiating committed motion, visibly different silhouette from adjacent attacks. ",
+          "src": "eojyeo/skill-1-hit-1-v2.png",
+          "nativeSrc": "eojyeo/native-v2/skill-1-hit-1.png",
+          "nativeSize": [
+            456,
+            630
+          ],
+          "sheet": "sheets/v2/eojyeo-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-1-hit-2",
+          "label": "꾸벅꾸벅 · 2타",
+          "skillName": "꾸벅꾸벅",
+          "hit": 2,
+          "pose": "Skill 1 named 꾸벅꾸벅, 타격, hit 2 of 2: swaying shoulder and plush outward. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. ",
+          "src": "eojyeo/skill-1-hit-2-v2.png",
+          "nativeSrc": "eojyeo/native-v2/skill-1-hit-2.png",
+          "nativeSize": [
+            483,
+            618
+          ],
+          "sheet": "sheets/v2/eojyeo-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-2-hit-1",
+          "label": "비관의 잔향 · 1타",
+          "skillName": "비관의 잔향",
+          "hit": 1,
+          "pose": "Skill 2 named 비관의 잔향, 타격, hit 1 of 2: low sleepy palm wave. Initiating committed motion, visibly different silhouette from adjacent attacks. ",
+          "src": "eojyeo/skill-2-hit-1-v2.png",
+          "nativeSrc": "eojyeo/native-v2/skill-2-hit-1.png",
+          "nativeSize": [
+            363,
+            653
+          ],
+          "sheet": "sheets/v2/eojyeo-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-2-hit-2",
+          "label": "비관의 잔향 · 2타",
+          "skillName": "비관의 잔향",
+          "hit": 2,
+          "pose": "Skill 2 named 비관의 잔향, 타격, hit 2 of 2: swaying shoulder and plush outward. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. ",
+          "src": "eojyeo/skill-2-hit-2-v2.png",
+          "nativeSrc": "eojyeo/native-v2/skill-2-hit-2.png",
+          "nativeSize": [
+            460,
+            638
+          ],
+          "sheet": "sheets/v2/eojyeo-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-3-hit-1",
+          "label": "수면 유도 · 1타",
+          "skillName": "수면 유도",
+          "hit": 1,
+          "pose": "Skill 3 named 수면 유도, 타격, hit 1 of 3: low sleepy palm wave. Initiating committed motion, visibly different silhouette from adjacent attacks. ",
+          "src": "eojyeo/skill-3-hit-1-v2.png",
+          "nativeSrc": "eojyeo/native-v2/skill-3-hit-1.png",
+          "nativeSize": [
+            413,
+            617
+          ],
+          "sheet": "sheets/v2/eojyeo-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-3-hit-2",
+          "label": "수면 유도 · 2타",
+          "skillName": "수면 유도",
+          "hit": 2,
+          "pose": "Skill 3 named 수면 유도, 타격, hit 2 of 3: swaying shoulder and plush outward. Reverse-direction linking strike, visibly different silhouette from adjacent attacks. ",
+          "src": "eojyeo/skill-3-hit-2-v2.png",
+          "nativeSrc": "eojyeo/native-v2/skill-3-hit-2.png",
+          "nativeSize": [
+            470,
+            600
+          ],
+          "sheet": "sheets/v2/eojyeo-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-3-hit-3",
+          "label": "수면 유도 · 3타",
+          "skillName": "수면 유도",
+          "hit": 3,
+          "pose": "Skill 3 named 수면 유도, 타격, hit 3 of 3: forward dream-projecting hand. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. ",
+          "src": "eojyeo/skill-3-hit-3-v2.png",
+          "nativeSrc": "eojyeo/native-v2/skill-3-hit-3.png",
+          "nativeSize": [
+            470,
+            637
+          ],
+          "sheet": "sheets/v2/eojyeo-3.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-4-hit-1",
+          "label": "비관의 침수 · 1타",
+          "skillName": "비관의 침수",
+          "hit": 1,
+          "pose": "Skill 4 named 비관의 침수, 타격, hit 1 of 1: low sleepy palm wave. Initiating committed motion, visibly different silhouette from adjacent attacks. Strongest normal skill, wider stable stance and forceful extension.",
+          "src": "eojyeo/skill-4-hit-1-v2.png",
+          "nativeSrc": "eojyeo/native-v2/skill-4-hit-1.png",
+          "nativeSize": [
+            459,
+            571
+          ],
+          "sheet": "sheets/v2/eojyeo-3.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "overdrive-hit-1",
+          "label": "비관의 침수 · 개념 폭주 · 1타",
+          "skillName": "비관의 침수 · 개념 폭주",
+          "hit": 1,
+          "pose": "Special concept overdrive 비관의 침수 · 개념 폭주, hit 1: low sleepy palm wave, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions",
+          "src": "eojyeo/overdrive-hit-1-v2.png",
+          "nativeSrc": "eojyeo/native-v2/overdrive-hit-1.png",
+          "nativeSize": [
+            493,
+            547
+          ],
+          "sheet": "sheets/v2/eojyeo-3.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "overdrive-hit-2",
+          "label": "비관의 침수 · 개념 폭주 · 2타",
+          "skillName": "비관의 침수 · 개념 폭주",
+          "hit": 2,
+          "pose": "Special concept overdrive 비관의 침수 · 개념 폭주, hit 2: swaying shoulder and plush outward, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions",
+          "src": "eojyeo/overdrive-hit-2-v2.png",
+          "nativeSrc": "eojyeo/native-v2/overdrive-hit-2.png",
+          "nativeSize": [
+            477,
+            610
+          ],
+          "sheet": "sheets/v2/eojyeo-3.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "overdrive-hit-3",
+          "label": "비관의 침수 · 개념 폭주 · 3타",
+          "skillName": "비관의 침수 · 개념 폭주",
+          "hit": 3,
+          "pose": "Special concept overdrive 비관의 침수 · 개념 폭주, hit 3: forward dream-projecting hand, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions",
+          "src": "eojyeo/overdrive-hit-3-v2.png",
+          "nativeSrc": "eojyeo/native-v2/overdrive-hit-3.png",
+          "nativeSize": [
+            612,
+            853
+          ],
+          "sheet": "sheets/v2/eojyeo-4.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,283 @@
+{
+  "kind": "key-poses",
+  "revision": 2,
+  "canvas": [
+    1536,
+    2048
+  ],
+  "footPivot": [
+    768,
+    1740
+  ],
+  "review": "visual-review-required",
+  "characters": [
+    {
+      "id": "dorok",
+      "name": "이루도록",
+      "reference": "../sd/07_이루도록_SD_v2.png",
+      "scale": 1.8645833333333333,
+      "frames": [
+        {
+          "key": "move",
+          "label": "충돌 접근",
+          "pose": "forward running stride, torso leaned toward right, one leading foot near ground, coat trailing left",
+          "src": "dorok/move-v2.png",
+          "nativeSrc": "dorok/native-v2/move.png",
+          "nativeSize": [
+            497,
+            595
+          ],
+          "sheet": "sheets/v2/dorok-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "clash",
+          "label": "충돌",
+          "pose": "firm forward interception pose, braced front leg, tool or forearm raised to meet an incoming strike from the right",
+          "src": "dorok/clash-v2.png",
+          "nativeSrc": "dorok/native-v2/clash.png",
+          "nativeSize": [
+            504,
+            602
+          ],
+          "sheet": "sheets/v2/dorok-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "clash-loss",
+          "label": "충돌 패배",
+          "pose": "stagger backward toward left, torso recoiling, bent knees, equipment retained, pained but alive",
+          "src": "dorok/clash-loss-v2.png",
+          "nativeSrc": "dorok/native-v2/clash-loss.png",
+          "nativeSize": [
+            508,
+            536
+          ],
+          "sheet": "sheets/v2/dorok-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "clash-win",
+          "label": "충돌 승리",
+          "pose": "confident forward follow-through, stable stance, tool or fist directed right, not a victory dance",
+          "src": "dorok/clash-win-v2.png",
+          "nativeSrc": "dorok/native-v2/clash-win.png",
+          "nativeSize": [
+            493,
+            586
+          ],
+          "sheet": "sheets/v2/dorok-0.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "hurt",
+          "label": "피격",
+          "pose": "distinct hit reaction: chest recoils, face winces, arms instinctively protect abdomen, no wounds or gore",
+          "src": "dorok/hurt-v2.png",
+          "nativeSrc": "dorok/native-v2/hurt.png",
+          "nativeSize": [
+            429,
+            647
+          ],
+          "sheet": "sheets/v2/dorok-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "defense",
+          "label": "이루도록 · 반격",
+          "pose": "compact ready-to-counter posture, tool or striking hand near hip, lead forearm guarding",
+          "src": "dorok/defense-v2.png",
+          "nativeSrc": "dorok/native-v2/defense.png",
+          "nativeSize": [
+            456,
+            660
+          ],
+          "sheet": "sheets/v2/dorok-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-1-hit-1",
+          "label": "대칭 배치 · 1타",
+          "skillName": "대칭 배치",
+          "hit": 1,
+          "pose": "Skill 1 named 대칭 배치, 관통, hit 1 of 2: forward coordinate-pointing hand. Initiating committed motion, visibly different silhouette from adjacent attacks. ",
+          "src": "dorok/skill-1-hit-1-v2.png",
+          "nativeSrc": "dorok/native-v2/skill-1-hit-1.png",
+          "nativeSize": [
+            534,
+            639
+          ],
+          "sheet": "sheets/v2/dorok-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-1-hit-2",
+          "label": "대칭 배치 · 2타",
+          "skillName": "대칭 배치",
+          "hit": 2,
+          "pose": "Skill 1 named 대칭 배치, 관통, hit 2 of 2: cross-body symmetric gesture. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. ",
+          "src": "dorok/skill-1-hit-2-v2.png",
+          "nativeSrc": "dorok/native-v2/skill-1-hit-2.png",
+          "nativeSize": [
+            460,
+            645
+          ],
+          "sheet": "sheets/v2/dorok-1.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-2-hit-1",
+          "label": "좌표 계산 · 1타",
+          "skillName": "좌표 계산",
+          "hit": 1,
+          "pose": "Skill 2 named 좌표 계산, 관통, hit 1 of 2: forward coordinate-pointing hand. Initiating committed motion, visibly different silhouette from adjacent attacks. ",
+          "src": "dorok/skill-2-hit-1-v2.png",
+          "nativeSrc": "dorok/native-v2/skill-2-hit-1.png",
+          "nativeSize": [
+            494,
+            642
+          ],
+          "sheet": "sheets/v2/dorok-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-2-hit-2",
+          "label": "좌표 계산 · 2타",
+          "skillName": "좌표 계산",
+          "hit": 2,
+          "pose": "Skill 2 named 좌표 계산, 관통, hit 2 of 2: cross-body symmetric gesture. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. ",
+          "src": "dorok/skill-2-hit-2-v2.png",
+          "nativeSrc": "dorok/native-v2/skill-2-hit-2.png",
+          "nativeSize": [
+            462,
+            639
+          ],
+          "sheet": "sheets/v2/dorok-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-3-hit-1",
+          "label": "참모의 지시 · 1타",
+          "skillName": "참모의 지시",
+          "hit": 1,
+          "pose": "Skill 3 named 참모의 지시, 관통, hit 1 of 3: forward coordinate-pointing hand. Initiating committed motion, visibly different silhouette from adjacent attacks. ",
+          "src": "dorok/skill-3-hit-1-v2.png",
+          "nativeSrc": "dorok/native-v2/skill-3-hit-1.png",
+          "nativeSize": [
+            523,
+            600
+          ],
+          "sheet": "sheets/v2/dorok-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-3-hit-2",
+          "label": "참모의 지시 · 2타",
+          "skillName": "참모의 지시",
+          "hit": 2,
+          "pose": "Skill 3 named 참모의 지시, 관통, hit 2 of 3: cross-body symmetric gesture. Reverse-direction linking strike, visibly different silhouette from adjacent attacks. ",
+          "src": "dorok/skill-3-hit-2-v2.png",
+          "nativeSrc": "dorok/native-v2/skill-3-hit-2.png",
+          "nativeSize": [
+            471,
+            609
+          ],
+          "sheet": "sheets/v2/dorok-2.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-3-hit-3",
+          "label": "참모의 지시 · 3타",
+          "skillName": "참모의 지시",
+          "hit": 3,
+          "pose": "Skill 3 named 참모의 지시, 관통, hit 3 of 3: two-handed force release. Decisive finishing follow-through, visibly different silhouette from adjacent attacks. ",
+          "src": "dorok/skill-3-hit-3-v2.png",
+          "nativeSrc": "dorok/native-v2/skill-3-hit-3.png",
+          "nativeSize": [
+            480,
+            620
+          ],
+          "sheet": "sheets/v2/dorok-3.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "skill-4-hit-1",
+          "label": "완전 대칭 · 1타",
+          "skillName": "완전 대칭",
+          "hit": 1,
+          "pose": "Skill 4 named 완전 대칭, 관통, hit 1 of 1: forward coordinate-pointing hand. Initiating committed motion, visibly different silhouette from adjacent attacks. Strongest normal skill, wider stable stance and forceful extension.",
+          "src": "dorok/skill-4-hit-1-v2.png",
+          "nativeSrc": "dorok/native-v2/skill-4-hit-1.png",
+          "nativeSize": [
+            475,
+            619
+          ],
+          "sheet": "sheets/v2/dorok-3.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "overdrive-hit-1",
+          "label": "완전 대칭 · 개념 폭주 · 1타",
+          "skillName": "완전 대칭 · 개념 폭주",
+          "hit": 1,
+          "pose": "Special concept overdrive 완전 대칭 · 개념 폭주, hit 1: forward coordinate-pointing hand, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions",
+          "src": "dorok/overdrive-hit-1-v2.png",
+          "nativeSrc": "dorok/native-v2/overdrive-hit-1.png",
+          "nativeSize": [
+            576,
+            611
+          ],
+          "sheet": "sheets/v2/dorok-3.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "overdrive-hit-2",
+          "label": "완전 대칭 · 개념 폭주 · 2타",
+          "skillName": "완전 대칭 · 개념 폭주",
+          "hit": 2,
+          "pose": "Special concept overdrive 완전 대칭 · 개념 폭주, hit 2: cross-body symmetric gesture, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions",
+          "src": "dorok/overdrive-hit-2-v2.png",
+          "nativeSrc": "dorok/native-v2/overdrive-hit-2.png",
+          "nativeSize": [
+            444,
+            621
+          ],
+          "sheet": "sheets/v2/dorok-3.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        },
+        {
+          "key": "overdrive-hit-3",
+          "label": "완전 대칭 · 개념 폭주 · 3타",
+          "skillName": "완전 대칭 · 개념 폭주",
+          "hit": 3,
+          "pose": "Special concept overdrive 완전 대칭 · 개념 폭주, hit 3: two-handed force release, dramatic but anatomically grounded extension, small character-specific concept accent only; keep the same outfit and body proportions",
+          "src": "dorok/overdrive-hit-3-v2.png",
+          "nativeSrc": "dorok/native-v2/overdrive-hit-3.png",
+          "nativeSize": [
+            559,
+            654
+          ],
+          "sheet": "sheets/v2/dorok-4.png",
+          "review": "pending-anatomy-review",
+          "pivotMethod": "silhouette bottom; sole review required"
+        }
+      ]
+    }
+  ]
+}

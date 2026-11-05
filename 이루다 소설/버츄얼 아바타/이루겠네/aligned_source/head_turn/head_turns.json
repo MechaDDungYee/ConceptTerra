@@ -1,0 +1,63 @@
+{
+  "canvas": [
+    1024,
+    1536
+  ],
+  "angles": {
+    "left": {
+      "yaw": -60,
+      "pitch": 0
+    },
+    "right": {
+      "yaw": 60,
+      "pitch": 0
+    },
+    "up": {
+      "yaw": 0,
+      "pitch": 25
+    },
+    "down": {
+      "yaw": 0,
+      "pitch": -25
+    }
+  },
+  "anchor_chin_front": [
+    515,
+    194
+  ],
+  "anchor_collar": [
+    512,
+    270
+  ],
+  "headless_body": "body_without_head.png",
+  "turns": {
+    "left": {
+      "head": "head_left_60.png",
+      "back_hair": "head_left_back_hair.png",
+      "face_bangs_neck": "head_left_face_bangs_neck.png",
+      "preview": "preview_left_60.png",
+      "source_full": "head_left_full.png"
+    },
+    "right": {
+      "head": "head_right_60.png",
+      "back_hair": "head_right_back_hair.png",
+      "face_bangs_neck": "head_right_face_bangs_neck.png",
+      "preview": "preview_right_60.png",
+      "source_full": "head_right_full.png"
+    },
+    "up": {
+      "head": "head_up_25.png",
+      "back_hair": "head_up_back_hair.png",
+      "face_bangs_neck": "head_up_face_bangs_neck.png",
+      "preview": "preview_up_25.png",
+      "source_full": "head_up_full.png"
+    },
+    "down": {
+      "head": "head_down_25.png",
+      "back_hair": "head_down_back_hair.png",
+      "face_bangs_neck": "head_down_face_bangs_neck.png",
+      "preview": "preview_down_25.png",
+      "source_full": "head_down_full.png"
+    }
+  }
+}

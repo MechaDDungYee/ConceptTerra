@@ -58,10 +58,21 @@ async function readInput(request,large=false) {
 }
 
 const clean = (value, limit) => typeof value === 'string' && value.trim().length <= limit && !/[\x00-\x1f\x7f]/.test(value) ? value.trim() : '';
+const maxAccountCharacters=30;
+async function accountOwner(request){
+  const id=request.headers.get('oai-authenticated-user-id');
+  return id?hash('conceptterra-character:'+id):null;
+}
 
 async function api(request, env, url) {
   const db = env.DB;
   if (!db) return error('방 서버에 연결할 수 없습니다.', 503);
+  if(url.pathname==='/api/account/characters'&&request.method==='GET'){
+    const owner=await accountOwner(request);
+    if(!owner)return json({signedIn:false,characters:[]});
+    const {results}=await query(db,'SELECT id,name,country,revision FROM account_characters WHERE owner_id = ? ORDER BY updated_at DESC,id LIMIT ?',owner,maxAccountCharacters).all();
+    return json({signedIn:true,characters:results});
+  }
   let input = {};
   if (request.method === 'POST') {
     const origin = request.headers.get('Origin');
@@ -103,7 +114,8 @@ async function api(request, env, url) {
       const linked = await query(db, 'UPDATE members SET collection_id = ? WHERE id = ? AND collection_id IS NULL', id, member.id).run();
       if (linked.meta.changes && !existing) issuedToken = token;
     }
-    const response = await gameApi(db, room, member.id, request.method === 'GET' ? null : input, art);
+    const owner=['characterAccountSave','characterAccountSelect'].includes(input.action)?await accountOwner(request):null;
+    const response = await gameApi(db, room, member.id, request.method === 'GET' ? null : input, art, owner);
     if (issuedToken) setCollectionCookie(response.headers, url, issuedToken);
     return response;
   }

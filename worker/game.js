@@ -918,6 +918,13 @@ function gameImportPassives(file,existing,cards,enabled){
   });
   return {passives:[...existing,...passives],passiveCards:[...cards,...imported]};
 }
+function gameLoadCharacter(profile,file){
+  const fields=file.character;
+  if(!fields||!fields.art||typeof fields.art!=='object'||Array.isArray(fields.art))gameFail('캐릭터 파일 형식을 확인하세요.');
+  for(const [slot,image] of Object.entries(fields.art))gameValidateArt(slot,image);
+  Object.assign(profile,gameProfileFields(fields,fields.mind),gameImportPassives(file,[],[],true),
+    {art:fields.art,artVersion:(profile.artVersion||0)+1});
+}
 function gameDeck(owned,ids){
   if(!ids?.length)return gameStarterDeck;
   const catalogue=new Map(owned.map(card=>[card.id,card]));
@@ -2864,7 +2871,7 @@ function gameView(state,revision,actor,manager,members) {
   }:null;
   return {revision,manager,me:actor,roster:members.filter(m=>m.seat>0),profile:{name:'',country:'제4국',status:'하위층 시민',wall:'',job:'',goal:'',concept:'',stats:[50,50,50,50,50,50],mind:50,cards:[],deck:[],...state.profiles[actor]},defaults:gameCatalogue,battle};
 }
-async function gameApi(db,room,actor,input,artQuery){
+async function gameApi(db,room,actor,input,artQuery,account=null){
   const {results:members}=await query(db,'SELECT id, name, seat, collection_id FROM members WHERE room_code = ? ORDER BY seat, joined_at',room.code).all();
   const self=members.find(m=>m.id===actor);
   if(!self)return error('먼저 방에 참가해 주세요.',401);
@@ -2920,6 +2927,11 @@ async function gameApi(db,room,actor,input,artQuery){
     }
   }
   const ownCollection=gameCollection(legacy,ownRow);
+  const characterSnapshot=()=>{
+    const saved=gameView(state,revision,actor,manager,members).profile;
+    return {character:{...gameProfileFields({...saved,name:saved.name||self.name},saved.mind),art:saved.art||{}},
+      ...gameExportPassives(saved.passives||[],[...ownCollection.cards,...(saved.passiveCards||[])])};
+  };
   if(['passiveExport','characterExport'].includes(input?.action)){
     try{
       const saved=gameView(state,revision,actor,manager,members).profile;
@@ -2930,9 +2942,7 @@ async function gameApi(db,room,actor,input,artQuery){
         if(!passives.length)gameFail('다운로드할 패시브가 없어요.');
         return json({format:passiveFileFormat,version:1,...gameExportPassives(passives,owned)});
       }
-      return json({format:characterFileFormat,version:1,
-        character:{...gameProfileFields({...saved,name:saved.name||self.name},saved.mind),art:saved.art||{}},
-        ...gameExportPassives(passives,owned)});
+      return json({format:characterFileFormat,version:1,...characterSnapshot()});
     }catch(e){if(e instanceof GameInputError)return error(e.message);throw e;}
   }
   const shares=()=>Object.values(state.cardShares||{}).filter(share=>members.some(member=>member.id===share.owner));
@@ -2962,6 +2972,8 @@ async function gameApi(db,room,actor,input,artQuery){
   };
   if(!input)return view();
   const collectionEdit=['card','deck','cardClone','cardDelete','cardImport','cardTake','stackCreate','stackEdit'].includes(input.action);
+  if(['characterAccountSave','characterAccountSelect'].includes(input.action)&&!account)
+    return error('캐릭터 보관함을 사용하려면 ChatGPT로 로그인하세요.',401);
   if(collectionEdit?input.collectionRevision!==ownCollection.revision:input.revision!==revision){
     return error('저장 데이터가 먼저 변경됐어요. 다시 시도해 주세요.',409);
   }
@@ -2982,17 +2994,43 @@ async function gameApi(db,room,actor,input,artQuery){
         Object.assign(profile,gameProfileFields(input,profile.mind??50));
         break;
       }
+      case 'characterAccountSave': {
+        if(gameActive(b)&&b.units[actor])gameFail('전투가 끝난 후 캐릭터를 저장할 수 있어요.');
+        const snapshot=characterSnapshot();
+        if(!state.profiles[actor]?.name)gameFail('캐릭터 시트를 먼저 저장하세요.');
+        const data=JSON.stringify(snapshot);
+        if(data.length>850000)gameFail('캐릭터 데이터가 너무 커요. 일러스트 용량을 줄여 주세요.');
+        const {name,country}=snapshot.character;
+        if(input.id){
+          if(typeof input.id!=='string'||!gameInt(input.characterRevision,1,Number.MAX_SAFE_INTEGER))gameFail('저장할 캐릭터를 확인하세요.');
+          const saved=await query(db,'UPDATE account_characters SET name = ?, country = ?, data = ?, updated_at = ?, revision = revision+1 WHERE id = ? AND owner_id = ? AND revision = ?',
+            name,country,data,Date.now(),input.id,account,input.characterRevision).run();
+          if(!saved.meta.changes)return error('캐릭터가 이미 변경됐거나 이 계정에 없어요.',409);
+        }else{
+          const saved=await query(db,`INSERT INTO account_characters (id,owner_id,name,country,data,updated_at)
+            SELECT ?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM account_characters WHERE owner_id = ?) < ?`,
+            gameId(),account,name,country,data,Date.now(),account,maxAccountCharacters).run();
+          if(!saved.meta.changes)gameFail('계정에 캐릭터는 '+maxAccountCharacters+'명까지 저장할 수 있어요.');
+        }
+        return view();
+      }
+      case 'characterAccountSelect': {
+        if(gameActive(b)&&b.units[actor])gameFail('전투가 끝난 후 캐릭터를 선택할 수 있어요.');
+        if(typeof input.id!=='string')gameFail('불러올 캐릭터를 선택하세요.');
+        const saved=await query(db,'SELECT data FROM account_characters WHERE id = ? AND owner_id = ?',input.id,account).first();
+        if(!saved)return error('이 계정에 저장된 캐릭터를 찾을 수 없어요.',404);
+        gameLoadCharacter(profile,JSON.parse(saved.data));
+        profile.accountCharacterId=input.id;
+        break;
+      }
       case 'passiveImport':
       case 'characterImport': {
         if(gameActive(b)&&b.units[actor])gameFail('전투가 끝난 후 파일을 가져올 수 있어요.');
         const file=input.file,character=input.action==='characterImport';
         if(file?.format!==(character?characterFileFormat:passiveFileFormat)||file.version!==1)gameFail('파일 종류 또는 버전을 확인하세요.');
         if(character){
-          const fields=file.character;
-          if(!fields||!fields.art||typeof fields.art!=='object'||Array.isArray(fields.art))gameFail('캐릭터 파일 형식을 확인하세요.');
-          for(const [slot,image] of Object.entries(fields.art))gameValidateArt(slot,image);
-          Object.assign(profile,gameProfileFields(fields,fields.mind),gameImportPassives(file,[],[],true),
-            {art:fields.art,artVersion:(profile.artVersion||0)+1});
+          gameLoadCharacter(profile,file);
+          delete profile.accountCharacterId;
         }else{
           if(!file.passives?.length)gameFail('가져올 패시브가 없어요.');
           Object.assign(profile,gameImportPassives(file,profile.passives||[],profile.passiveCards||[],false));

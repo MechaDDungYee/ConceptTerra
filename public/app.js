@@ -1,3 +1,5 @@
+import {accountPanel} from './account.js';
+
 const root = document.querySelector('#app');
 const code = location.pathname.match(/^\/room\/([a-f0-9]{16})\/?$/)?.[1];
 const endpoint = '/api/rooms' + (code ? '/' + code : '');
@@ -28,6 +30,7 @@ function connectForm(form, handler) {
 
 function showLobby() {
   root.replaceChildren(document.querySelector('#lobby').content.cloneNode(true));
+  root.append(accountPanel());
   connectForm(root.querySelector('#create'), async input => {
     const room = await api('/api/rooms', input);
     location.assign('/room/' + room.code);

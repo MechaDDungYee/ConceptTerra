@@ -5,8 +5,8 @@ import {localDb} from './local-db.mjs';
 
 async function fixture(){
   const DB=localDb();
-  async function send(path,body,cookie){
-    const headers=cookie?{Cookie:cookie}:{};
+  async function send(path,body,cookie,identity){
+    const headers={...(cookie?{Cookie:cookie}:{}),...(identity?{'oai-authenticated-user-id':identity}:{})};
     const r=await worker.fetch(new Request('https://game.test'+path,{headers,...(body?{method:'POST',body:JSON.stringify(body)}:{})}),{DB});
     return {status:r.status,body:await r.json(),cookie:r.headers.getSetCookie().map(header=>header.split(';')[0]).join('; ')||undefined};
   }
@@ -107,6 +107,35 @@ test('passive and character files round-trip artwork and remap referenced cards'
   assert.deepEqual(f.state.profile.artSlots,['normal.idle']);
   assert.equal(f.state.profile.passives.length,1);
   assert.equal(f.state.profile.passives[0].enabled,true);
+});
+
+test('signed-in accounts can store and select multiple characters in a different room',async()=>{
+  const f=await fixture();
+  const account='/api/account/characters',alice='alice',bob='bob';
+  const save=(id,characterRevision,identity=alice)=>f.send(f.endpoint,{
+    action:'characterAccountSave',revision:f.state.revision,id,characterRevision
+  },f.host.cookie,identity);
+  const sheet=name=>f.act('profile',{name,country:'제4국',status:'하위층 시민',stats:[50,50,50,50,50,50]});
+  assert.equal((await f.send(account)).body.signedIn,false);
+  await sheet('첫 번째 승객');
+  const unauthorized=await f.send(f.endpoint,{action:'characterAccountSave',revision:f.state.revision},f.host.cookie);
+  assert.equal(unauthorized.status,401);
+  assert.equal((await save()).status,200);
+  await sheet('두 번째 승객');
+  assert.equal((await save()).status,200);
+  const {characters}= (await f.send(account,undefined,null,alice)).body;
+  assert.equal(characters.length,2);
+  assert.deepEqual((await f.send(account,undefined,null,bob)).body.characters,[]);
+  const first=characters.find(character=>character.name==='첫 번째 승객');
+  assert.equal((await save(first.id,first.revision,bob)).status,409);
+  const created=await f.send('/api/rooms',{name:'여행자',title:'다른 방'});
+  const endpoint='/api/rooms/'+created.body.code+'/game';
+  const selection={action:'characterAccountSelect',id:first.id,revision:0};
+  assert.equal((await f.send(endpoint,selection,created.cookie,bob)).status,404);
+  const selected=await f.send(endpoint,selection,created.cookie,alice);
+  assert.equal(selected.status,200);
+  assert.equal(selected.body.profile.name,'첫 번째 승객');
+  assert.equal(selected.body.profile.accountCharacterId,first.id);
 });
 
 test('card start effects trigger once per card type and base effects spend their own cost',async()=>{

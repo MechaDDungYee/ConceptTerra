@@ -1,5 +1,6 @@
 import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
+import {accountPanel} from './account.js';
 import {gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridCardInRange,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
 import {basicStacks,planningTimings,cardZoneTimings,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
@@ -55,13 +56,13 @@ async function send(action,payload={}){
     }
     if(action==='card'||action==='cardDelete'&&payload.id===edit)edit=null;
     if(action==='cardClone')edit=state.editedCardId;
-    if(['passive','passiveDelete','passiveTake','passiveClone','passiveImport','characterImport'].includes(action))passiveEdit=null;
+    if(['passive','passiveDelete','passiveTake','passiveClone','passiveImport','characterImport','characterAccountSelect'].includes(action))passiveEdit=null;
 
     if(['plan','start','round','reset'].includes(action))battleDraft=null;
     if(released)battleDraft={...released,key:state.battle.round+':'+state.me+(releasedUnit.collapsed?':collapsed':releasedUnit.zero==='crisis'?':crisis':''),card:released.card||'',discard:released.discard||''};
     draftDirty=false;render();
     if(action==='cardClone')panel.querySelector('input[name="name"]')?.focus();
-    feedback.textContent={plan:'행동을 확정했어요.',unplan:'행동을 수정할 수 있어요.',round:'라운드 처리를 마쳤어요.',card:'카드 보관함에 저장했어요.',deck:'전투 덱을 저장했어요.',cardClone:'카드 사본을 만들었어요.',cardDelete:'카드를 삭제했어요.',cardShare:'이 방에 카드를 공유했어요.',cardUnshare:'공유를 해제했어요.',cardTake:'공유 카드를 보관함에 가져왔어요.',cardImport:'파일의 카드를 보관함에 가져왔어요.',passive:'패시브를 저장했어요.',passiveClone:'패시브 사본을 만들었어요.',passiveShare:'이 방에 패시브를 공유했어요.',passiveUnshare:'패시브 공유를 해제했어요.',passiveTake:'패시브를 가져왔어요. 장착하면 전투에서 발동해요.'}[action]||'반영했어요.';
+    feedback.textContent={plan:'행동을 확정했어요.',unplan:'행동을 수정할 수 있어요.',round:'라운드 처리를 마쳤어요.',card:'카드 보관함에 저장했어요.',deck:'전투 덱을 저장했어요.',cardClone:'카드 사본을 만들었어요.',cardDelete:'카드를 삭제했어요.',cardShare:'이 방에 카드를 공유했어요.',cardUnshare:'공유를 해제했어요.',cardTake:'공유 카드를 보관함에 가져왔어요.',cardImport:'파일의 카드를 보관함에 가져왔어요.',passive:'패시브를 저장했어요.',passiveClone:'패시브 사본을 만들었어요.',passiveShare:'이 방에 패시브를 공유했어요.',passiveUnshare:'패시브 공유를 해제했어요.',passiveTake:'패시브를 가져왔어요. 장착하면 전투에서 발동해요.'}[action]||({characterAccountSave:'계정에 캐릭터를 저장했어요.',characterAccountSelect:'이 방에 캐릭터를 불러왔어요.'}[action]||'반영했어요.');
   }catch(err){
     errors.textContent=err.message;
     if(err.status===409){state=await request().catch(()=>state);if(action==='stackCreate'||action==='stackEdit')updateStackControls();else if(!draftDirty||tab==='battle')render();}
@@ -151,6 +152,13 @@ function character(){
   const locked=state.battle?.phase==='planning'&&state.battle.units.some(unit=>unit.id===state.me);
   const files=section('캐릭터 파일',note('캐릭터 시트, 정신력, 일러스트, 패시브와 참조 카드를 한 파일로 옮길 수 있어요.'),characterFileControls('character',locked));
   files.classList.add('full');
+  const account=accountPanel({
+    locked,selected:p.accountCharacterId,
+    save:character=>send('characterAccountSave',character?{id:character.id,characterRevision:character.revision}:{}),
+    select:character=>send('characterAccountSelect',{id:character.id})
+  });
+  account.classList.add('full');
+  sheet.prepend(account);
   sheet.append(files,characterPassives(p),art);
   return sheet;
 }

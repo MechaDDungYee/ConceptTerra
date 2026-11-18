@@ -15,6 +15,9 @@ export function localDb(filename = ':memory:') {
   if (!db.prepare("PRAGMA table_info(player_collections)").all().some(column=>column.name==='stack_names')) {
     db.exec(readFileSync(new URL('../drizzle/0003_custom_stacks.sql', import.meta.url),'utf8'));
   }
+  if (!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='account_characters'").get()) {
+    db.exec(readFileSync(new URL('../drizzle/0004_account_characters.sql', import.meta.url),'utf8'));
+  }
   return {
     prepare(sql) {
       return {bind(...args) {

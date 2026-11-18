@@ -1,6 +1,6 @@
 import {mkdir, readFile, writeFile, copyFile, readdir} from 'node:fs/promises';
 const assets = {};
-for (const [name, type] of [['index.html','text/html'],['style.css','text/css'],['app.js','text/javascript'],['game.html','text/html'],['game.js','text/javascript'],['blocks.js','text/javascript'],['game.css','text/css'],['rules.js','text/javascript'],['grid.js','text/javascript'],['battle-camera.js','text/javascript']]) {
+for (const [name, type] of [['index.html','text/html'],['style.css','text/css'],['app.js','text/javascript'],['account.js','text/javascript'],['game.html','text/html'],['game.js','text/javascript'],['blocks.js','text/javascript'],['game.css','text/css'],['rules.js','text/javascript'],['grid.js','text/javascript'],['battle-camera.js','text/javascript']]) {
   assets['/'+name] = {type: type+'; charset=utf-8', body: await readFile('public/'+name,'utf8')};
 }
 for (const name of await readdir('public/battle-art')) {

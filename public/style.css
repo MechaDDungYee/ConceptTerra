@@ -5,3 +5,13 @@ header,main,footer{width:min(1120px,calc(100% - 72px));margin:auto}header{height
 :focus-visible{outline:2px solid var(--acid);outline-offset:3px}
 @media(max-width:690px){header,main,footer{width:calc(100% - 32px)}main{margin-top:25px}.cards,.room-grid{grid-template-columns:1fr}.hero{min-height:270px}.diagram{width:36vw;right:9%;opacity:.7}.desktop{display:none}.card{padding:20px}}
 .game-entry{display:inline-flex;align-items:center;padding:8px 12px;border:1px solid var(--acid);border-radius:4px;font-weight:750}
+.account-characters{margin-top:16px}
+.account-character-head,.account-character-row,.account-character-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.account-character-head,.account-character-row{justify-content:space-between}
+.account-character-head .home{border:1px solid var(--line);border-radius:4px;padding:8px 10px;color:var(--acid);font-weight:750}
+.account-character-list{display:grid;gap:8px;margin-top:10px}
+.account-character-list > button{justify-self:start}
+.account-character-list > p{margin:0}
+.account-character-row{padding:9px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}
+.account-character-row small{display:block;color:var(--muted);margin-top:3px}
+.account-character-actions button{font-size:.83rem}

@@ -5,8 +5,8 @@ import {localDb} from './local-db.mjs';
 
 async function fixture(){
   const DB=localDb();
-  async function send(path,body,cookie,identity){
-    const headers={...(cookie?{Cookie:cookie}:{}),...(identity?{'oai-authenticated-user-id':identity}:{})};
+  async function send(path,body,cookie){
+    const headers=cookie?{Cookie:cookie}:{};
     const r=await worker.fetch(new Request('https://game.test'+path,{headers,...(body?{method:'POST',body:JSON.stringify(body)}:{})}),{DB});
     return {status:r.status,body:await r.json(),cookie:r.headers.getSetCookie().map(header=>header.split(';')[0]).join('; ')||undefined};
   }
@@ -109,33 +109,82 @@ test('passive and character files round-trip artwork and remap referenced cards'
   assert.equal(f.state.profile.passives[0].enabled,true);
 });
 
-test('signed-in accounts can store and select multiple characters in a different room',async()=>{
+test('local accounts make characters and cards in a private studio for use in another room',async()=>{
   const f=await fixture();
-  const account='/api/account/characters',alice='alice',bob='bob';
-  const save=(id,characterRevision,identity=alice)=>f.send(f.endpoint,{
-    action:'characterAccountSave',revision:f.state.revision,id,characterRevision
-  },f.host.cookie,identity);
-  const sheet=name=>f.act('profile',{name,country:'제4국',status:'하위층 시민',stats:[50,50,50,50,50,50]});
+  const account='/api/account/characters',password='test-only-password';
+  const alice=(await f.send('/api/account/register',{username:'alice',password})).cookie;
+  const bob=(await f.send('/api/account/register',{username:'bob',password})).cookie;
+  assert.ok(alice&&bob);
+  assert.equal((await f.send('/api/account/login',{username:'alice',password:'test-wrong-password'})).status,401);
+  const login=await f.send('/api/account/login',{username:'alice',password});
+  assert.equal(login.status,200);
+  const studio='/api/studio';
+  assert.equal((await f.send(studio)).status,401);
+  assert.equal((await f.send(studio,{action:'start',revision:0},alice)).status,400);
+  let draft=(await f.send(studio,undefined,alice)).body;
+  const edit=async(action,payload={})=>{
+    const r=await f.send(studio,{action,revision:draft.revision,collectionRevision:draft.collectionRevision,...payload},alice);
+    assert.equal(r.status,200,JSON.stringify(r.body));
+    draft=r.body;
+  };
+  const save=(id,characterRevision,cookie=alice)=>f.send(studio,{
+    action:'characterAccountSave',revision:draft.revision,id,characterRevision
+  },cookie);
+  const sheet=name=>edit('profile',{name,country:'제4국',status:'하위층 시민',stats:[50,50,50,50,50,50]});
   assert.equal((await f.send(account)).body.signedIn,false);
   await sheet('첫 번째 승객');
-  const unauthorized=await f.send(f.endpoint,{action:'characterAccountSave',revision:f.state.revision},f.host.cookie);
-  assert.equal(unauthorized.status,401);
   assert.equal((await save()).status,200);
   await sheet('두 번째 승객');
   assert.equal((await save()).status,200);
-  const {characters}= (await f.send(account,undefined,null,alice)).body;
+  await edit('card',{card:{name:'제작실 카드',power:'0',role:'normal',target:'self',range:'0',effects:[]}});
+  const {characters}= (await f.send(account,undefined,alice)).body;
   assert.equal(characters.length,2);
-  assert.deepEqual((await f.send(account,undefined,null,bob)).body.characters,[]);
+  assert.deepEqual((await f.send(account,undefined,bob)).body.characters,[]);
   const first=characters.find(character=>character.name==='첫 번째 승객');
-  assert.equal((await save(first.id,first.revision,bob)).status,409);
   const created=await f.send('/api/rooms',{name:'여행자',title:'다른 방'});
   const endpoint='/api/rooms/'+created.body.code+'/game';
   const selection={action:'characterAccountSelect',id:first.id,revision:0};
-  assert.equal((await f.send(endpoint,selection,created.cookie,bob)).status,404);
-  const selected=await f.send(endpoint,selection,created.cookie,alice);
+  assert.equal((await f.send(endpoint,selection,created.cookie+'; '+bob)).status,404);
+  const selected=await f.send(endpoint,selection,created.cookie+'; '+alice);
   assert.equal(selected.status,200);
   assert.equal(selected.body.profile.name,'첫 번째 승객');
   assert.equal(selected.body.profile.accountCharacterId,first.id);
+  assert.equal(selected.body.profile.cards[0].name,'제작실 카드');
+  const privateRoom=f.DB.prepare('SELECT studio_code FROM local_accounts WHERE username = ?').bind('alice').first().studio_code;
+  assert.equal((await f.send('/api/rooms/'+privateRoom,undefined,bob)).status,404);
+  assert.equal((await f.send('/api/account/logout',{},login.cookie)).status,200);
+  assert.equal((await f.send(studio,undefined,login.cookie)).status,401);
+});
+
+test('mid-battle edits only enter live combat after GM approval',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'승객'},null);
+  await f.send(f.room+'/seat',{id:guest.body.me,seat:1},f.host.cookie);
+  await f.act('start',{solo:false,bots:0});
+  const old=(await f.send(f.endpoint,undefined,guest.cookie)).body;
+  const profile=await f.send(f.endpoint,{action:'profile',revision:old.revision,name:'승인된 이름',country:'제4국',
+    status:'하위층 시민',stats:[50,50,50,50,50,50]},guest.cookie);
+  assert.equal(profile.status,200);
+  assert.equal(profile.body.battle.units.find(unit=>unit.id===guest.body.me).name,'승객');
+  const card=await f.send(f.endpoint,{action:'card',collectionRevision:profile.body.collectionRevision,
+    card:{name:'전투 중 제작',power:'1',range:'0',role:'normal',target:'self',effects:[]}},guest.cookie);
+  assert.equal(card.status,200);
+  const cardId=card.body.profile.cards[0].id;
+  const savedDeck=await f.send(f.endpoint,{action:'deck',collectionRevision:card.body.collectionRevision,
+    cards:[cardId,'strike','strike','guard','guard','hold','hold','shot','shot','rush']},guest.cookie);
+  assert.equal(savedDeck.status,200);
+  const request=await f.send(f.endpoint,{action:'requestEdit',revision:profile.body.revision},guest.cookie);
+  assert.equal(request.status,200);
+  const id=request.body.pendingEdits[0].id;
+  const approval={action:'reviewEdit',revision:request.body.revision,id,approve:true};
+  assert.equal((await f.send(f.endpoint,approval,guest.cookie)).status,403);
+  const approved=await f.send(f.endpoint,approval,f.host.cookie);
+  assert.equal(approved.status,200);
+  assert.equal(approved.body.battle.units.find(unit=>unit.id===guest.body.me).name,'승인된 이름');
+  const battle=JSON.parse(f.DB.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(f.host.body.code).first().state).battle;
+  assert.equal(battle.units[guest.body.me].library[cardId].name,'전투 중 제작');
+  assert.ok(battle.units[guest.body.me].deck.includes(cardId));
+  assert.deepEqual(approved.body.pendingEdits,[]);
 });
 
 test('card start effects trigger once per card type and base effects spend their own cost',async()=>{
@@ -1913,8 +1962,9 @@ test('saved and equipped character passives trigger at the start, on hit, and on
   await f.act('start',{solo:true,bots:0});
   assert.deepEqual(livingForm(f).passiveNames,['회수원의 버팀목']);
   assert.equal(livingForm(f).shield,4);
-  const toggle=await f.send(f.endpoint,{action:'passiveToggle',revision:f.state.revision,id:passives[0].id},f.host.cookie);
-  assert.equal(toggle.status,400);
+  await f.act('passiveToggle',{id:passives[0].id});
+  assert.equal(f.state.profile.passives[0].enabled,false);
+  assert.deepEqual(livingForm(f).passiveNames,['회수원의 버팀목']);
   configureBattle(f,(b,self)=>{
     Object.assign(self,{pos:16,hand:[id],mind:50});
     b.units.enemy.pos=18;

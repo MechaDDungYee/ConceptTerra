@@ -4,13 +4,21 @@ import {accountPanel} from './account.js';
 import {gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridCardInRange,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
 import {basicStacks,planningTimings,cardZoneTimings,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
-const code=location.pathname.split('/')[2], endpoint='/api/rooms/'+code+'/game';
-document.querySelector('#back').href='/room/'+code;
+const studio=location.pathname==='/studio';
+const code=location.pathname.split('/')[2], endpoint=studio?'/api/studio':'/api/rooms/'+code+'/game';
+document.querySelector('#back').href=studio?'/':'/room/'+code;
+if(studio){
+  document.querySelector('#back').textContent='← 로비로';
+  document.querySelector('[data-tab="battle"]').remove();
+  document.querySelector('.game-title h1').textContent='개인 제작실';
+  document.querySelector('.game-title .tag').textContent='CONCEPTTERRA / STUDIO';
+  document.title='개인 제작실 · 콘셉트테라 TRPG';
+}
 const countryNames=['중앙국',...Array.from({length:9},(_,i)=>'제'+(i+1)+'국')];
 const counterHelp='이번 라운드에 적의 공격을 맞고 살아남으면, 사거리 안의 공격자에게 1회 반격해요.';
 const coverHelp='사용 시 원호 방어 +1. 맵에서 아군 한 명을 지정하거나, 대상을 비워 자동 엄호로 확정할 수 있어요.';
 const statNames=['근력','민첩','체력','지능','감각','의지'];
-let state,tab='battle', busy=false, edit=null, passiveEdit=null, draftDirty=false, battleDraft=null;
+let state,tab=studio?'character':'battle', busy=false, edit=null, passiveEdit=null, draftDirty=false, battleDraft=null;
 const libraryFilters={values:{},effects:new Set(),stacks:new Set()};
 
 function el(tag,value,attrs={}){
@@ -62,7 +70,8 @@ async function send(action,payload={}){
     if(released)battleDraft={...released,key:state.battle.round+':'+state.me+(releasedUnit.collapsed?':collapsed':releasedUnit.zero==='crisis'?':crisis':''),card:released.card||'',discard:released.discard||''};
     draftDirty=false;render();
     if(action==='cardClone')panel.querySelector('input[name="name"]')?.focus();
-    feedback.textContent={plan:'행동을 확정했어요.',unplan:'행동을 수정할 수 있어요.',round:'라운드 처리를 마쳤어요.',card:'카드 보관함에 저장했어요.',deck:'전투 덱을 저장했어요.',cardClone:'카드 사본을 만들었어요.',cardDelete:'카드를 삭제했어요.',cardShare:'이 방에 카드를 공유했어요.',cardUnshare:'공유를 해제했어요.',cardTake:'공유 카드를 보관함에 가져왔어요.',cardImport:'파일의 카드를 보관함에 가져왔어요.',passive:'패시브를 저장했어요.',passiveClone:'패시브 사본을 만들었어요.',passiveShare:'이 방에 패시브를 공유했어요.',passiveUnshare:'패시브 공유를 해제했어요.',passiveTake:'패시브를 가져왔어요. 장착하면 전투에서 발동해요.'}[action]||({characterAccountSave:'계정에 캐릭터를 저장했어요.',characterAccountSelect:'이 방에 캐릭터를 불러왔어요.'}[action]||'반영했어요.');
+    feedback.textContent={plan:'행동을 확정했어요.',unplan:'행동을 수정할 수 있어요.',round:'라운드 처리를 마쳤어요.',card:'카드 보관함에 저장했어요.',deck:'전투 덱을 저장했어요.',cardClone:'카드 사본을 만들었어요.',cardDelete:'카드를 삭제했어요.',cardShare:'이 방에 카드를 공유했어요.',cardUnshare:'공유를 해제했어요.',cardTake:'공유 카드를 보관함에 가져왔어요.',cardImport:'파일의 카드를 보관함에 가져왔어요.',passive:'패시브를 저장했어요.',passiveClone:'패시브 사본을 만들었어요.',passiveShare:'이 방에 패시브를 공유했어요.',passiveUnshare:'패시브 공유를 해제했어요.',passiveTake:'패시브를 가져왔어요. 장착하면 전투에서 발동해요.',
+      characterAccountSave:'계정에 캐릭터를 저장했어요.',characterAccountSelect:'캐릭터를 불러왔어요.',requestEdit:'GM에게 변경 적용을 요청했어요.'}[action]||'반영했어요.';
   }catch(err){
     errors.textContent=err.message;
     if(err.status===409){state=await request().catch(()=>state);if(action==='stackCreate'||action==='stackEdit')updateStackControls();else if(!draftDirty||tab==='battle')render();}
@@ -176,15 +185,13 @@ function characterPassives(profile){
     card.append(title);
     if(passive.notes)card.append(note(passive.notes));
     for(const effect of passive.effects)card.append(note(effectConditionText(effect)+effectTiming(effect)+' · '+effectSentence(effect)));
-    if(!locked){
-      const actions=el('div',undefined,{class:'row'});
-      actions.append(button('편집',()=>open(passive.id)),button(passive.enabled?'해제':'장착',()=>send('passiveToggle',{id:passive.id})),
-        button('복제',()=>send('passiveClone',{id:passive.id})),
-        button('삭제',()=>{if(confirm('「'+passive.name+'」 패시브를 삭제할까요?'))send('passiveDelete',{id:passive.id});}));
-      card.append(actions);
-    }
+    const actions=el('div',undefined,{class:'row'});
+    actions.append(button('편집',()=>open(passive.id)),button(passive.enabled?'해제':'장착',()=>send('passiveToggle',{id:passive.id})),
+      button('복제',()=>send('passiveClone',{id:passive.id})),
+      button('삭제',()=>{if(confirm('「'+passive.name+'」 패시브를 삭제할까요?'))send('passiveDelete',{id:passive.id});}));
+    card.append(actions);
     const post=shared.find(entry=>entry.owner===state.me&&entry.passive.id===passive.id);
-    card.append(button(post?'공유본 갱신':'이 방에 공유',()=>send('passiveShare',{id:passive.id})));
+    if(!studio)card.append(button(post?'공유본 갱신':'이 방에 공유',()=>send('passiveShare',{id:passive.id})));
     card.append(button('이 패시브 다운로드',()=>downloadCharacterFile('passive',passive.id)));
     saved.append(card);
   }
@@ -210,8 +217,8 @@ function characterPassives(profile){
     if(entry.owner!==state.me)action.disabled=imported||locked||list.length>=maxPassives;
     item.append(action);gallery.append(item);
   }
-  root.append(gallery);
-  if(locked){root.append(note('전투가 끝나면 패시브를 편집하거나 장착 상태를 변경할 수 있어요.'));return root;}
+  if(!studio)root.append(gallery);
+  if(locked)root.append(note('저장한 패시브는 GM에게 적용을 요청할 수 있어요.'));
   if(list.length>=maxPassives&&!existing)return root;
   const save=submit(existing?'패시브 변경 저장':'패시브 만들기');
   const workspace=effectWorkspace(existing?.effects||[],{passive:true,onChange:()=>{
@@ -236,9 +243,10 @@ function artUrl(unitId,slot,version){
   return endpoint+'?'+new URLSearchParams({unit:unitId,art:slot,v:String(version||0)});
 }
 function characterArt(profile){
+  const locked=state.battle?.phase==='planning'&&state.battle.units.some(unit=>unit.id===state.me);
   const form=select('artForm',Object.entries(artForms),artForm);
   const pose=select('artPose',Object.entries(artPoses),artPose);
-  const file=input('artImage','','file',{accept:'image/png,image/jpeg,image/webp'});
+  const file=input('artImage','','file',{accept:'image/png,image/jpeg,image/webp',disabled:locked});
   const preview=el('div',undefined,{class:'character-art-preview'});
   const registered=el('p');
   const save=button('이 슬롯에 저장',async()=>{
@@ -251,15 +259,16 @@ function characterArt(profile){
     const slot=artForm+'.'+artPose,present=profile.artSlots?.includes(slot);
     registered.textContent=artForms[artForm]+' · '+artPoses[artPose]+(present?' 등록됨':' 미등록');
     preview.replaceChildren(present?el('img',undefined,{src:artUrl(state.me,slot,profile.artVersion),alt:artPoses[artPose]}):note('일러스트를 등록하면 여기에 표시돼요.'));
-    remove.disabled=!present;
-    save.disabled=!file.files.length;
+    remove.disabled=locked||!present;
+    save.disabled=locked||!file.files.length;
   };
   form.onchange=pose.onchange=()=>{file.value='';update();};
   file.onchange=()=>{save.disabled=!file.files.length;};
   update();
   const actions=el('div',undefined,{class:'row'});actions.append(save,remove);
   return section('캐릭터 일러스트',note('형태와 자세를 골라 개별 등록하세요. 비어 있는 자세는 같은 형태의 스탠딩, 그다음 기본 일러스트를 사용해요.'),
-    field('형태',form),field('자세',pose),registered,preview,field('PNG, JPEG, WebP',file),actions);
+    field('형태',form),field('자세',pose),registered,preview,field('PNG, JPEG, WebP',file),actions,
+    ...(locked?[note('일러스트는 전투가 끝난 후에 변경할 수 있어요.')]:[]));
 }
 function signed(n){return n>=0?'+'+n:String(n);}
 function stackLabels(unit){
@@ -1305,8 +1314,8 @@ function cards(){
         button('삭제',()=>{
           const detail=selected.has(card.id)?' 덱에 든 장수는 기본 카드로 채워요.':'';
           if(confirm('「'+card.name+'」 카드를 삭제할까요?'+detail))send('cardDelete',{id:card.id});
-        }),
-        button(posted?'공유 갱신':'이 방에 공유',()=>{
+        }));
+      if(!studio)controls.append(button(posted?'공유 갱신':'이 방에 공유',()=>{
           if(card.effects.some(effect=>p.cards.some(owned=>owned.id!==card.id&&effectCardReferences(effect).includes(owned.id)))&&
             !confirm('이 카드의 효과가 참조하는 제작 카드도 함께 공유할까요?'))return;
           send('cardShare',{id:card.id});
@@ -1349,7 +1358,8 @@ function cards(){
     sharedList.append(line);
   }
   if(sharedList)shared.append(sharedList);
-  const studio=group(preview,editor,library,shared);studio.append(cataloguePreview.popup);studio.classList.add('forge');return studio;
+  const layout=group(preview,editor,library,...(studio?[]:[shared]));
+  layout.append(cataloguePreview.popup);layout.classList.add('forge');return layout;
 }
 function startPanel(){
   const root=section('빈 객차',note('눈을 뜨자 객차에는 남은 승객들뿐입니다. 존속의 집행체가 열차에 들어옵니다.'));
@@ -1907,11 +1917,34 @@ function battlePanel(){
   return board;
 }
 const cardListPositions=new Map();
+function battleEditControls(){
+  const pending=state.pendingEdits||[];
+  const own=state.battle.units.find(unit=>unit.id===state.me);
+  if(!own?.hp&&(!state.manager||!pending.length))return null;
+  const box=section('전투 중 변경',note('캐릭터·카드·덱을 저장한 뒤 적용을 요청하세요. GM이 승인하면 현재 전투에 반영돼요.'));
+  box.classList.add('battle-edits');
+  if(own?.hp&&tab!=='battle')box.append(button(pending.some(edit=>edit.actor===state.me)?
+    '변경 적용 요청 갱신':'GM에게 변경 적용 요청',()=>send('requestEdit')));
+  if(state.manager)for(const edit of pending){
+    const row=el('div',undefined,{class:'stack'});
+    row.append(el('strong',edit.name+'의 적용 요청'),note('덱 '+edit.cardNames.join(', ')+' · 패시브 '+(edit.passiveNames.join(', ')||'없음')));
+    const actions=el('div',undefined,{class:'row'});
+    actions.append(button('승인하고 즉시 적용',()=>send('reviewEdit',{id:edit.id,approve:true}),true),
+      button('반려',()=>send('reviewEdit',{id:edit.id,approve:false})));
+    row.append(actions);box.append(row);
+  }
+  return tab==='battle'&&(!state.manager||!pending.length)?null:box;
+}
 function render(){
+  if(!state)return;
   for(const list of panel.querySelectorAll('.card-list-scroll'))cardListPositions.set(list.ariaLabel,list.scrollTop);
   panel.closest('main').classList.toggle('card-studio-page',tab==='cards');
   for(const x of document.querySelectorAll('#tabs button'))x.setAttribute('aria-pressed',String(x.dataset.tab===tab));
   panel.replaceChildren(tab==='battle'?battlePanel():tab==='character'?character():cards());
+  if(!studio&&state.battle?.phase==='planning'){
+    const editControls=battleEditControls();
+    if(editControls)panel.prepend(editControls);
+  }
   for(const list of panel.querySelectorAll('.card-list-scroll'))list.scrollTop=cardListPositions.get(list.ariaLabel)||0;
 }
 for(const x of document.querySelectorAll('#tabs button'))x.onclick=()=>{tab=x.dataset.tab;draftDirty=false;errors.textContent='';feedback.textContent='';render();};
@@ -1933,5 +1966,5 @@ try{
   },2300);
 }catch(err){
   errors.textContent=err.message;
-  panel.replaceChildren(el('a','방으로 돌아가기',{href:'/room/'+code}));
+  panel.replaceChildren(studio?accountPanel():el('a','방으로 돌아가기',{href:'/room/'+code}));
 }

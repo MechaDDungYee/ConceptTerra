@@ -40,7 +40,7 @@ const sessionCookie = (url, code, token) => cookieName(code) + '=' + token + '; 
 async function memberFor(request, db, code) {
   const token = credential(request, code);
   if (!token || !/^[a-f0-9]{64}$/.test(token)) return null;
-  return query(db, 'SELECT id, collection_id FROM members WHERE room_code = ? AND token_hash = ?', code, await hash(token)).first();
+  return query(db, 'SELECT id, collection_id, account_collection_id FROM members WHERE room_code = ? AND token_hash = ?', code, await hash(token)).first();
 }
 
 async function roomState(db, room, memberId, headers) {
@@ -59,25 +59,98 @@ async function readInput(request,large=false) {
 
 const clean = (value, limit) => typeof value === 'string' && value.trim().length <= limit && !/[\x00-\x1f\x7f]/.test(value) ? value.trim() : '';
 const maxAccountCharacters=30;
-async function accountOwner(request){
-  const id=request.headers.get('oai-authenticated-user-id');
-  return id?hash('conceptterra-character:'+id):null;
+const accountCookie='ct_account';
+const accountDuration=30*24*60*60;
+const accountCollection=account=>'account:'+account.id;
+function accountToken(request){
+  const token=cookieValue(request,accountCookie);
+  return token&&/^[a-f0-9]{64}$/.test(token)?token:null;
+}
+function accountSessionCookie(url,token,maxAge=accountDuration){
+  return accountCookie+'='+token+'; Path=/; HttpOnly; SameSite=Lax; Max-Age='+maxAge+(url.protocol==='https:'?'; Secure':'');
+}
+async function signedAccount(request,db){
+  const token=accountToken(request);
+  return token?query(db,`SELECT a.id,a.username,a.studio_code FROM local_account_sessions s
+    JOIN local_accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ?`,await hash(token),Date.now()).first():null;
+}
+async function passwordHash(password,salt){
+  const key=await crypto.subtle.importKey('raw',encoder.encode(password),'PBKDF2',false,['deriveBits']);
+  return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt:encoder.encode(salt),iterations:100000,hash:'SHA-256'},key,256));
+}
+function equalHash(a,b){
+  let difference=0;
+  for(let i=0;i<64;i++)difference|=a.charCodeAt(i)^b.charCodeAt(i);
+  return difference===0;
+}
+async function localAccountAction(request,db,url,action,input){
+  const currentToken=accountToken(request);
+  if(action==='logout'){
+    if(currentToken)await query(db,'DELETE FROM local_account_sessions WHERE token_hash = ?',await hash(currentToken)).run();
+    return json({ok:true},200,{'Set-Cookie':accountSessionCookie(url,'',0)});
+  }
+  const username=typeof input.username==='string'?input.username.trim().toLowerCase():'';
+  const password=typeof input.password==='string'?input.password:'';
+  if(!/^[a-z0-9_]{3,24}$/.test(username)||password.length<10||password.length>128)
+    return error('아이디는 영문·숫자·밑줄 3~24자, 비밀번호는 10~128자로 입력하세요.');
+  const now=Date.now(), token=random()+random(), tokenHash=await hash(token);
+  if(action==='register'){
+    const id=random(), code=random().slice(0,16), studioMember=random(), salt=random();
+    const secret=await passwordHash(password,salt);
+    try{
+      await db.batch([
+        query(db,'INSERT INTO rooms(code,title,owner_id) VALUES (?,?,?)',code,'개인 제작실',studioMember),
+        query(db,'INSERT INTO local_accounts (id,username,salt,password_hash,studio_code) VALUES (?,?,?,?,?)',id,username,salt,secret,code),
+        query(db,`INSERT INTO members (id,room_code,token_hash,name,seat,joined_at,collection_id)
+          VALUES (?,?,?,?,0,?,?)`,studioMember,code,await hash(random()+random()),username,now,accountCollection({id})),
+        query(db,'INSERT INTO local_account_sessions (token_hash,account_id,expires_at) VALUES (?,?,?)',tokenHash,id,now+accountDuration*1000)
+      ]);
+    }catch(e){if(/UNIQUE constraint/i.test(String(e)))return error('사용할 수 없는 아이디입니다.',409);throw e;}
+  }else{
+    const attempt=await query(db,'SELECT attempts FROM local_login_attempts WHERE username = ? AND through > ?',username,now).first();
+    if(attempt?.attempts>=8)return error('로그인 시도가 너무 많아요. 잠시 후 다시 시도해 주세요.',429);
+    const account=await query(db,'SELECT id,salt,password_hash FROM local_accounts WHERE username = ?',username).first();
+    const candidate=await passwordHash(password,account?.salt||'conceptterra-unknown-account');
+    if(!equalHash(candidate,account?.password_hash||'0'.repeat(64))||!account){
+      await query(db,`INSERT INTO local_login_attempts(username,attempts,through) VALUES (?,1,?)
+        ON CONFLICT(username) DO UPDATE SET attempts = CASE WHEN through > ? THEN attempts+1 ELSE 1 END,
+        through = CASE WHEN through > ? THEN through ELSE excluded.through END`,username,now+15*60*1000,now,now).run();
+      return error('아이디 또는 비밀번호를 확인하세요.',401);
+    }
+    await db.batch([
+      query(db,'DELETE FROM local_login_attempts WHERE username = ?',username),
+      query(db,'INSERT INTO local_account_sessions (token_hash,account_id,expires_at) VALUES (?,?,?)',tokenHash,account.id,now+accountDuration*1000)
+    ]);
+  }
+  if(currentToken)await query(db,'DELETE FROM local_account_sessions WHERE token_hash = ?',await hash(currentToken)).run();
+  return json({ok:true},200,{'Set-Cookie':accountSessionCookie(url,token)});
 }
 
 async function api(request, env, url) {
   const db = env.DB;
   if (!db) return error('방 서버에 연결할 수 없습니다.', 503);
   if(url.pathname==='/api/account/characters'&&request.method==='GET'){
-    const owner=await accountOwner(request);
-    if(!owner)return json({signedIn:false,characters:[]});
-    const {results}=await query(db,'SELECT id,name,country,revision FROM account_characters WHERE owner_id = ? ORDER BY updated_at DESC,id LIMIT ?',owner,maxAccountCharacters).all();
-    return json({signedIn:true,characters:results});
+    const account=await signedAccount(request,db);
+    if(!account)return json({signedIn:false,characters:[]});
+    const {results}=await query(db,'SELECT id,name,country,revision FROM account_characters WHERE owner_id = ? ORDER BY updated_at DESC,id LIMIT ?',account.id,maxAccountCharacters).all();
+    return json({signedIn:true,username:account.username,characters:results});
   }
   let input = {};
   if (request.method === 'POST') {
     const origin = request.headers.get('Origin');
     if (origin && origin !== url.origin) return error('이 요청을 허용할 수 없습니다.', 403);
-    try { input = await readInput(request,/^\/api\/rooms\/[a-f0-9]{16}\/game$/.test(url.pathname)&&url.searchParams.get('import')==='1'); } catch { return error('입력 형식을 확인해 주세요.'); }
+    try { input = await readInput(request,(url.pathname==='/api/studio'||/^\/api\/rooms\/[a-f0-9]{16}\/game$/.test(url.pathname))&&url.searchParams.get('import')==='1'); } catch { return error('입력 형식을 확인해 주세요.'); }
+  }
+  const accountAction=url.pathname.match(/^\/api\/account\/(register|login|logout)$/)?.[1];
+  if(accountAction&&request.method==='POST')return localAccountAction(request,db,url,accountAction,input);
+  if(url.pathname==='/api/studio'&&['GET','POST'].includes(request.method)){
+    const account=await signedAccount(request,db);
+    if(!account)return error('제작실을 열려면 로그인하세요.',401);
+    const room=await query(db,'SELECT code,title,owner_id FROM rooms WHERE code = ?',account.studio_code).first();
+    if(request.method==='POST'&&['start','round','reset','intent','adjust','adjustActions','plan','unplan','reviewEdit','requestEdit'].includes(input.action))
+      return error('전투 기능은 게임방에서 사용할 수 있어요.',400);
+    const art=request.method==='GET'&&url.searchParams.has('art')?url.searchParams:null;
+    return gameApi(db,room,room.owner_id,request.method==='GET'?null:input,art,account.id,accountCollection(account),true);
   }
 
   if (url.pathname === '/api/rooms' && request.method === 'POST') {
@@ -85,9 +158,10 @@ async function api(request, env, url) {
     if (!title || !name) return error('세션 이름과 닉네임을 확인해 주세요.');
     const code = random().slice(0, 16), id = random(), token = random() + random();
     const {headers, collectionId} = await memberCookies(request, url, code, token);
+    const account=await signedAccount(request,db);
     await db.batch([
       query(db, 'INSERT INTO rooms(code, title, owner_id) VALUES (?, ?, ?)', code, title, id),
-      query(db, 'INSERT INTO members(id, room_code, token_hash, name, seat, joined_at, collection_id) VALUES (?, ?, ?, ?, 0, ?, ?)', id, code, await hash(token), name, Date.now(), collectionId)
+      query(db, 'INSERT INTO members(id, room_code, token_hash, name, seat, joined_at, collection_id, account_collection_id) VALUES (?, ?, ?, ?, 0, ?, ?, ?)', id, code, await hash(token), name, Date.now(), collectionId, account?accountCollection(account):null)
     ]);
     return roomState(db, {code, title, owner_id: id}, id, headers);
   }
@@ -95,7 +169,7 @@ async function api(request, env, url) {
   const match = url.pathname.match(/^\/api\/rooms\/([a-f0-9]{16})(?:\/(join|seat|leave|remove|game))?$/);
   if (!match) return error('방을 찾을 수 없습니다.', 404);
   const [, code, action] = match;
-  const room = await query(db, 'SELECT code, title, owner_id FROM rooms WHERE code = ?', code).first();
+  const room = await query(db, 'SELECT code, title, owner_id FROM rooms WHERE code = ? AND NOT EXISTS (SELECT 1 FROM local_accounts WHERE studio_code = rooms.code)', code).first();
   if (!room) return error('방을 찾을 수 없습니다. 초대 링크를 확인해 주세요.', 404);
   const member = await memberFor(request, db, code);
 
@@ -114,8 +188,11 @@ async function api(request, env, url) {
       const linked = await query(db, 'UPDATE members SET collection_id = ? WHERE id = ? AND collection_id IS NULL', id, member.id).run();
       if (linked.meta.changes && !existing) issuedToken = token;
     }
-    const owner=['characterAccountSave','characterAccountSelect'].includes(input.action)?await accountOwner(request):null;
-    const response = await gameApi(db, room, member.id, request.method === 'GET' ? null : input, art, owner);
+    const account=await signedAccount(request,db);
+    const collection=account?accountCollection(account):null;
+    if(!art&&member.account_collection_id!==collection)
+      await query(db,'UPDATE members SET account_collection_id = ? WHERE id = ?',collection,member.id).run();
+    const response = await gameApi(db, room, member.id, request.method === 'GET' ? null : input, art, account?.id,collection);
     if (issuedToken) setCollectionCookie(response.headers, url, issuedToken);
     return response;
   }
@@ -126,9 +203,10 @@ async function api(request, env, url) {
     if (!name) return error('닉네임을 확인해 주세요.');
     const id = random(), token = random() + random();
     const {headers, collectionId} = await memberCookies(request, url, code, token);
-    const added = await query(db, `INSERT INTO members(id, room_code, token_hash, name, seat, joined_at, collection_id)
-      SELECT ?, ?, ?, ?, NULL, ?, ? WHERE (SELECT COUNT(*) FROM members WHERE room_code = ?) < 24`,
-      id, code, await hash(token), name, Date.now(), collectionId, code).run();
+    const account=await signedAccount(request,db);
+    const added = await query(db, `INSERT INTO members(id, room_code, token_hash, name, seat, joined_at, collection_id, account_collection_id)
+      SELECT ?, ?, ?, ?, NULL, ?, ?, ? WHERE (SELECT COUNT(*) FROM members WHERE room_code = ?) < 24`,
+      id, code, await hash(token), name, Date.now(), collectionId, account?accountCollection(account):null, code).run();
     if (!added.meta.changes) return error('대기 인원이 가득 찼습니다.', 409);
     return roomState(db, room, id, headers);
   }
@@ -161,7 +239,7 @@ export default {
     const url = new URL(request.url);
     try {
       if (url.pathname.startsWith('/api/')) return await api(request, env, url);
-      const route = /^\/room\/[a-f0-9]{16}\/game\/?$/.test(url.pathname) ? '/game.html' : url.pathname === '/' || /^\/room\/[a-f0-9]{16}\/?$/.test(url.pathname) ? '/index.html' : url.pathname;
+      const route = url.pathname==='/studio'||/^\/room\/[a-f0-9]{16}\/game\/?$/.test(url.pathname) ? '/game.html' : url.pathname === '/' || /^\/room\/[a-f0-9]{16}\/?$/.test(url.pathname) ? '/index.html' : url.pathname;
       const asset = Object.hasOwn(assets, route) ? assets[route] : null;
       if (!asset) return new Response('페이지를 찾을 수 없습니다.', {status: 404, headers: baseHeaders});
       return new Response(asset.base64 ? Uint8Array.from(atob(asset.base64), byte=>byte.charCodeAt(0)) : asset.body, {headers: {...baseHeaders, 'Content-Type': asset.type}});

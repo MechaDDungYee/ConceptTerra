@@ -480,6 +480,7 @@ function gameDraw(unit,count,b) {
 function gameUnit(id,name,pos,cards,bot=false,enemy=false,owned=cards) {
   const library=Object.fromEntries(owned.map(({image,...card})=>[card.id,card]));
   const unit={id,name,pos,startingCards:[...new Set(cards.map(card=>card.id))],hp:enemy?54:40,maxHp:enemy?54:40,mind:50,shield:0,reduce:0,move:2,nextMove:0,stacks:{},hand:[],deck:gameShuffle(cards.map(c=>c.id)),grave:[],exile:[],library,bot,enemy,zero:null,collapsed:false};
+  unit.configuredDeck=cards.map(card=>card.id).sort();
   if(!enemy)gameDraw(unit,4);
   return unit;
 }
@@ -2867,13 +2868,14 @@ function gameView(state,revision,actor,manager,members) {
   const b=state.battle;
   const battle=b?{round:b.round,phase:b.phase,result:b.result,intent:b.intent,log:b.log,walls:b.walls,poses:b.poses||[],
     awaiting:gameActive(b)?gameAwaiting(b,members).map(u=>u.name):[],clashActor:Object.keys(b.plans||{}).find(id=>gameHasClash(b.plans[id])),
-    units:Object.values(b.units).map(({library,hand,deck,grave,exile,cover,effectUsage,passives,cardMarks,...unit})=>({...unit,passiveNames:(passives||[]).map(passive=>passive.name),actionLimit:gameActionLimit(unit),coverCount:cover?.length||0,handCount:hand.length,deckCount:deck.length,graveCount:grave.length,exileCount:exile.length,ready:!!b.plans?.[unit.id],artVersion:state.profiles[unit.id]?.artVersion||0,artSlots:Object.keys(state.profiles[unit.id]?.art||{}),...(unit.id===actor?{cardMarks,hand:[...hand.map(id=>({...library[id],requiredState:cardState(library[id].requiredState)})),...(unit.collapsed?[gameCollapseCard]:unit.zero==='crisis'?gameCrisisCards:[])],plan:b.plans?.[actor]}:{})}))
+    units:Object.values(b.units).map(({library,hand,deck,grave,exile,cover,effectUsage,passives,cardMarks,configuredDeck,...unit})=>({...unit,passiveNames:(passives||[]).map(passive=>passive.name),actionLimit:gameActionLimit(unit),coverCount:cover?.length||0,handCount:hand.length,deckCount:deck.length,graveCount:grave.length,exileCount:exile.length,ready:!!b.plans?.[unit.id],artVersion:state.profiles[unit.id]?.artVersion||0,artSlots:Object.keys(state.profiles[unit.id]?.art||{}),...(unit.id===actor?{cardMarks,hand:[...hand.map(id=>({...library[id],requiredState:cardState(library[id].requiredState)})),...(unit.collapsed?[gameCollapseCard]:unit.zero==='crisis'?gameCrisisCards:[])],plan:b.plans?.[actor]}:{})}))
   }:null;
   return {revision,manager,me:actor,roster:members.filter(m=>m.seat>0),profile:{name:'',country:'제4국',status:'하위층 시민',wall:'',job:'',goal:'',concept:'',stats:[50,50,50,50,50,50],mind:50,cards:[],deck:[],...state.profiles[actor]},defaults:gameCatalogue,battle};
 }
-async function gameApi(db,room,actor,input,artQuery,account=null){
-  const {results:members}=await query(db,'SELECT id, name, seat, collection_id FROM members WHERE room_code = ? ORDER BY seat, joined_at',room.code).all();
+async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=null,studio=false){
+  const {results:members}=await query(db,'SELECT id, name, seat, collection_id, account_collection_id FROM members WHERE room_code = ? ORDER BY seat, joined_at',room.code).all();
   const self=members.find(m=>m.id===actor);
+  if(collectionId)self.collection_id=collectionId;
   if(!self)return error('먼저 방에 참가해 주세요.',401);
   const manager=actor===room.owner_id||self.seat===0;
   const current=await query(db,'SELECT revision, state FROM game_states WHERE room_code = ?',room.code).first();
@@ -2968,6 +2970,10 @@ async function gameApi(db,room,actor,input,artQuery,account=null){
       (source.effects||[]).flatMap(effectStackNames))])];
     data.profile.artSlots=Object.keys(data.profile.art||{});
     delete data.profile.art;
+    if(!studio&&gameActive(b)){
+      data.pendingEdits=Object.values(b.pendingEdits||{}).filter(edit=>manager||edit.actor===actor)
+        .map(({id,actor,name,cardNames,passiveNames})=>({id,actor,name,cardNames,passiveNames}));
+    }
     return json(data);
   };
   if(!input)return view();
@@ -2981,6 +2987,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null){
   try{
     switch(input.action){
       case 'art': {
+        if(!studio&&gameActive(b)&&b.units[actor])gameFail('전투 중에는 일러스트를 변경할 수 없어요.');
         const image=input.image;
         gameValidateArt(String(input.slot||''),image);
         profile.art??={};
@@ -2990,7 +2997,6 @@ async function gameApi(db,room,actor,input,artQuery,account=null){
         break;
       }
       case 'profile': {
-        if(gameActive(b)&&b.units[actor])gameFail('전투 중에는 캐릭터를 변경할 수 없어요.');
         Object.assign(profile,gameProfileFields(input,profile.mind??50));
         break;
       }
@@ -3042,7 +3048,6 @@ async function gameApi(db,room,actor,input,artQuery,account=null){
       case 'passiveDelete':
       case 'passiveClone':
       case 'passiveTake': {
-        if(gameActive(b)&&b.units[actor])gameFail('전투가 끝난 후 패시브를 변경할 수 있어요.');
         const list=profile.passives??=[];
         const owned=[...gameCatalogue,...ownCollection.cards,...(profile.passiveCards||[])];
         if(input.action==='passiveTake'){
@@ -3208,11 +3213,55 @@ async function gameApi(db,room,actor,input,artQuery,account=null){
         if(gameActive(b))gameFail('이미 전투 중이에요.');
         const players=members.filter(member=>member.seat>0&&member.id!==actor);
         const collections=new Map(await Promise.all(players.map(async member=>{
-          const row=await query(db,'SELECT cards, deck, stack_names, revision FROM player_collections WHERE id = ?',member.collection_id).first();
+          const row=await query(db,'SELECT cards, deck, stack_names, revision FROM player_collections WHERE id = ?',member.account_collection_id||member.collection_id).first();
           return [member.id,gameCollection(state.profiles[member.id],row)];
         })));
         collections.set(actor,ownCollection);
         state.battle=gameBegin(state,members,input,self,collections);
+        break;
+      }
+      case 'requestEdit': {
+        if(!gameActive(b)||!gameAlive(b.units[actor]))gameFail('전투에 참여 중일 때 변경을 요청할 수 있어요.');
+        const cards=[...gameCatalogue,...ownCollection.cards];
+        const deck=gameDeck(cards,ownCollection.deck);
+        const passives=(profile.passives||[]).filter(passive=>passive.enabled);
+        const library=Object.fromEntries([...cards,...(profile.passiveCards||[])].map(({image,...card})=>[card.id,card]));
+        const name=profile.name||self.name;
+        (b.pendingEdits??={})[actor]={id:gameId(),actor,name,deck:deck.map(card=>card.id),library,passives,
+          stackDefinitions:Object.fromEntries(ownCollection.stackTraits.map(trait=>[trait.name,trait])),
+          cardNames:[...new Set(deck.map(card=>card.name))],passiveNames:passives.map(passive=>passive.name)};
+        break;
+      }
+      case 'reviewEdit': {
+        if(!manager)return error('GM 또는 방장만 변경을 승인할 수 있어요.',403);
+        if(!gameActive(b))gameFail('진행 중인 전투가 없어요.');
+        const edit=Object.values(b.pendingEdits||{}).find(item=>item.id===input.id);
+        if(!edit||typeof input.approve!=='boolean')gameFail('대기 중인 요청을 선택하세요.');
+        const unit=b.units[edit.actor];
+        if(input.approve){
+          if(!gameAlive(unit))gameFail('전투 중인 참가자에게만 적용할 수 있어요.');
+          Object.assign(unit.library,edit.library);
+          const configured=edit.deck.slice().sort();
+          const previous=unit.configuredDeck||[...unit.hand,...unit.grave,...unit.exile,...unit.deck].sort();
+          if(configured.join(',')!==previous.join(',')){
+            const used=new Map();
+            for(const id of [...unit.hand,...unit.grave,...unit.exile])used.set(id,(used.get(id)||0)+1);
+            unit.deck=gameShuffle(edit.deck.filter(id=>{
+              const count=used.get(id)||0;
+              if(!count)return true;
+              used.set(id,count-1);
+              return false;
+            }));
+          }
+          unit.configuredDeck=configured;
+          unit.name=edit.name;
+          unit.passives=edit.passives;
+          unit.stackDefinitions=edit.stackDefinitions;
+          unit.startingCards=[...new Set(edit.deck)];
+          delete b.plans[unit.id];
+        }
+        gameLog(b,edit.name+' · 편집 변경 '+(input.approve?'GM 승인':'GM 반려'));
+        delete b.pendingEdits[edit.actor];
         break;
       }
       case 'plan':

@@ -15,3 +15,6 @@ header,main,footer{width:min(1120px,calc(100% - 72px));margin:auto}header{height
 .account-character-row{padding:9px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}
 .account-character-row small{display:block;color:var(--muted);margin-top:3px}
 .account-character-actions button{font-size:.83rem}
+.local-account-form{max-width:26rem}
+.battle-edits{margin-bottom:12px}
+.battle-edits > button{justify-self:start}

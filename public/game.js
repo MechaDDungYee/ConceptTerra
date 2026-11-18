@@ -155,7 +155,9 @@ function character(){
   statNames.forEach((name,i)=>list.append(field(name,input('stat'+i,p.stats[i],'number',{min:0,max:100,required:true}))));
   list.addEventListener('input',total);total();
   stats.append(legend,list);form.append(stats,submit('캐릭터 저장'));
-  const sheet=group(section('캐릭터 시트',form),section('정신력',el('strong',p.mind+' / 100'),note('기본 위력 '+signed(mentalPower(p.mind))),note('전투가 끝나면 정신력이 다음 전투까지 이어집니다.'),button('휴식 · 정신력 +20',()=>send('rest'))));
+  const editor=section('캐릭터 시트',form);
+  editor.classList.add('full');
+  const sheet=group(editor);
   const art=characterArt(p);
   art.classList.add('full');
   const locked=state.battle?.phase==='planning'&&state.battle.units.some(unit=>unit.id===state.me);

@@ -198,6 +198,20 @@ body:has(.battle-dummy) > main > :is(#error,#feedback):not(:empty){
 .card-list-scroll > .deck-row:last-child{border-bottom:0}
 .library-card-preview{position:fixed;inset:auto;margin:0;width:min(326px,calc(100vw - 16px));max-height:calc(100dvh - 16px);overflow:auto;overscroll-behavior:contain;padding:7px;background:#131a17;border:1px solid var(--line);border-radius:12px;color:var(--ink);box-shadow:0 10px 26px #000a}
 .library-card-preview .forge-preview{width:100%;margin:0;box-shadow:none}
+.forge-description{max-height:min(15rem,35dvh);overflow:auto;overscroll-behavior:contain;padding-inline-end:6px;scrollbar-gutter:stable}
+.forge-description:focus-visible,.card-keyword-description:focus-visible{outline:2px solid var(--acid);outline-offset:-2px}
+.forge-notes{white-space:pre-wrap;overflow-wrap:anywhere}
+.forge-keywords{margin:6px 0}
+.card-keyword{justify-self:start;padding:0;border:0;border-radius:2px;background:transparent;color:#d8fb8b;font-size:inherit;font-weight:700;text-align:left;text-decoration:underline;text-underline-offset:3px}
+.card-keyword.stack-tag{color:#a0e6f1}
+.card-keyword:hover,.card-keyword[aria-expanded=true]{color:#fff;background:transparent}
+.card-keyword-help{position:fixed;inset:auto;margin:0;width:min(20rem,calc(100vw - 16px));padding:10px;border:1px solid #9abc79;border-radius:8px;background:#16211a;color:#f0f2e8;box-shadow:0 8px 22px #000a;overflow:hidden}
+.card-keyword-help:popover-open{display:flex;flex-direction:column;gap:6px}
+.card-keyword-help > .row{justify-content:space-between;align-items:center;flex-wrap:nowrap}
+.card-keyword-help strong{color:#d8fb8b;overflow-wrap:anywhere}
+.card-keyword-help button{padding:4px 8px;font-size:.75rem}
+.card-keyword-description{min-height:0;max-height:12rem;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;font-size:.86rem}
+.card-keyword-description p{margin:4px 0;white-space:pre-wrap;overflow-wrap:anywhere}
 .library-preview-close{display:block;margin:0 0 6px auto;padding:4px 8px;font-size:.8rem}
 .forge .deck-card-controls,.library-file-actions{flex-wrap:wrap}
 @media(max-width:650px){.forge .deck-row{align-items:flex-start;flex-wrap:wrap}.forge .deck-row .deck-card-controls{flex-basis:100%}}

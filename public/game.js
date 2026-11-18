@@ -718,8 +718,55 @@ function rangeEditor(card,changed,{origin='시전자',prefix='range',label='사�
   update();
   return {node,value,range};
 }
+function cardKeywordHelp(preview){
+  const popup=el('aside',undefined,{class:'card-keyword-help',popover:'auto','aria-label':'키워드 설명'});
+  const title=el('strong');
+  const description=el('div',undefined,{class:'card-keyword-description',tabindex:0});
+  let active;
+  const close=button('닫기',()=>{
+    popup.hidePopover();
+    active?.focus({preventScroll:true});
+  });
+  const header=el('div',undefined,{class:'row'});
+  header.append(title,close);
+  popup.append(header,description);
+  popup.addEventListener('toggle',()=>{
+    if(!popup.matches(':popover-open'))active?.setAttribute('aria-expanded','false');
+  });
+  const keyword=(name,lines,kind='effect')=>{
+    const trigger=button(name,()=>{
+      if(active===trigger&&popup.matches(':popover-open')){
+        popup.hidePopover();
+        return;
+      }
+      active?.setAttribute('aria-expanded','false');
+      active=trigger;
+      title.textContent=name;
+      description.replaceChildren(...lines.map(line=>el('p',line)));
+      description.scrollTop=0;
+      if(!popup.matches(':popover-open'))popup.showPopover({source:trigger});
+      trigger.setAttribute('aria-expanded','true');
+      const anchor=trigger.getBoundingClientRect();
+      const gap=6,margin=8,above=anchor.top-gap-margin;
+      popup.style.maxHeight=Math.max(72,above>=96?above:innerHeight-anchor.bottom-gap-margin)+'px';
+      const {offsetWidth:width,offsetHeight:height}=popup;
+      popup.style.left=Math.max(margin,Math.min(anchor.left,innerWidth-width-margin))+'px';
+      popup.style.top=(above>=96?anchor.top-height-gap:Math.max(margin,Math.min(anchor.bottom+gap,innerHeight-height-margin)))+'px';
+    });
+    trigger.className='card-keyword '+kind;
+    trigger.setAttribute('aria-expanded','false');
+    return trigger;
+  };
+  preview.keywordHelpController?.abort();
+  preview.keywordHelpController=new AbortController();
+  preview.addEventListener('scroll',event=>{
+    if(event.target.matches('.forge-description')&&popup.matches(':popover-open'))popup.hidePopover();
+  },{capture:true,signal:preview.keywordHelpController.signal});
+  return {popup,keyword};
+}
 function renderCardFace(preview,card){
-  const {role,target,clash,unstoppable,splash,requiredState,image,effects,notes,cost}=card;
+  const rows=card.effects||[];
+  const {role,target,clash,unstoppable,splash,requiredState,image,notes,cost}=card;
   const powers=cardHitPowers(card);
   preview.dataset.kind=role;
   const art=el('div',undefined,{class:'forge-art'});
@@ -743,13 +790,37 @@ function renderCardFace(preview,card){
   if(role==='guard')body.append(note(coverHelp));
   if(role==='counter')body.append(note(counterHelp));
   if(role==='overload')body.append(note('정신력 −'+cost));
-  for(const effect of effects){
-    const line=el('p',undefined,{class:'forge-effect'});
-    line.append(el('b',effectConditionText(effect)+effectTiming(effect)),el('span',effectSentence(effect)));
-    body.append(line);
+  const {popup,keyword}=cardKeywordHelp(preview);
+  const description=el('div',undefined,{class:'forge-description',tabindex:0,role:'region','aria-label':'카드 설명'});
+  const byStack=new Map();
+  for(const effect of rows){
+    for(const name of effectStackNames(effect)){
+      if(!byStack.has(name))byStack.set(name,[]);
+      byStack.get(name).push(effect);
+    }
   }
-  if(notes)body.append(note(notes));
-  preview.replaceChildren(art,body);
+  if(byStack.size){
+    const stacks=el('div',undefined,{class:'row forge-keywords','aria-label':'중첩'});
+    for(const [name,references] of byStack){
+      const trait=state.profile?.stackTraits?.find(item=>item.name===name);
+      const lines=(trait?.effects||[]).map(effect=>effectTiming(effect)+' · '+effectSentence(effect)+
+        (effect.scaleStack==='count'?' · 보유 중첩 수를 곱함':''));
+      lines.push(...references.map(effect=>effectTiming(effect)+' · '+effectSentence(effect)));
+      stacks.append(keyword(name,[...new Set(lines)],'stack-tag'));
+    }
+    description.append(stacks);
+  }
+  for(const effect of rows){
+    const line=el('p',undefined,{class:'forge-effect'});
+    const phase=effectConditionText(effect)+effectTiming(effect);
+    const name=effects[effect.kind]||effect.kind;
+    const text=effectSentence(effect);
+    line.append(el('b',phase),keyword(name,[phase+' · '+text]),el('span',text));
+    description.append(line);
+  }
+  if(notes)description.append(el('p',notes,{class:'notice minor forge-notes'}));
+  if(description.childElementCount)body.append(description);
+  preview.replaceChildren(art,body,popup);
 }
 
 function libraryPreview(){

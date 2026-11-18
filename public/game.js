@@ -1,7 +1,7 @@
 import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
 import {gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridCardInRange,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
-import {hitTargetModes,legacyHitEvents,maxStackNameLength,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,cardUsable,deckSize,deckCopyLimit,cardFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
+import {heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,cardUsable,deckSize,deckCopyLimit,cardFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
 const code=location.pathname.split('/')[2], endpoint='/api/rooms/'+code+'/game';
 document.querySelector('#back').href='/room/'+code;
@@ -114,14 +114,13 @@ function stackManager(){
     if(!chosen)return;
     const trait=state.profile.stackTraits?.find(item=>item.name===chosen);
     const workspace=effectWorkspace(trait?.effects||[],{passive:true,stack:true,onChange:()=>{draftDirty=true;}});
-    const critical=input('critical',trait?.critical??0,'number',{min:-100,max:100,required:true});
     const traitForm=el('form',undefined,{class:'stack'});
-    traitForm.append(field('보유 중 중첩 1개당 치명타 확률 증감 (%p)',critical),
-      note('이 중첩을 보유한 대상에게 이벤트 효과가 발동해요. 설정은 다음 전투부터 반영돼요.'),
+    traitForm.append(
+      note('‘보유 시’ 효과는 중첩이 있는 동안 적용되고, 중첩이 사라지면 해제돼요. 설정은 다음 전투부터 반영돼요.'),
       workspace.node,submit('중첩 효과 저장'));
     traitForm.onsubmit=async event=>{
       event.preventDefault();
-      if(await send('stackEdit',{name:chosen,critical:Number(critical.value),effects:workspace.rows()}))draftDirty=false;
+      if(await send('stackEdit',{name:chosen,effects:workspace.rows()}))draftDirty=false;
     };
     editor.append(traitForm);
   };
@@ -396,15 +395,17 @@ function effectTimingAllowed(kind,when,scoped,passive,role){
 }
 function effectWorkspace(initial,{scoped=false,passive=false,stack=false,role,onChange}){
   const kinds=stack?passiveEffectKinds.filter(kind=>!['replaceCard','giveCard'].includes(kind)):passiveEffectKinds;
+  const allows=(kind,when)=>when==='held'?stack&&heldStackEffectKinds.includes(kind):
+    (!stack||kinds.includes(kind))&&effectTimingAllowed(kind,when,scoped,passive,role?.value);
   const events=Object.fromEntries(Object.entries(timings).filter(([when])=>!legacyHitEvents.includes(when)&&(passive?
-    kinds.some(kind=>effectTimingAllowed(kind,when,false,true)):
-    !scoped||hitEffectTimings.includes(when))));
+    kinds.some(kind=>allows(kind,when)):
+    when!=='held'&&(!scoped||hitEffectTimings.includes(when)))));
   const families={...effectFamilies};
   const listed=new Set(Object.values(families).flat());
   families['기타 효과']=Object.keys(effects).filter(kind=>!listed.has(kind));
-  const available=(kind,when,row)=>(!stack||kinds.includes(kind))&&effectTimingAllowed(kind,when,scoped,passive,role?.value)&&
+  const available=(kind,when,row)=>allows(kind,when)&&
     (!Object.hasOwn(diceConditions,row?.condition)||diceConditionTimings.includes(when))&&
-    (row?.condition!=='cardUsed'||!passiveRoundTimings.includes(when));
+    (row?.condition!=='cardUsed'||when!=='held'&&!passiveRoundTimings.includes(when));
   return blockWorkspace({
     events,effects,families,initial,available,readEffect,stackSelect,
     cardChoices:Object.fromEntries((passive?effectCards():[...state.defaults,...state.profile.cards]).map(card=>[card.id,card.name])),
@@ -548,14 +549,18 @@ function effectRow(row,refresh,scoped,passive,stack){
     diceHelp.hidden=!dice;
     if(passive&&!replace){
       const automatic=passiveRoundTimings.includes(when.value);
-      for(const option of to.options)option.disabled=automatic&&['target','primary','secondary'].includes(option.value);
+      for(const option of to.options)option.disabled=when.value==='held'?option.value!=='self':automatic&&['target','primary','secondary'].includes(option.value);
       if(to.selectedOptions[0]?.disabled)to.value='self';
     }
+    const held=when.value==='held';
+    limit.disabled=held;
+    if(held){limit.value='none';if(condition.value==='cardUsed')condition.value='';}
+    for(const option of condition.options)if(option.value==='cardUsed')option.disabled=held;
     conditionCardField.hidden=conditionCard.disabled=condition.value!=='cardUsed';
     conditionCard.required=!conditionCard.disabled;
     ratioBasisField.hidden=ratioBasis.disabled=!customizable||mode.value!=='percent';
     for(const option of ratioBasis.options){
-      option.disabled=!!option.value&&(!ratioBasisAvailable(option.value,when.value)||
+      option.disabled=!!option.value&&(held||!ratioBasisAvailable(option.value,when.value)||
         passive&&passiveRoundTimings.includes(when.value)&&option.value.startsWith('card'));
     }
     if(ratioBasis.selectedOptions[0]?.disabled)ratioBasis.value='';

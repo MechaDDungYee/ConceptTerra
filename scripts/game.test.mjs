@@ -310,9 +310,11 @@ test('clash and card hit reactions run once per event and expire after the selec
 test('custom stack effects follow the holder, scale by count, and grant held critical chance',async()=>{
   const f=await fixture();
   await f.act('stackCreate',{name:'잔류'});
-  await f.act('stackEdit',{name:'잔류',critical:50,effects:[
+  await f.act('stackEdit',{name:'잔류',effects:[
     {kind:'damage',when:'turnEnd',to:'self',amount:1,scaleStack:'count'},
-    {kind:'shield',when:'struck',to:'self',amount:3}
+    {kind:'shield',when:'struck',to:'self',amount:3},
+    {kind:'critChance',when:'held',to:'self',amount:50,scaleStack:'count'},
+    {kind:'outgoingDamage',when:'held',to:'self',amount:1,amountMode:'fixed'}
   ]});
   await f.act('card',{card:{name:'잔류 부여',power:'4',role:'normal',target:1,range:'1~4',effects:[
     {kind:'stack',when:'use',to:'self',tag:'잔류',amount:2}
@@ -327,7 +329,7 @@ test('custom stack effects follow the holder, scale by count, and grant held cri
   });
   await f.act('plan',{card:id,targets:['enemy']});
   await f.act('round');
-  assert.equal(livingForm(f,'enemy').hp,48);
+  assert.equal(livingForm(f,'enemy').hp,47);
   assert.equal(livingForm(f).hp,46);
   assert.equal(livingForm(f).shield,1);
 });

@@ -266,12 +266,13 @@ export const healthBases = {max:'최대 체력',current:'현재 체력',missing:
 export const healthRatioEffects = Object.keys(ratioEffects).filter(kind=>ratioEffects[kind][2]?.endsWith('최대 체력'));
 export const effectLimitPeriods = {none:'제한 없음',turn:'턴당',battle:'전투당'};
 export const maxEffectActivations = 99;
-export const timings = {base:'기본 적용 효과',battleStart:'전투 시작 시',turnStart:'턴 시작 시',turnEnd:'턴 종료 시',replace:'카드 발동 시',use:'사용 시', clash:'합 진행 시', roll:'주사위 판정 시', win:'합 승리 시', lose:'합 패배 시', tie:'합 동점 시', unopposed:'일방공격 시', counter:'반격 발동 시', hit:'적중 시',critical:'치명타 적중 시',noncritical:'치명타 미적중 시', damage:'피해 발생 시', wall:'벽 충돌 시', consume:'중첩 소모 시', attackEnd:'공격 종료 시', struck:'피격 시', hurt:'피격으로 체력 피해를 받을 때', end:'처리 후'};
+export const timings = {held:'보유 시',base:'기본 적용 효과',battleStart:'전투 시작 시',turnStart:'턴 시작 시',turnEnd:'턴 종료 시',replace:'카드 발동 시',use:'사용 시', clash:'합 진행 시', roll:'주사위 판정 시', win:'합 승리 시', lose:'합 패배 시', tie:'합 동점 시', unopposed:'일방공격 시', counter:'반격 발동 시', hit:'적중 시',critical:'치명타 적중 시',noncritical:'치명타 미적중 시', damage:'피해 발생 시', wall:'벽 충돌 시', consume:'중첩 소모 시', attackEnd:'공격 종료 시', struck:'피격 시', hurt:'피격으로 체력 피해를 받을 때', end:'처리 후'};
 export const roles = {normal:'일반', chain:'연계', assist:'원호 공격', guard:'원호 방어', counter:'반격', overload:'혹사'};
 export const maxCardHits = 8;
 export const maxCardEffects = 24;
 export const maxPassives = 8;
 export const maxPassiveEffects = 8;
+export const heldStackEffectKinds = ['critChance','critMultiplier','outgoingDamage','incomingDamage'];
 export const passiveRoundTimings = ['battleStart','turnStart','turnEnd'];
 export const passiveTimings = [...passiveRoundTimings,'use','clash','win','lose','tie','hit','damage','critical','noncritical','attackEnd','struck','hurt'];
 export const passiveEffectKinds = [

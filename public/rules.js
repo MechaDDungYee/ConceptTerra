@@ -312,6 +312,40 @@ export const maxCardEffects = 24;
 export const maxPassives = 8;
 export const maxPassiveEffects = 8;
 export const heldStackEffectKinds = ['critChance','critMultiplier','outgoingDamage','incomingDamage'];
+// Concept cards grant these traits to their holder for the current battle.
+export const conceptStacks = {
+  '미식가의 식탁': {cap:1,description:'적에게 실제로 준 체력 피해의 35% 회복. 턴당 한 번, 피해를 주면 가장 다친 아군을 3 회복.',effects:[
+    {when:'damage',kind:'hitLeech',to:'self',amount:35},
+    {when:'damage',kind:'allyHeal',to:'woundedAlly',amount:3,limit:{period:'turn',count:1}}
+  ]},
+  '귀환의 문턱': {cap:1,description:'보유 중 받는 피해 20% 감소. 턴 시작마다 다음 턴 이동력 +1.',effects:[
+    {when:'held',kind:'incomingDamage',to:'self',amount:-20,amountMode:'percent'},
+    {when:'turnStart',kind:'nextMove',to:'self',amount:1}
+  ]},
+  '백색 봉합': {cap:1,description:'턴 시작마다 보호막 4. 턴 종료마다 체력 3 회복.',effects:[
+    {when:'turnStart',kind:'shield',to:'self',amount:4},
+    {when:'turnEnd',kind:'heal',to:'self',amount:3}
+  ]},
+  '정각의 거주': {cap:1,description:'보유 중 받는 피해 15% 감소. 턴당 한 번, 이동 없이 카드 사용 시 보호막 4.',effects:[
+    {when:'held',kind:'incomingDamage',to:'self',amount:-15,amountMode:'percent'},
+    {when:'use',kind:'shield',to:'self',amount:4,condition:'noMove',limit:{period:'turn',count:1}}
+  ]},
+  '인양의 명패': {cap:3,description:'중첩당 받는 피해 10% 증가. 턴 종료마다 중첩당 고정 피해 2. 최대 3중첩.',effects:[
+    {when:'held',kind:'incomingDamage',to:'self',amount:10,amountMode:'percent',scaleStack:'count'},
+    {when:'turnEnd',kind:'fixedDamage',to:'self',amount:2,scaleStack:'count'}
+  ]},
+  '파단 증언': {cap:3,description:'중첩당 받는 피해 +2. 최대 3중첩.',effects:[
+    {when:'held',kind:'incomingDamage',to:'self',amount:2,amountMode:'fixed',scaleStack:'count'}
+  ]},
+  '숙고의 말미': {cap:1,description:'턴 시작마다 카드 1장 드로우, 다음 판정 위력 +3.',effects:[
+    {when:'turnStart',kind:'draw',to:'self',amount:1},
+    {when:'turnStart',kind:'focus',to:'self',amount:3}
+  ]},
+  '역행하는 별빛': {cap:1,description:'보유 중 치명타 확률 +20%p, 치명타 피해 배율 +35%p.',effects:[
+    {when:'held',kind:'critChance',to:'self',amount:20},
+    {when:'held',kind:'critMultiplier',to:'self',amount:35}
+  ]}
+};
 export const passiveRoundTimings = ['battleStart','turnStart','turnEnd'];
 export const planningTimings=['decide','confirm'];
 export const cardZoneTimings=['cardDrawn','toGrave','toDeck','toExile','toHand'];
@@ -372,6 +406,7 @@ export const artPoseLabel=(form,pose)=>pose==='shift'?
   artPoses[pose];
 export function cardUsable(unit,card){
   if(!card)return false;
+  if(card.concept&&(unit.enemy||unit.mind<card.cost))return false;
   if(card.trial)return unit.zero==='crisis'&&!unit.collapsed;
   const state=cardState(card.requiredState);
   if(unit.collapsed)return state==='collapsed';

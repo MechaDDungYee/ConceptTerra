@@ -2530,3 +2530,111 @@ test('arithmetic supports extra terms in effects and comparison operands',async(
   await f.act('round');
   assert.equal(livingForm(f).shield,51); // 7 + 6 + 29 + 9
 });
+
+test('concept cards are stronger catalogue choices and pay mental cost once on use',async()=>{
+  const f=await fixture();
+  const concepts=f.state.defaults.filter(card=>card.concept);
+  assert.equal(concepts.length,8);
+  assert.equal(f.state.profile.conceptStackTraits.length,8);
+  const {parsePower}=await import('../public/rules.js');
+  const average=card=>{const power=parsePower(card.power);return power.bonus+power.count*(power.sides+1)/2;};
+  const baseline=Math.max(...f.state.defaults.filter(card=>['strike','hold','shot','rush','trace'].includes(card.id)).map(average));
+  for(const card of concepts){
+    assert.ok(average(card)>baseline);
+    assert.ok(card.cost>=14);
+    assert.ok(card.effects.some(effect=>effect.kind==='stack'));
+  }
+  await f.act('deck',{cards:[...concepts.map(card=>card.id),'strike','guard']});
+  await f.act('start',{solo:true,bots:0});
+  for(const card of concepts){
+    configureBattle(f,(b,self)=>{
+      Object.assign(self,{pos:16,hand:[card.id],mind:80,hp:40,maxHp:40,stacks:{},stackTraits:{}});
+      Object.assign(b.units.enemy,{pos:18,hp:999,maxHp:999,stacks:{},stackTraits:{},blockedRounds:1});
+      b.walls=[];
+    });
+    await f.act('plan',{card:card.id,targets:['enemy']});
+    await f.act('round');
+    assert.equal(livingForm(f).mind,80-card.cost,card.name);
+    const grant=card.effects.find(effect=>effect.kind==='stack');
+    const holder=livingForm(f,grant.to==='self'?f.state.me:'enemy');
+    assert.equal(holder.stacks[grant.tag],grant.amount,card.name);
+    assert.equal(holder.stackTraits[grant.tag].concept,true);
+  }
+});
+
+test('concept costs block insufficient mental power in planning and at execution',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{self.hand=['conceptSuture'];self.mind=13;});
+  const denied=await f.send(f.endpoint,{action:'plan',revision:f.state.revision,card:'conceptSuture',targets:['enemy']},f.host.cookie);
+  assert.equal(denied.status,400);
+  assert.match(denied.body.error,/정신력 14/);
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{hand:['conceptSuture'],mind:30,pos:16});
+    b.units.enemy.pos=18;b.units.enemy.blockedRounds=1;
+  });
+  await f.act('plan',{card:'conceptSuture',targets:['enemy']});
+  configureBattle(f,(b,self)=>{self.mind=13;});
+  await f.act('round');
+  assert.equal(livingForm(f).mind,13);
+  assert.ok(livingForm(f).hand.some(card=>card.id==='conceptSuture'));
+  assert.equal(livingForm(f).stacks['백색 봉합'],undefined);
+});
+
+test('concept card stacks persist across rounds, cap reapplications, and clear at battle end',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:['conceptSuture'],mind:80,hp:20});
+    Object.assign(b.units.enemy,{pos:18,hp:999,maxHp:999,blockedRounds:1});
+  });
+  await f.act('plan',{card:'conceptSuture',targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f).hp,23);
+  assert.equal(livingForm(f).shield,4);
+  configureBattle(f,(b,self)=>{self.hand=['conceptSuture'];b.units.enemy.blockedRounds=1;});
+  await f.act('plan',{card:'conceptSuture',targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f).hp,26);
+  assert.equal(livingForm(f).shield,8);
+  assert.equal(livingForm(f).stacks['백색 봉합'],1);
+  configureBattle(f,(b)=>{b.units.enemy.blockedRounds=1;});
+  await f.act('plan',{});
+  await f.act('round');
+  assert.equal(livingForm(f).hp,29);
+  assert.equal(livingForm(f).shield,12);
+  configureBattle(f,(b)=>{b.units.enemy.hp=0;});
+  await f.act('plan',{});
+  await f.act('round');
+  assert.equal(f.state.battle.phase,'finished');
+  assert.equal(livingForm(f).stacks['백색 봉합'],0);
+  assert.equal(livingForm(f).stackTraits['백색 봉합'],undefined);
+  await f.act('start',{solo:true,bots:0});
+  assert.equal(livingForm(f).stacks['백색 봉합'],undefined);
+});
+
+test('removing a concept debuff immediately removes its held damage modifier and periodic damage',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'명패 제거',power:'0',role:'normal',target:1,range:'1~4',effects:[
+    {kind:'cleanseStacks',when:'hit',to:'target',tag:'인양의 명패',amount:1}
+  ]}});
+  const cleanup=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:['conceptCoffin'],mind:80});
+    Object.assign(b.units.enemy,{pos:18,hp:999,maxHp:999,blockedRounds:1});b.walls=[];
+  });
+  await f.act('plan',{card:'conceptCoffin',targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').stacks['인양의 명패'],1);
+  const before=livingForm(f,'enemy').hp;
+  configureBattle(f,(b,self)=>{
+    self.hand=[cleanup];self.mind=50;b.units.enemy.pos=18;b.units.enemy.blockedRounds=1;
+  });
+  await f.act('plan',{card:cleanup,targets:['enemy']});
+  await f.act('round');
+  const enemy=livingForm(f,'enemy');
+  assert.equal(enemy.hp,before);
+  assert.equal(enemy.stacks['인양의 명패'],undefined);
+  assert.equal(enemy.stackTraits['인양의 명패'],undefined);
+});

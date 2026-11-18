@@ -1,5 +1,5 @@
 import {gridValid, gridSize, gridTileGroups, gridDistance, gridPaths, gridDisplacement, gridCardInRange, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
-import {basicStacks,planningTimings,cardZoneTimings,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
+import {conceptStacks,basicStacks,planningTimings,cardZoneTimings,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
 class GameInputError extends Error {}
@@ -432,7 +432,38 @@ const gameStarterDeck=[...gameDefaults,gameDefaults[0],gameGuard];
 const gameCounterPreset={...gamePreset('rebound','빈틈을 되돌려','2d+3','1~3','counter','self',[
   gameEffect('hit','stack',1,'target','상처')
 ],0,false),optional:true};
-const gameCatalogue=[...gameDefaults,gameCounterPreset,gameCopyPreset,...gameResourcePresets,...gameAwakeningPresets];
+const gameConceptStack=(name,to='self',amount=1)=>({
+  ...gameEffect(to==='self'?'use':'hit','stack',amount,to,name),stackCap:conceptStacks[name].cap
+});
+const gameConceptPresets=[
+  {...gamePreset('conceptGourmet','미식가 · 대가 지불','3d+8','1~3','normal',1,[
+    gameConceptStack('미식가의 식탁'),gameEffect('damage','drainLife',4)
+  ],18),notes:'미식가의 식탁을 자신에게 부여. 생명력을 섭취해 치유하며 중첩이 있는 동안 흡수 효과가 지속됩니다.'},
+  {...gamePreset('conceptReturn','귀로 · 마지막 귀환','3d+7','1~4','normal',1,[
+    gameConceptStack('귀환의 문턱'),gameEffect('use','positionAnchor',1,'self'),gameEffect('end','retreat',2,'self')
+  ],16),notes:'공격한 칸에 귀환 좌표를 기록하고 처리 후 후퇴. 다음 라운드 시작에 빈 좌표로 복귀합니다. 귀환의 문턱은 전투 중 지속됩니다.'},
+  {...gamePreset('conceptSuture','봉합공 · 백색 수선','3d+7','1~3','normal',1,[
+    gameConceptStack('백색 봉합'),gameEffect('use','rallyShield',4,'self')
+  ],14),notes:'자신에게 백색 봉합을 부여하고 다른 아군 전원에게 보호막 4. 봉합이 남아 있는 동안 매 턴 보호막과 회복을 얻습니다.'},
+  {...gamePreset('conceptClock','정각의 세입자 · 점검 시각','3d+8','1~4','normal',1,[
+    gameConceptStack('정각의 거주'),gameEffect('hit','nextSlow',2),gameEffect('hit','weaken',3)
+  ],16),notes:'대상의 다음 이동과 판정 위력을 낮춥니다. 정각의 거주가 있는 동안 이동 없이 사용하는 카드에 보호막 보너스를 얻습니다.'},
+  {...gamePreset('conceptCoffin','빈 관을 끄는 것 · 만조의 종','3d+8','1~4','normal',1,[
+    gameEffect('hit','pull',2),gameConceptStack('인양의 명패','target')
+  ],18),notes:'인양의 명패를 적에게 부여. 보유 중 받는 피해가 증가하고 턴 종료마다 고정 피해를 받습니다. 최대 3중첩.'},
+  {...gamePreset('conceptDebris','잔해의 대리인 · 파단 증언','3d+7','1~4','normal',1,[
+    gameEffect('hit','stripShield',8),gameConceptStack('파단 증언','target',2)
+  ],15),notes:'보호막을 깎고 파단 증언 2 부여. 이후 동료의 공격도 중첩당 추가 피해를 줍니다. 최대 3중첩.'},
+  {...gamePreset('conceptRespite','말미 장수 · 십 분의 숙고','3d+7','1~4','normal',1,[
+    gameConceptStack('숙고의 말미'),gameEffect('use','draw',1,'self')
+  ],16),notes:'카드 1장을 뽑고 숙고의 말미를 부여. 이후 턴 시작마다 추가 드로우와 다음 판정 위력 보너스를 얻습니다.'},
+  {...gamePreset('conceptMeteor','거슬러 오르는 별똥별 · 역행','3d+9','2~5','normal',1,[
+    gameConceptStack('역행하는 별빛'),gameEffect('hit','push',1)
+  ],20),notes:'역행하는 별빛이 있는 동안 치명타 확률과 치명타 피해가 증가합니다. 적을 밀어내며 사거리를 유지합니다.'}
+].map(card=>({...card,optional:true,concept:true,requiredState:'any'}));
+const gameConceptTraits=Object.fromEntries(Object.entries(conceptStacks).map(([name,trait])=>
+  [name,{...trait,name,concept:true,effects:trait.effects.map(effect=>({...gameEffect(effect.when,effect.kind,effect.amount,effect.to),...effect}))}]));
+const gameCatalogue=[...gameDefaults,gameCounterPreset,gameCopyPreset,...gameResourcePresets,...gameAwakeningPresets,...gameConceptPresets];
 const gameFoe=gamePreset('reap','징수의 손','2d+2','1~4','normal',1);
 const gameRampage=gamePreset('rampage','피아 식별 상실','3d+4','1~7','normal',1,[],0,false);
 const gameBots=['서린 · 회수원','가온 · 호송병','유담 · 기록원','해온 · 해결사'];
@@ -804,6 +835,11 @@ function gameNext(b) {
   if (!gameAlive(enemy)||!party.length) {
     b.phase='finished';
     b.result=gameAlive(enemy)?'패배':'승리';
+    for(const unit of Object.values(b.units)){
+      for(const [name,trait] of Object.entries(unit.stackTraits||{})){
+        if(trait.concept)gameWriteStacks(unit,name,[]);
+      }
+    }
     if(b.result==='승리')for(const unit of party)gameMental(b,unit,10);
     gameLog(b,'전투 '+b.result);
     return;
@@ -996,6 +1032,7 @@ function gameSelect(b,u,input,ai=false) {
   const card=cardId&&Object.hasOwn(u.library,cardId)?u.library[cardId]:null;
   const granted=card?.temporary&&cardUsable(u,card);
   if(cardId&&!u.hand.includes(cardId)&&!granted)gameFail('손패에 있는 카드를 선택하세요.');
+  if(card?.concept&&u.mind<card.cost)gameFail('이 개념물 카드는 정신력 '+card.cost+'이 필요합니다.');
   if(card&&!cardUsable(u,card))gameFail('현재 상태에서 사용할 수 없는 카드입니다.');
   const goal=input.pos??u.pos;
   if(!gridValid(goal)||!gridPaths(u.pos,u.move,gameBlocked(b,u)).has(goal))gameFail('이동 가능 거리를 확인하세요.');
@@ -1255,7 +1292,7 @@ function gameTakeStacks(unit,tag,count){
 }
 function gameGrantStacks(b,unit,effect,amount,trait,sourceRuns){
   const tag=effect.tag;
-  const cap=Math.min(effect.stackCap??maxStatusStacks,basicStacks[tag]?.cap??maxStatusStacks);
+  const cap=Math.min(effect.stackCap??maxStatusStacks,basicStacks[tag]?.cap??maxStatusStacks,trait?.cap??maxStatusStacks);
   const room=Math.max(0,cap-(unit.stacks[tag]||0));
   const gained=Math.min(amount,room);
   if(gained<=0)return 0;
@@ -2024,7 +2061,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
         }
         break;
       }
-      case 'stack': gameGrantStacks(b,u,effect,n,actor.stackDefinitions?.[tag]); break;
+      case 'stack': gameGrantStacks(b,u,effect,n,card.concept?gameConceptTraits[tag]:actor.stackDefinitions?.[tag]??gameConceptTraits[tag]); break;
       case 'remove': gameTakeStacks(u,tag,n); break;
       case 'consume': {
         const budget=effect.consumeAmount==='all'?Infinity:n;
@@ -2540,7 +2577,7 @@ function gamePrepareAction(b,u,plan,moved){
       return;
     }
   }
-  if(card.cost){gameMental(b,u,-card.cost,true);gameLog(b,u.name+' 혹사 · 정신력 -'+card.cost);}
+  if(card.cost){gameMental(b,u,-card.cost,true);gameLog(b,u.name+(card.concept?' 개념구':' 혹사')+' · 정신력 -'+card.cost);}
   const ctx=gameContext(u,card,targets,moved);
   ctx.waitingPlan=plan;
   waiting?.set(plan,ctx);
@@ -2971,6 +3008,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
     data.profile.deckSaved=collection.deck.length===deckSize;
     data.profile.customStacks=collection.stackNames;
     data.profile.stackTraits=collection.stackTraits;
+    data.profile.conceptStackTraits=Object.values(gameConceptTraits);
     const known=[...gameCatalogue,...collection.cards,...(data.profile.passives||[]),...(data.profile.passiveCards||[])];
     data.profile.stackNames=[...new Set([...collection.stackNames,...known.flatMap(source=>
       (source.effects||[]).flatMap(effectStackNames))])];
@@ -3137,7 +3175,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
             const name=typeof input.name==='string'?input.name.trim():'';
             if(!name||name.length>maxStackNameLength||Object.hasOwn(Object.prototype,name))
               gameFail('중첩 이름을 '+maxStackNameLength+'자 이내로 입력해 주세요.');
-            if(stackNames.includes(name)||Object.hasOwn(basicStacks,name))gameFail('이미 등록한 중첩이에요.');
+            if(stackNames.includes(name)||Object.hasOwn(basicStacks,name)||Object.hasOwn(conceptStacks,name))gameFail('이미 등록한 중첩이에요.');
             if(stackNames.length>=maxCustomStacks)gameFail('중첩은 '+maxCustomStacks+'개까지 등록할 수 있어요.');
             stackNames.push(name);
             break;

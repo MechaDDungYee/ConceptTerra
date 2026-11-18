@@ -1,0 +1,2230 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import worker from '../dist/server/index.js';
+import {localDb} from './local-db.mjs';
+
+async function fixture(){
+  const DB=localDb();
+  async function send(path,body,cookie){
+    const headers=cookie?{Cookie:cookie}:{};
+    const r=await worker.fetch(new Request('https://game.test'+path,{headers,...(body?{method:'POST',body:JSON.stringify(body)}:{})}),{DB});
+    return {status:r.status,body:await r.json(),cookie:r.headers.getSetCookie().map(header=>header.split(';')[0]).join('; ')||undefined};
+  }
+  const host=await send('/api/rooms',{title:'빈 객차',name:'방장'});
+  const room='/api/rooms/'+host.body.code;
+  const endpoint=room+'/game';
+  let state=(await send(endpoint,undefined,host.cookie)).body;
+  return {room,host,endpoint,send,DB, get state(){return state;},async act(action,payload={}){
+    const r=await send(endpoint,{action,revision:state.revision,collectionRevision:state.collectionRevision,...payload},host.cookie);
+    assert.equal(r.status,200,JSON.stringify(r.body));
+    state=r.body;
+    return state;
+  }};
+}
+
+test('a saved collection follows the browser into a new room and the exact deck starts battle',async()=>{
+  const f=await fixture();
+  const card={name:'여행자 표식',power:'0',target:'self',range:'0',role:'normal',effects:[]};
+  await f.act('card',{card});
+  const id=f.state.profile.cards[0].id;
+  const deck=[id,id,id,'strike','strike','guard','guard','hold','shot','rush'];
+  const save=cards=>f.send(f.endpoint,{action:'deck',cards,collectionRevision:f.state.collectionRevision},f.host.cookie);
+  assert.equal((await save(deck.slice(1))).status,400);
+  assert.equal((await save([id,...deck.slice(0,9)])).status,400);
+  await f.act('deck',{cards:deck});
+  assert.equal(f.state.profile.deckSaved,true);
+  const reloaded=await f.send(f.endpoint,undefined,f.host.cookie);
+  assert.deepEqual(reloaded.body.profile.deck,deck);
+  const created=await f.send('/api/rooms',{title:'다음 방',name:'방장'},f.host.cookie);
+  const nextRoom='/api/rooms/'+created.body.code+'/game';
+  const next=await f.send(nextRoom,undefined,created.cookie);
+  assert.deepEqual(next.body.profile.deck,deck);
+  assert.equal(next.body.profile.cards[0].name,card.name);
+  const start=await f.send(nextRoom,{action:'start',revision:next.body.revision,solo:true,bots:0},created.cookie);
+  assert.equal(start.status,200);
+  const saved=f.DB.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(created.body.code).first();
+  const unit=JSON.parse(saved.state).battle.units[next.body.me];
+  assert.deepEqual([...unit.hand,...unit.deck].sort(),[...deck].sort());
+  const unrelated=await f.send('/api/rooms',{title:'다른 브라우저',name:'방장'});
+  const other=await f.send('/api/rooms/'+unrelated.body.code+'/game',undefined,unrelated.cookie);
+  assert.deepEqual(other.body.profile.cards,[]);
+  assert.equal(other.body.profile.deck.length,10);
+});
+
+test('card start effects trigger once per card type and base effects spend their own cost',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'체력 계산',power:'0',role:'normal',target:'self',range:'0',effects:[
+    {kind:'shield',when:'battleStart',to:'self',amount:2},
+    {kind:'shield',when:'turnStart',to:'self',amount:3},
+    {kind:'shield',when:'base',to:'self',amount:50,amountMode:'percent',healthBasis:'missing'},
+    {kind:'mind',when:'use',to:'self',amount:2,scaleResource:'health',scaleCost:{mode:'percent',amount:25,healthBasis:'current'}},
+    {kind:'shield',when:'use',to:'self',amount:1,scaleResource:'health',scaleCost:{mode:'fixed',amount:2}}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  assert.deepEqual(f.state.profile.cards[0].effects[3].scaleCost,{mode:'percent',amount:25,healthBasis:'current'});
+  await f.act('deck',{cards:[id,id,id,'strike','hold','trace','shot','guard','draw','rush']});
+  await f.act('start',{solo:true,bots:0});
+  assert.equal(livingForm(f).shield,5);
+  configureBattle(f,(b,self)=>{
+    self.hp=24;
+    self.hand=[id,'hold','guard','strike'];
+    b.intent={...b.intent,card:{...b.intent.card,power:'0'}};
+  });
+  await f.act('plan',{card:id});
+  await f.act('round');
+  const self=livingForm(f);
+  assert.equal(self.hp,16);
+  assert.equal(self.shield,18); // 5 start + 8 lost-HP base + 2 paid-health bonus + 3 next turn.
+  assert.equal(self.mind,62);
+});
+
+test('attack end follows the replay only once, and turn end also fires on a turn without an attack',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'공격 종료 시험',power:'4',role:'normal',target:1,range:'1~4',clash:true,effects:[
+    {kind:'replay',when:'hit',to:'self',amount:1},
+    {kind:'mind',when:'attackEnd',to:'self',amount:3},
+    {kind:'percent',when:'attackEnd',to:'target',amount:50},
+    {kind:'shield',when:'turnEnd',to:'self',amount:2}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('deck',{cards:[id,id,id,'strike','hold','trace','shot','guard','draw','rush']});
+  await f.act('start',{solo:true,bots:0});
+  const planRound=clash=>configureBattle(f,(b,self)=>{
+    self.pos=16;
+    self.hand=[id,'hold','guard','strike'];
+    b.units.enemy.pos=20;
+    b.intent={...b.intent,reachable:true,target:self.id,card:{...b.intent.card,power:clash?'5':'0'}};
+  });
+  planRound(false);
+  await f.act('plan',{card:id,targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').hp,42); // Two hits for 4 and one attack-end effect for 4.
+  assert.equal(livingForm(f).mind,53);
+  assert.equal(livingForm(f).shield,2);
+  planRound(true);
+  await f.act('plan',{card:id,targets:['enemy'],clash:true});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').hp,42);
+  assert.equal(livingForm(f).mind,53);
+  assert.equal(livingForm(f).shield,2); // Enemy spent the old shield. Turn-end reapplied it.
+  planRound(false);
+  await f.act('plan',{});
+  await f.act('round');
+  assert.equal(livingForm(f).shield,4);
+});
+
+test('scoped effects reach living units outside attack range and consume their cost once',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'범위 효과 시험',power:'0',role:'normal',target:'self',range:'0',effects:[
+    {kind:'shield',when:'use',to:'allAllies',amount:2,scaleResource:'health',scaleCost:{mode:'fixed',amount:2}},
+    {kind:'heal',when:'use',to:'farthestAlly',amount:3},
+    {kind:'mind',when:'use',to:'lowMindAlly',amount:4}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:3});
+  configureBattle(f,(b,self)=>{
+    self.pos=16;self.hand=[id];
+    Object.assign(b.units.bot0,{pos:17,hand:[],move:0,hp:27,mind:35});
+    Object.assign(b.units.bot1,{pos:33,hand:[],move:0,hp:27,mind:45});
+    Object.assign(b.units.bot2,{pos:25,hand:[],move:0,hp:0});
+    b.units.enemy.pos=20;
+    b.intent={...b.intent,reachable:true,target:self.id,card:{...b.intent.card,power:'0'}};
+  });
+  await f.act('plan',{card:id});
+  await f.act('round');
+  assert.equal(livingForm(f).hp,38);
+  assert.equal(livingForm(f).shield,0);
+  assert.equal(livingForm(f,'bot0').shield,4);
+  assert.equal(livingForm(f,'bot1').shield,4);
+  assert.equal(livingForm(f,'bot2').shield,0);
+  assert.equal(livingForm(f,'bot0').hp,27);
+  assert.equal(livingForm(f,'bot1').hp,30);
+  assert.equal(livingForm(f,'bot0').mind,39);
+  assert.equal(livingForm(f,'bot1').mind,45);
+});
+
+test('effect limits are saved per effect, reset at their period, and skip unmet conditions',async()=>{
+  const f=await fixture();
+  const effect=(amount,period,extra={})=>({kind:'shield',when:'use',to:'self',amount,limit:{period,count:1},...extra});
+  const card={name:'발동 횟수 시험',power:'0',role:'normal',target:'self',range:'0',effects:[
+    effect(2,'turn'),
+    effect(3,'battle',{condition:'lowHp',threshold:50}),
+    effect(5,'battle')
+  ]};
+  await f.act('card',{card});
+  const id=f.state.profile.cards[0].id;
+  const bad=await f.send(f.endpoint,{action:'card',collectionRevision:f.state.collectionRevision,card:{...card,effects:[{...effect(1,'turn'),limit:{period:'turn',count:0}}]}},f.host.cookie);
+  assert.equal(bad.status,400);
+  assert.deepEqual((await f.send(f.endpoint,undefined,f.host.cookie)).body.profile.cards[0].effects[1].limit,{period:'battle',count:1});
+  async function turn(hp){
+    configureBattle(f,(b,self)=>{
+      self.hp=hp;
+      self.hand=[id,id];
+      b.intent={...b.intent,card:{...b.intent.card,power:'0'}};
+    });
+    await f.act('plan',{card:id});
+    await f.act('round');
+    return livingForm(f).shield;
+  }
+  await f.act('start',{solo:true,bots:0});
+  assert.equal(await turn(40),7);
+  assert.equal(await turn(20),12);
+  assert.equal(await turn(20),14);
+  await f.act('reset');
+  await f.act('start',{solo:true,bots:0});
+  assert.equal(await turn(40),7);
+});
+
+test('a group spends one activation and a turn limit blocks repeated applications in the same turn',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'광역 제한 시험',power:'0',role:'normal',target:'area',range:'1~5',requiredState:'collapsed',effects:[
+    {kind:'shield',when:'use',to:'self',amount:2,limit:{period:'turn',count:1}},
+    {kind:'shield',when:'use',to:'allAllies',amount:3,limit:{period:'battle',count:1}}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:2});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[id],collapsed:true});
+    Object.assign(b.units.bot0,{pos:17,hand:[],move:0});
+    Object.assign(b.units.bot1,{pos:18,hand:[],move:0});
+    b.units.enemy.pos=20;
+    b.intent={...b.intent,reachable:true,target:self.id,card:{...b.intent.card,power:'0'}};
+  });
+  await f.act('plan',{card:id});
+  await f.act('round');
+  assert.equal(livingForm(f).shield,2);
+  assert.equal(livingForm(f,'bot0').shield,3);
+  assert.equal(livingForm(f,'bot1').shield,3);
+});
+
+test('dice formulas use six sides by default and allow explicit face counts for each hit',async()=>{
+  const {parsePower}=await import('../public/rules.js');
+  assert.deepEqual(parsePower('2D + 5'),{formula:'2d+5',count:2,sides:6,bonus:5});
+  assert.deepEqual(parsePower('2d8+5'),{formula:'2d8+5',count:2,sides:8,bonus:5});
+  assert.equal(parsePower('2d1+5'),null);
+  const f=await fixture();
+  await f.act('card',{card:{name:'주사위 연타',hitPowers:['2D + 5','2d2+5'],role:'normal',target:1,range:'1~4',effects:[]}});
+  const card=f.state.profile.cards[0];
+  assert.deepEqual(card.hitPowers,['2d+5','2d2+5']);
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    self.pos=16;self.hand=[card.id];
+    b.units.enemy.pos=20;
+    b.intent={...b.intent,reachable:true,target:self.id,card:{...b.intent.card,power:'0'}};
+  });
+  await f.act('plan',{card:card.id,targets:['enemy']});
+  await f.act('round');
+  const logs=f.state.battle.log;
+  const [first,second]=logs.filter(line=>/타 위력 /.test(line)).map(line=>Number(line.match(/타 위력 (\d+)/)[1]));
+  assert.ok(first>=7&&first<=17);
+  assert.ok(second>=7&&second<=9);
+  assert.equal(livingForm(f,'enemy').hp,54-first-second);
+});
+
+test('critical and noncritical timings dispatch to the selected hit and the whole attack',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'치명타 분기',hitPowers:['2','4'],role:'normal',target:1,range:'1~4',effects:[
+    {kind:'shield',when:'critical',hitIndex:1,to:'self',amount:3},
+    {kind:'shield',when:'noncritical',hitIndex:2,to:'self',amount:5},
+    {kind:'mind',when:'critical',to:'self',amount:2},
+    {kind:'mind',when:'noncritical',to:'self',amount:4}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  async function attack(charges){
+    configureBattle(f,(b,self)=>{
+      Object.assign(self,{pos:16,hand:[id],mind:50,shield:0,critCharges:charges});
+      b.units.enemy.pos=20;
+      b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'0'}};
+    });
+    await f.act('plan',{card:id,targets:['enemy']});
+    await f.act('round');
+  }
+  await attack(1);
+  assert.equal(livingForm(f).shield,8);
+  assert.equal(livingForm(f).mind,52);
+  await attack(0);
+  assert.equal(livingForm(f).shield,5);
+  assert.equal(livingForm(f).mind,54);
+});
+
+test('unopposed effects precede power and damage and only fire if the attack has no clash',async()=>{
+  for(const scenario of [
+    {target:1,clash:false,foe:0,damage:16},
+    {target:1,clash:true,foe:9,damage:10},
+    {target:1,clash:true,foe:10,damage:0},
+    {target:1,clash:true,foe:11,damage:10},
+    {target:'self',clash:false,foe:0,damage:0}
+  ]){
+    const f=await fixture();
+    const {target,clash,foe,damage}=scenario;
+    await f.act('card',{card:{name:'일방공격 효과 시험',power:'10',role:'normal',target,range:target===1?'1~4':'0',clash:true,unstoppable:true,effects:[
+      {kind:'power',when:'unopposed',to:'self',amount:2},
+      {kind:'outgoingDamage',when:'unopposed',to:'self',amount:4},
+      {kind:'shield',when:'unopposed',to:'self',amount:3}
+    ]}});
+    const card=f.state.profile.cards[0];
+    assert.equal(card.effects[1].when,'unopposed');
+    await f.act('start',{solo:true,bots:0});
+    configureBattle(f,(b,self)=>{
+      Object.assign(self,{pos:16,hand:[card.id],mind:50});
+      b.units.enemy.pos=20;
+      b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:String(foe)}};
+    });
+    await f.act('plan',{card:card.id,targets:target===1?['enemy']:[],clash});
+    await f.act('round');
+    assert.equal(livingForm(f,'enemy').hp,54-damage,JSON.stringify(scenario));
+    assert.equal(livingForm(f).shield,!clash&&target===1?3:0,JSON.stringify(scenario));
+  }
+});
+
+test('unstoppable uses the modified minimum for each hit after losing a clash',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'저지불가 시험',hitPowers:['1d+2','2d+1'],role:'normal',target:1,range:'1~4',clash:true,unstoppable:true,effects:[
+    {kind:'power',when:'clash',to:'self',amount:2},
+    {kind:'shield',when:'hit',hitIndex:2,to:'self',amount:3}
+  ]}});
+  const card=f.state.profile.cards[0];
+  assert.equal(card.unstoppable,true);
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[card.id],mind:50,shield:20});
+    b.units.enemy.pos=20;
+    b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'24'}};
+  });
+  await f.act('plan',{card:card.id,targets:['enemy'],clash:true});
+  await f.act('round');
+  assert.ok(f.state.battle.log.some(line=>line.includes('저지불가 발동 · 최소 위력 8')));
+  assert.deepEqual(f.state.battle.log.filter(line=>/타 위력 /.test(line)).map(line=>Number(line.match(/타 위력 (\d+)/)[1])),[4,4]);
+  assert.equal(livingForm(f,'enemy').hp,46);
+  assert.equal(livingForm(f).shield,3);
+});
+
+test('replayHit repeats only its own hit and effects before proceeding to the next hit',async()=>{
+  const f=await fixture();
+  const card={name:'타격 반복 시험',hitPowers:['2','4','7'],role:'normal',target:1,range:'1~4',effects:[
+    {kind:'shield',when:'use',to:'self',amount:3},
+    {kind:'replayHit',when:'hit',hitIndex:2,to:'self',amount:1},
+    {kind:'shield',when:'hit',hitIndex:2,to:'self',amount:1},
+    {kind:'shield',when:'hit',hitIndex:2,to:'self',amount:5,limit:{period:'turn',count:1}},
+    {kind:'mind',when:'attackEnd',to:'self',amount:2}
+  ]};
+  const invalid=await f.send(f.endpoint,{action:'card',collectionRevision:f.state.collectionRevision,card:{
+    ...card,effects:[{kind:'replayHit',when:'hit',to:'self',amount:1}]
+  }},f.host.cookie);
+  assert.equal(invalid.status,400);
+  await f.act('card',{card});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  async function run(enemyHp){
+    configureBattle(f,(b,self)=>{
+      Object.assign(self,{pos:16,hand:[id],mind:50,shield:0});
+      Object.assign(b.units.enemy,{pos:20,hp:enemyHp});
+      b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'0'}};
+    });
+    await f.act('plan',{card:id,targets:['enemy']});
+    await f.act('round');
+  }
+  await run(54);
+  const logs=f.state.battle.log;
+  const second=logs.findIndex(line=>line.includes('2타 재사용'));
+  assert.ok(second>0&&second<logs.findIndex(line=>line.includes('3타 위력')));
+  assert.equal(logs.filter(line=>line.includes('타 재사용')).length,1);
+  assert.equal(livingForm(f,'enemy').hp,37);
+  assert.equal(livingForm(f).shield,10);
+  assert.equal(livingForm(f).mind,52);
+
+  await run(5);
+  const last=f.state.battle.log.lastIndexOf('라운드 2 처리');
+  assert.ok(!f.state.battle.log.slice(last).some(line=>line.includes('타 재사용')));
+  assert.equal(livingForm(f,'enemy').hp,0);
+});
+
+test('a multi-hit card sums its rolls for clashing and resolves scoped effects and critical charges in order',async()=>{
+  const f=await fixture();
+  const card={name:'점층격',hitPowers:['2','4','7'],role:'normal',target:1,range:'1~4',clash:true,effects:[
+    {kind:'critCharges',when:'hit',hitIndex:1,to:'self',amount:1},
+    {kind:'damage',when:'hit',hitIndex:3,to:'target',amount:3},
+    {kind:'shield',when:'hit',to:'self',amount:2},
+    {kind:'mind',when:'attackEnd',to:'self',amount:3}
+  ]};
+  await f.act('card',{card});
+  const id=f.state.profile.cards[0].id;
+  assert.deepEqual(f.state.profile.cards[0].hitPowers,['2','4','7']);
+  const bad=await f.send(f.endpoint,{action:'card',collectionRevision:f.state.collectionRevision,card:{...card,effects:[{...card.effects[0],hitIndex:4}]}},f.host.cookie);
+  assert.equal(bad.status,400);
+  await f.act('start',{solo:true,bots:0});
+  const prepare=(hp,shield,power)=>configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[id],mind:50,critCharges:1});
+    Object.assign(b.units.enemy,{pos:20,hp,shield});
+    b.intent={...b.intent,reachable:true,target:self.id,card:{...b.intent.card,power}};
+  });
+  prepare(54,2,'12');
+  await f.act('plan',{card:id,targets:['enemy'],clash:true});
+  await f.act('round');
+  assert.ok(f.state.battle.log.some(line=>line.includes('13 : 12')));
+  assert.deepEqual(f.state.battle.log.filter(line=>line.includes('타 위력')).map(line=>line.match(/타 위력 (\d+)/)[1]),['2','4','7']);
+  assert.equal(livingForm(f,'enemy').hp,37);
+  assert.equal(livingForm(f).critCharges,0);
+  assert.equal(livingForm(f).shield,2);
+  assert.equal(livingForm(f).mind,53);
+
+  prepare(4,0,'0');
+  await f.act('plan',{card:id,targets:['enemy']});
+  await f.act('round');
+  const last=f.state.battle.log.lastIndexOf('라운드 2 처리');
+  assert.equal(f.state.battle.log.slice(last).filter(line=>line.includes('타 위력')).length,2);
+  assert.equal(livingForm(f,'enemy').hp,0);
+});
+
+test('solo session saves profile, custom card and deck, resolves bot rounds and overload',async()=>{
+  const f=await fixture();
+  const p={name:'서린',country:'제2국',status:'월정커',wall:'제6국',stats:[50,50,50,50,50,50]};
+  await f.act('profile',p);
+  await f.act('card',{card:{name:'잉여 기록 II',power:'0',target:'self',range:'0',clash:false,role:'normal',effects:[{kind:'draw',when:'use',to:'self',amount:2}]}});
+  const custom=f.state.profile.cards[0];
+  await f.act('deck',{cards:[custom.id,...f.state.defaults.filter(c=>!c.optional).slice(1).map(c=>c.id),'strike','guard']});
+  await f.act('start',{solo:true,bots:3});
+  assert.equal(f.state.battle.units.filter(u=>u.bot&&!u.enemy).length,3);
+  const me=f.state.battle.units.find(u=>u.id===f.state.me);
+  assert.equal(me.name,'서린');
+  assert.equal(me.hand.length,4);
+  assert.ok(f.state.battle.units.filter(u=>u.id!==me.id).every(u=>u.hand===undefined));
+  await f.act('plan',{pos:18});
+  await f.act('round');
+  assert.equal(f.state.battle.round,2);
+  assert.ok(f.state.battle.log.some(line=>/회수원|호송병|기록원/.test(line)));
+  if(f.state.battle.phase==='planning'){
+    await f.act('adjust',{target:me.id,mind:-100});
+    await f.act('round');
+    assert.ok(f.state.battle.log.some(line=>line.includes('서린 폭주')));
+  }
+  await f.act('reset');
+  assert.equal(f.state.battle,null);
+});
+
+test('players see the same battle, cannot advance it, and stale requests are rejected',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'손님'});
+  await f.send(f.room+'/seat',{id:guest.body.me,seat:1},f.host.cookie);
+  const joined=await f.send(f.endpoint,undefined,guest.cookie);
+  assert.equal(joined.body.roster.length,1);
+  await f.act('start',{bots:3});
+  const g=await f.send(f.endpoint,undefined,guest.cookie);
+  assert.equal(g.body.battle.round,1);
+  assert.equal((await f.send(f.endpoint,{action:'round',revision:g.body.revision},guest.cookie)).status,403);
+  assert.equal((await f.send(f.endpoint,{action:'plan',revision:0,pos:0},guest.cookie)).status,409);
+  const submitted=await f.send(f.endpoint,{action:'plan',revision:g.body.revision,pos:0},guest.cookie);
+  assert.equal(submitted.status,200);
+  const h=await f.send(f.endpoint,undefined,f.host.cookie);
+  const r=await f.send(f.endpoint,{action:'round',revision:h.body.revision},f.host.cookie);
+  assert.equal(r.status,200);
+  assert.equal((await f.send(f.endpoint,undefined,guest.cookie)).body.battle.round,2);
+});
+
+test('the prototype grid measures orthogonal distance and routes around walls', async()=>{
+  const {gridDistance,gridPaths,gridDisplacement,gridInRange}=await import('../public/grid.js');
+  assert.equal(gridDistance(9,18),2);
+  assert.equal(gridDistance(7,8),8);
+  assert.equal(gridInRange('2, 4',9,18),true);
+  assert.equal(gridInRange('2, 4',9,19),false);
+  assert.equal(gridPaths(10,2,new Set([11])).has(12),false);
+  assert.equal(gridPaths(10,4,new Set([11])).get(12).length,4);
+  assert.equal(gridDisplacement(6,7),-1);
+});
+
+test('a targeted action must be valid before it can lock the round and can be reopened',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  const {me,battle}=f.state;
+  const unit=battle.units.find(u=>u.id===me);
+  const card=unit.hand.find(c=>c.target===1&&c.role!=='guard');
+  assert.ok(card);
+  const attempt=async(action,payload={})=>f.send(f.endpoint,{action,revision:f.state.revision,...payload},f.host.cookie);
+  assert.equal((await attempt('round')).status,400);
+  assert.equal((await attempt('plan',{card:card.id,pos:18})).status,400);
+  const plan={card:card.id,pos:18,targets:['enemy'],clash:card.clash&&card.role!=='assist'};
+  await f.act('plan',plan);
+  assert.deepEqual(f.state.battle.awaiting,[]);
+  assert.deepEqual(f.state.battle.units.find(u=>u.id===me).plan.targets,['enemy']);
+  await f.act('unplan');
+  assert.deepEqual(f.state.battle.awaiting,[unit.name]);
+  assert.equal((await attempt('round')).status,400);
+  await f.act('plan',plan);
+  await f.act('round');
+  assert.equal(f.state.battle.round,2);
+  assert.ok(f.state.battle.log.some(line=>line.includes(card.name)));
+});
+
+test('cover persists out of range and replaces only an unopposed attack',async()=>{
+  for(const {power,manual,remaining,designate} of [
+    {power:'4',manual:false,remaining:0},
+    {power:'8',manual:false,remaining:0},
+    {power:'9',manual:false,remaining:0},
+    {power:'9',manual:true,remaining:1},
+    {power:'9',manual:false,remaining:0,designate:'ally'},
+    {power:'9',manual:false,remaining:1,designate:'other'}
+  ]){
+    const f=await fixture();
+    const guest=await f.send(f.room+'/join',{name:'보호 대상'});
+    await f.send(f.room+'/seat',{id:guest.body.me,seat:2},f.host.cookie);
+    await f.send(f.room+'/seat',{id:f.state.me,seat:1},f.host.cookie);
+    await f.act('start',{bots:0});
+    const row=f.DB.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(f.host.body.code).first();
+    const saved=JSON.parse(row.state);
+    const {units,intent}=saved.battle;
+    const guard=units[f.state.me], ally=units[guest.body.me];
+    guard.pos=16;ally.pos=19;units.enemy.pos=22;
+    if(designate==='other')units.other={...structuredClone(ally),id:'other',name:'다른 아군',pos:8,bot:true,zero:'spent'};
+    intent.target=ally.id;intent.reachable=true;intent.card.power='8';
+    guard.library.guard={...guard.library.guard,power,range:designate==='ally'?'1~3':'1'};
+    guard.hand=['guard','strike','draw','trace'];
+    guard.deck=['hold','shot','rush','burn'];
+    ally.hand=['strike','hold','shot','draw'];
+    ally.deck=ally.deck.filter(id=>!ally.hand.includes(id));
+    f.DB.prepare('UPDATE game_states SET state = ? WHERE room_code = ?').bind(JSON.stringify(saved),f.host.body.code).run();
+    const guestPlan=async(payload)=>{
+      const {body}=await f.send(f.endpoint,undefined,guest.cookie);
+      const r=await f.send(f.endpoint,{action:'plan',revision:body.revision,...payload},guest.cookie);
+      assert.equal(r.status,200,JSON.stringify(r.body));
+      return r.body;
+    };
+    await guestPlan({pos:19});
+    // Update the host fixture's revision using the same persisted state the UI polls.
+    const hostAct=async(action,payload={})=>{
+      const {body}=await f.send(f.endpoint,undefined,f.host.cookie);
+      const r=await f.send(f.endpoint,{action,revision:body.revision,...payload},f.host.cookie);
+      assert.equal(r.status,200,JSON.stringify(r.body));
+      return r.body;
+    };
+    const targetId=designate==='ally'?ally.id:designate==='other'?'other':null;
+    const {body:current}=await f.send(f.endpoint,undefined,f.host.cookie);
+    const invalid=await f.send(f.endpoint,{action:'plan',revision:current.revision,card:'guard',pos:16,targets:['enemy']},f.host.cookie);
+    assert.equal(invalid.status,400);
+    await hostAct('plan',{card:'guard',pos:16,targets:targetId?[targetId]:[]});
+    const first=await hostAct('round');
+    assert.equal(first.battle.units.find(u=>u.id===guard.id).coverCount,designate==='ally'?0:1);
+    assert.equal(first.battle.units.find(u=>u.id===guard.id).graveCount,1);
+    assert.equal(first.battle.units.find(u=>u.id===ally.id).hp,designate==='ally'?40:32);
+    if(designate==='ally'){
+      assert.ok(first.battle.log.some(line=>line.includes('보호 대상 대신 합')));
+      continue;
+    }
+    await guestPlan(manual?{card:'strike',pos:19,targets:['enemy'],clash:true}:{pos:19});
+    await hostAct('plan',{pos:18});
+    const second=await hostAct('round');
+    assert.equal(second.battle.units.find(u=>u.id===guard.id).coverCount,remaining);
+    const coverLog=second.battle.log.find(line=>line.includes('원호 방어 1 소모'));
+    if(manual||designate==='other')assert.equal(coverLog,undefined);
+    else{
+      assert.ok(coverLog?.includes('보호 대상 대신 합'));
+      assert.equal(second.battle.units.find(u=>u.id===ally.id).hp,32);
+      const roll=Number(second.battle.log.find(line=>line.endsWith('(원호 방어)')).match(/ : (\d+)/)[1]);
+      assert.equal(second.battle.units.find(u=>u.id===guard.id).hp,roll>power?40-roll:40);
+    }
+  }
+});
+
+test('new card effects save and resolve in sequence with conditions and card destinations',async()=>{
+  const f=await fixture();
+  const effect=(kind,when,to,amount,extra={})=>({kind,when,to,amount,...extra});
+  await f.act('card',{card:{
+    name:'시험 카드',power:'0',range:'1~4',role:'normal',target:1,clash:false,
+    effects:[
+      effect('focus','use','self',5,{condition:'highMind',threshold:50}),
+      effect('pierce','hit','target',4),
+      effect('poison','hit','target',3),
+      effect('fortify','end','self',8),
+      effect('topdeck','end','self',1)
+    ]
+  }});
+  const custom=f.state.profile.cards[0];
+  await f.act('deck',{cards:[custom.id,...f.state.defaults.filter(c=>!c.optional).slice(1).map(c=>c.id),'strike','guard']});
+  await f.act('start',{solo:true,bots:0});
+  const {code}=f.host.body;
+  const db=f.DB;
+  const saved=JSON.parse(db.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(code).first().state);
+  const {units}=saved.battle;
+  const me=units[f.state.me];
+  me.hand=[custom.id,'hold','shot','guard','draw'];
+  me.deck=['trace','rush','burn'];
+  units.enemy.shield=10;
+  db.prepare('UPDATE game_states SET state = ? WHERE room_code = ?').bind(JSON.stringify(saved),code).run();
+  await f.act('plan',{card:custom.id,pos:16,targets:['enemy']});
+  await f.act('round');
+  const foe=f.state.battle.units.find(u=>u.enemy);
+  const self=f.state.battle.units.find(u=>u.id===me.id);
+  assert.equal(foe.hp,47);
+  assert.equal(foe.shield,5);
+  assert.equal(foe.poison,2);
+  assert.equal(self.nextPower,0);
+  assert.equal(self.shield,8);
+  assert.equal(self.deckCount,4);
+  assert.equal(self.graveCount,0);
+  assert.equal(self.hand.some(c=>c.id===custom.id),false);
+});
+
+test('discard costs gate bonuses and all three copy modes add playable cards',async()=>{
+  const f=await fixture();
+  const effect=(kind,when,amount,extra={})=>({kind,when,amount,to:'self',...extra});
+  for(const [name,rows] of [
+    ['전부 버리기',[
+      effect('power','use',10,{condition:'discardPaid'}),
+      effect('power','use',2,{scaleDiscard:true}),
+      effect('discardAllCost','use',1),
+      effect('copySelf','end',1),
+      effect('copyFixed','end',1,{copyId:'burn'})
+    ]],
+    ['대가 실패',[
+      effect('discardExactCost','use',4),
+      effect('power','use',10,{condition:'discardPaid'})
+    ]]
+  ]){
+    await f.act('card',{card:{name,effects:rows,power:'0',role:'normal',target:1,range:'1~4',clash:false}});
+  }
+  const [paid,unpaid]=f.state.profile.cards;
+  const presets=f.state.defaults.filter(c=>!c.optional).slice(0,5).map(c=>c.id);
+  await f.act('deck',{cards:[paid.id,unpaid.id,'handCopy',...presets,'strike','guard']});
+  await f.act('start',{solo:true,bots:0});
+  const code=f.host.body.code;
+  const db=f.DB;
+  const writeHand=(hand)=>{
+    const saved=JSON.parse(db.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(code).first().state);
+    const {units,intent}=saved.battle;
+    const u=units[f.state.me];
+    u.hand=hand;u.grave=[];u.deck=['draw','trace','rush','guard'];
+    u.mind=50;u.pos=16;units.enemy.pos=20;units.enemy.hp=54;
+    intent.card={...intent.card,power:'0'};intent.reachable=true;
+    db.prepare('UPDATE game_states SET state = ? WHERE room_code = ?').bind(JSON.stringify(saved),code).run();
+  };
+  const self=()=>f.state.battle.units.find(u=>u.id===f.state.me);
+  const foe=()=>f.state.battle.units.find(u=>u.enemy);
+  writeHand([paid.id,'hold','shot','strike']);
+  await f.act('plan',{card:paid.id,pos:16,targets:['enemy']});
+  await f.act('round');
+  assert.equal(foe().hp,38);
+  assert.ok(self().hand.some(c=>c.id===paid.id));
+  assert.ok(self().hand.some(c=>c.id==='burn'));
+  assert.ok(f.state.battle.log.some(line=>line.includes('대가로 손패 3장 버림')));
+
+  writeHand([unpaid.id,'hold']);
+  await f.act('plan',{card:unpaid.id,pos:16,targets:['enemy']});
+  await f.act('round');
+  assert.equal(foe().hp,54);
+  assert.ok(self().hand.some(c=>c.id==='hold'));
+  assert.ok(f.state.battle.log.some(line=>line.includes('대가 미지불')));
+
+  writeHand(['handCopy','hold','shot','strike']);
+  const action={action:'plan',revision:f.state.revision,card:'handCopy',pos:16};
+  const invalid=await f.send(f.endpoint,{...action,copyId:'burn'},f.host.cookie);
+  assert.equal(invalid.status,400);
+  await f.act('plan',{card:'handCopy',pos:16,copyId:'hold'});
+  await f.act('round');
+  assert.equal(self().hand.filter(c=>c.id==='hold').length,2);
+});
+
+test('tactical effects resolve clash margins, temporary shields, retaliation, and next-round control',async()=>{
+  const f=await fixture();
+  const effect=(kind,when,to,amount,condition='',threshold=1)=>({kind,when,to,amount,condition,threshold});
+  await f.act('card',{card:{name:'유인 작전',power:'12',role:'normal',target:1,range:'1~4',clash:true,effects:[
+    effect('temporaryShield','use','self',3),
+    effect('thorns','use','self',2),
+    effect('expose','win','target',4,'clashMargin',3),
+    effect('rootNext','hit','target',1),
+    effect('provoke','end','self',1)
+  ]}});
+  const card=f.state.profile.cards[0];
+  const others=f.state.defaults.filter(c=>!c.optional).slice(1).map(c=>c.id);
+  await f.act('deck',{cards:[card.id,...others,'strike','guard']});
+  await f.act('start',{solo:true,bots:0});
+  const code=f.host.body.code;
+  const db=f.DB;
+  const configure=(round,hand)=>{
+    const saved=JSON.parse(db.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(code).first().state);
+    const {units,intent}=saved.battle;
+    const u=units[f.state.me];
+    u.hand=hand;u.shield=5;u.pos=16;
+    units.enemy.pos=20;
+    intent.card={...intent.card,power:'8'};intent.reachable=true;
+    db.prepare('UPDATE game_states SET state = ? WHERE room_code = ?').bind(JSON.stringify(saved),code).run();
+    assert.equal(saved.battle.round,round);
+  };
+  const me=()=>f.state.battle.units.find(u=>u.id===f.state.me);
+  const foe=()=>f.state.battle.units.find(u=>u.enemy);
+  configure(1,[card.id,'draw','guard','trace']);
+  await f.act('plan',{card:card.id,pos:16,targets:['enemy'],clash:true});
+  await f.act('round');
+  assert.equal(foe().hp,38);
+  assert.equal(foe().rooted,true);
+  assert.equal(me().shield,5);
+  assert.equal(me().temporaryShield,0);
+  assert.equal(me().thorns,2);
+  assert.equal(f.state.battle.intent.target,me().id);
+  assert.ok(f.state.battle.log.some(line=>line.includes('도발로 예고 공격 유도')));
+  configure(2,['draw','guard','trace','hold']);
+  await f.act('plan',{pos:16});
+  await f.act('round');
+  assert.equal(me().hp,37);
+  assert.equal(me().thorns,0);
+  assert.equal(foe().hp,36);
+  assert.equal(foe().rooted,false);
+});
+
+test('clash ties can trigger counter damage and support effects can protect an ally',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'부상 아군'});
+  await f.send(f.room+'/seat',{id:guest.body.me,seat:2},f.host.cookie);
+  await f.send(f.room+'/seat',{id:f.state.me,seat:1},f.host.cookie);
+  const effect=(kind,when,to,amount)=>({kind,when,to,amount});
+  await f.act('card',{card:{name:'엄호 전술',power:'8',role:'normal',target:1,range:'1~4',clash:true,effects:[
+    effect('shieldGift','use','nearestAlly',3),
+    effect('allyHeal','use','woundedAlly',5),
+    effect('lethalGuard','use','woundedAlly',2),
+    effect('riposte','tie','target',4),
+    effect('lateDraw','end','self',2)
+  ]}});
+  const card=f.state.profile.cards[0];
+  const base=f.state.defaults.filter(c=>!c.optional).slice(1).map(c=>c.id);
+  await f.act('deck',{cards:[card.id,...base,'strike','guard']});
+  await f.act('start',{bots:0});
+  const code=f.host.body.code,db=f.DB;
+  const configure=(power)=>{
+    const saved=JSON.parse(db.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(code).first().state);
+    const {units,intent}=saved.battle;
+    const u=units[f.state.me], ally=units[guest.body.me];
+    u.hand=[card.id,'draw','guard','trace'];u.deck=['hold','shot','rush','burn'];u.grave=[];
+    u.pos=16;u.shield=5;u.mind=50;
+    ally.pos=17;ally.hp=3;ally.shield=0;
+    units.enemy.pos=20;
+    intent.card={...intent.card,power};intent.target=ally.id;intent.reachable=true;
+    db.prepare('UPDATE game_states SET state = ? WHERE room_code = ?').bind(JSON.stringify(saved),code).run();
+  };
+  const submit=async(cookie,payload)=>{
+    const {body}=await f.send(f.endpoint,undefined,cookie);
+    const result=await f.send(f.endpoint,{revision:body.revision,...payload},cookie);
+    assert.equal(result.status,200,JSON.stringify(result.body));
+    return result.body.battle.units;
+  };
+  configure('8');
+  await submit(f.host.cookie,{action:'plan',card:card.id,pos:16,targets:['enemy'],clash:true});
+  await submit(guest.cookie,{action:'plan',pos:17});
+  const tie=await submit(f.host.cookie,{action:'round'});
+  assert.equal(tie.find(u=>u.enemy).hp,50);
+  assert.equal(tie.find(u=>u.id===guest.body.me).hp,8);
+  assert.equal(tie.find(u=>u.id===guest.body.me).shield,3);
+  assert.equal(tie.find(u=>u.id===f.state.me).handCount,6);
+  configure('20');
+  await submit(f.host.cookie,{action:'plan',card:card.id,pos:16,targets:['enemy']});
+  await submit(guest.cookie,{action:'plan',pos:17});
+  const covered=await submit(f.host.cookie,{action:'round'});
+  assert.equal(covered.find(u=>u.id===guest.body.me).hp,2);
+  assert.equal(covered.find(u=>u.id===guest.body.me).lethalGuard,0);
+});
+
+test('signed power ratios combine with fixed modifiers and health effects use maximum health',async()=>{
+  const f=await fixture();
+  const effect=(kind,when,to,amount,amountMode)=>({kind,when,to,amount,amountMode});
+  await f.act('card',{card:{name:'비율 판정',power:'20',role:'normal',target:1,range:'1~4',clash:false,effects:[
+    effect('power','use','self',4,'fixed'),
+    effect('power','use','self',10,'percent'),
+    effect('power','use','self',-25,'percent'),
+    effect('heal','use','self',10,'percent'),
+    effect('pierce','hit','target',10,'percent'),
+    effect('focus','end','self',25,'percent')
+  ]}});
+  const card=f.state.profile.cards[0];
+  const base=f.state.defaults.filter(c=>!c.optional).slice(1).map(c=>c.id);
+  await f.act('deck',{cards:[card.id,...base,'strike','guard']});
+  await f.act('start',{solo:true,bots:0});
+  const code=f.host.body.code,db=f.DB;
+  const configure=()=>{
+    const saved=JSON.parse(db.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(code).first().state);
+    const {units,intent}=saved.battle;
+    const u=units[f.state.me];
+    u.hand=[card.id,'guard','hold','draw'];u.pos=16;u.mind=50;u.hp=20;
+    units.enemy.pos=20;
+    intent.card={...intent.card,power:'0'};intent.reachable=true;
+    db.prepare('UPDATE game_states SET state = ? WHERE room_code = ?').bind(JSON.stringify(saved),code).run();
+  };
+  const me=()=>f.state.battle.units.find(u=>u.id===f.state.me);
+  const foe=()=>f.state.battle.units.find(u=>u.enemy);
+  configure();
+  await f.act('plan',{card:card.id,pos:16,targets:['enemy']});
+  await f.act('round');
+  assert.equal(me().hp,24);
+  assert.equal(foe().hp,29);
+  assert.equal(me().nextPowerPercent,25);
+  configure();
+  await f.act('plan',{card:card.id,pos:16,targets:['enemy']});
+  await f.act('round');
+  assert.equal(foe().hp,0);
+  assert.ok(f.state.battle.log.some(line=>line.includes('피해 26')));
+});
+
+test('damage modifiers stack before shields and deferred damage settles once next round',async()=>{
+  const f=await fixture();
+  const effect=(kind,when,to,amount,amountMode)=>({kind,when,to,amount,amountMode});
+  await f.act('card',{card:{name:'유예 계약',power:'10',role:'normal',target:1,range:'1~4',clash:false,effects:[
+    effect('outgoingDamage','use','self',2,'fixed'),
+    effect('outgoingDamage','use','self',25,'percent'),
+    effect('incomingDamage','use','self',-25,'percent'),
+    effect('damageDebt','use','self',50),
+    effect('shield','use','self',2),
+    effect('barrierBurst','use','self',2),
+    effect('shieldBreakDraw','hit','self',1)
+  ]}});
+  await f.act('card',{card:{name:'유예 상쇄',power:'0',role:'normal',target:'self',range:'0',clash:false,effects:[
+    effect('eraseDebt','use','self',1)
+  ]}});
+  const [card,erase]=f.state.profile.cards;
+  const deck=f.state.defaults.filter(c=>!c.optional).slice(2).map(c=>c.id);
+  await f.act('deck',{cards:[card.id,erase.id,...deck,'strike','guard']});
+  await f.act('start',{solo:true,bots:0});
+  const code=f.host.body.code,db=f.DB;
+  const configure=(power,setHand)=>{
+    const saved=JSON.parse(db.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(code).first().state);
+    const {units,intent}=saved.battle, self=units[f.state.me];
+    self.pos=16;units.enemy.pos=20;
+    if(setHand){
+      self.hand=[card.id,erase.id,'guard','draw'];
+      self.deck=['hold','shot','rush','burn'];
+      units.enemy.shield=4;
+    }else self.shield=10;
+    intent.card={...intent.card,power};intent.reachable=true;
+    db.prepare('UPDATE game_states SET state = ? WHERE room_code = ?').bind(JSON.stringify(saved),code).run();
+  };
+  const me=()=>f.state.battle.units.find(u=>u.id===f.state.me);
+  const foe=()=>f.state.battle.units.find(u=>u.enemy);
+  configure('12',true);
+  await f.act('plan',{card:card.id,pos:16,targets:['enemy']});
+  await f.act('round');
+  assert.equal(foe().hp,38);
+  assert.equal(me().hp,36);
+  assert.deepEqual(me().damageDebt,[{round:2,amount:3}]);
+  assert.equal(me().handCount,4);
+  assert.equal(me().incomingDamagePercent,undefined);
+  assert.ok(f.state.battle.log.some(line=>line.includes('보호막 파열 반격')));
+  configure('0',false);
+  await f.act('plan',{card:erase.id,pos:16});
+  await f.act('round');
+  assert.equal(me().hp,34);
+  assert.equal(me().shield,10);
+  assert.deepEqual(me().damageDebt,[]);
+});
+
+test('fixed and percentage deferral split damage across rounds without losing remainders',async()=>{
+  for(const [mode,amount,rounds,installments] of [
+    ['fixed',5,2,[3,2]],
+    ['percent',50,3,[2,2,1]],
+    ['fixed',100,3,[4,3,3]]
+  ]){
+    const f=await fixture();
+    await f.act('card',{card:{name:'분할 유예',power:'0',role:'normal',target:'self',range:'0',clash:false,effects:[
+      {kind:'damageDebt',when:'use',to:'self',amount,amountMode:mode,deferRounds:rounds}
+    ]}});
+    const card=f.state.profile.cards[0];
+    const base=f.state.defaults.filter(c=>!c.optional).slice(1).map(c=>c.id);
+    await f.act('deck',{cards:[card.id,...base,'strike','guard']});
+    await f.act('start',{solo:true,bots:0});
+    const code=f.host.body.code,db=f.DB;
+    const configure=power=>{
+      const saved=JSON.parse(db.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(code).first().state);
+      const {units,intent}=saved.battle, self=units[f.state.me];
+      self.pos=16;units.enemy.pos=20;
+      if(saved.battle.round===1)self.hand=[card.id,'guard','draw','hold'];
+      intent.card={...intent.card,power};intent.reachable=true;
+      db.prepare('UPDATE game_states SET state = ? WHERE room_code = ?').bind(JSON.stringify(saved),code).run();
+    };
+    const me=()=>f.state.battle.units.find(u=>u.id===f.state.me);
+    configure('10');
+    await f.act('plan',{card:card.id,pos:16});
+    await f.act('round');
+    assert.deepEqual(me().damageDebt,installments.map((damage,i)=>({round:i+2,amount:damage})));
+    let hp=30+installments.reduce((a,b)=>a+b,0);
+    assert.equal(me().hp,hp);
+    for(const installment of installments){
+      configure('0');
+      await f.act('plan',{pos:16});
+      await f.act('round');
+      hp-=installment;
+      assert.equal(me().hp,hp);
+    }
+    assert.deepEqual(me().damageDebt,[]);
+  }
+});
+
+test('special effects survive the round boundary and clash memory waits for a clash',async()=>{
+  const f=await fixture();
+  const fx=(kind,when,to,amount)=>({kind,when,to,amount});
+  await f.act('card',{card:{name:'좌표 기록',power:'8',role:'normal',target:1,range:'1~4',clash:true,effects:[
+    fx('positionAnchor','use','self',1),fx('afterimage','use','self',3),
+    fx('clashMemory','lose','self',10),fx('delayedStrike','hit','target',5),
+    fx('debtShield','use','self',2)
+  ]}});
+  const card=f.state.profile.cards[0];
+  await f.act('deck',{cards:[card.id,...f.state.defaults.filter(c=>!c.optional).slice(1).map(c=>c.id),'strike','guard']});
+  await f.act('start',{solo:true,bots:0});
+  const code=f.host.body.code,db=f.DB;
+  const configure=(power,initial=false)=>{
+    const saved=JSON.parse(db.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(code).first().state);
+    const {units,intent}=saved.battle, self=units[f.state.me];
+    self.hand=[card.id,'guard','draw','hold'];self.mind=50;
+    units.enemy.pos=20;
+    if(initial)self.damageDebt=[{round:2,amount:2}];
+    intent.card={...intent.card,power};intent.reachable=true;
+    db.prepare('UPDATE game_states SET state = ? WHERE room_code = ?').bind(JSON.stringify(saved),code).run();
+  };
+  const me=()=>f.state.battle.units.find(u=>u.id===f.state.me);
+  const foe=()=>f.state.battle.units.find(u=>u.enemy);
+  configure('12',true);
+  await f.act('plan',{card:card.id,pos:17,targets:['enemy'],clash:true});
+  await f.act('round');
+  assert.equal(me().hp,33);
+  assert.equal(me().clashMemory,4);
+  assert.deepEqual(me().damageDebt,[]);
+  configure('0');
+  await f.act('plan',{card:card.id,pos:17,targets:['enemy']});
+  await f.act('round');
+  assert.equal(me().clashMemory,4);
+  assert.equal(foe().hp,46);
+  assert.equal(foe().delayedStrike[0].amount,5);
+  configure('10');
+  await f.act('plan',{card:card.id,pos:17,targets:['enemy'],clash:true});
+  await f.act('round');
+  assert.equal(me().clashMemory,undefined);
+  assert.equal(foe().hp,29);
+  assert.ok(f.state.battle.log.some(line=>line.includes('지연 타격 5 발동')));
+});
+
+test('a clash streak boosts the next clash and shared cards are playable by an ally',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'아군'});
+  await f.send(f.room+'/seat',{id:guest.body.me,seat:2},f.host.cookie);
+  await f.send(f.room+'/seat',{id:f.state.me,seat:1},f.host.cookie);
+  const effect=(kind,when,to,amount)=>({kind,when,to,amount});
+  await f.act('card',{card:{name:'릴레이',power:'8',role:'normal',target:1,range:'1~4',clash:true,effects:[
+    effect('clashStreak','clash','self',2),effect('hastenStrike','hit','target',1),
+    effect('shareCopy','end','nearestAlly',1)
+  ]}});
+  const card=f.state.profile.cards[0];
+  await f.act('deck',{cards:[card.id,...f.state.defaults.filter(c=>!c.optional).slice(1).map(c=>c.id),'strike','guard']});
+  await f.act('start',{bots:0});
+  const code=f.host.body.code,db=f.DB;
+  const saved=JSON.parse(db.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(code).first().state);
+  const {units,intent}=saved.battle;
+  const host=units[f.state.me],ally=units[guest.body.me];
+  host.pos=16;host.clashStreak=2;host.hand=[card.id,'draw','guard','hold'];
+  ally.pos=17;units.enemy.pos=20;
+  units.enemy.delayedStrike=[{round:2,amount:3,source:host.id}];
+  intent.target=ally.id;intent.card={...intent.card,power:'10'};intent.reachable=true;
+  db.prepare('UPDATE game_states SET state = ? WHERE room_code = ?').bind(JSON.stringify(saved),code).run();
+  const submit=async(cookie,payload)=>{
+    const {body}=await f.send(f.endpoint,undefined,cookie);
+    const result=await f.send(f.endpoint,{revision:body.revision,...payload},cookie);
+    assert.equal(result.status,200,JSON.stringify(result.body));
+    return result.body.battle;
+  };
+  await submit(f.host.cookie,{action:'plan',card:card.id,pos:16,targets:['enemy'],clash:true});
+  await submit(guest.cookie,{action:'plan',pos:17});
+  const battle=await submit(f.host.cookie,{action:'round'});
+  assert.equal(battle.units.find(u=>u.id===host.id).clashStreak,3);
+  assert.equal(battle.units.find(u=>u.enemy).hp,39);
+  const planned=await submit(guest.cookie,{action:'plan',card:card.id,pos:17,targets:['enemy']});
+  assert.ok(planned.units.find(u=>u.id===ally.id).hand.some(c=>c.id===card.id));
+});
+
+test('health and mind costs fund scaled rewards only after payment',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'아군'});
+  await f.send(f.room+'/seat',{id:guest.body.me,seat:2},f.host.cookie);
+  await f.send(f.room+'/seat',{id:f.state.me,seat:1},f.host.cookie);
+  const fx=(kind,amount,extra={})=>({kind,when:'use',to:'self',amount,...extra});
+  await f.act('card',{card:{name:'대가 검증',power:'8',role:'normal',target:1,range:'1~4',clash:false,effects:[
+    fx('power',1,{scaleResource:'mind'}),
+    fx('rallyHeal',2,{scaleResource:'health'}),
+    fx('rallyShield',3,{condition:'bothPaid'}),
+    fx('healthCost',10,{amountMode:'percent'}),
+    fx('mindCost',10)
+  ]}});
+  const card=f.state.profile.cards[0];
+  await f.act('deck',{cards:[card.id,...f.state.defaults.filter(c=>!c.optional).slice(1).map(c=>c.id),'strike','guard']});
+  await f.act('start',{bots:0});
+  const code=f.host.body.code,db=f.DB;
+  const configure=(hp,mind)=>{
+    const saved=JSON.parse(db.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(code).first().state);
+    const {units,intent}=saved.battle;
+    const host=units[f.state.me],ally=units[guest.body.me];
+    host.pos=16;host.hp=hp;host.mind=mind;host.shield=8;host.hand=[card.id,'draw','guard','hold'];
+    ally.pos=17;ally.hp=20;ally.shield=0;units.enemy.pos=20;
+    intent.card={...intent.card,power:'0'};intent.target=ally.id;intent.reachable=true;
+    db.prepare('UPDATE game_states SET state = ? WHERE room_code = ?').bind(JSON.stringify(saved),code).run();
+  };
+  const submit=async(cookie,payload)=>{
+    const {body}=await f.send(f.endpoint,undefined,cookie);
+    const result=await f.send(f.endpoint,{revision:body.revision,...payload},cookie);
+    assert.equal(result.status,200,JSON.stringify(result.body));
+    return result.body.battle.units;
+  };
+  for(const [hp,mind,expected] of [[40,50,[36,40,28,3,36]],[4,9,[4,9,20,0,32]]]){
+    configure(hp,mind);
+    await submit(f.host.cookie,{action:'plan',card:card.id,pos:16,targets:['enemy']});
+    await submit(guest.cookie,{action:'plan',pos:17});
+    const units=await submit(f.host.cookie,{action:'round'});
+    const self=units.find(u=>u.id===f.state.me),ally=units.find(u=>u.id===guest.body.me);
+    assert.deepEqual([self.hp,self.mind,ally.hp,ally.shield,units.find(u=>u.enemy).hp],expected);
+    assert.equal(self.shield,8);
+  }
+});
+
+test('custom effect ratios, conversions, and delays resolve using their saved settings',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'맞춤 전환',power:'1',role:'normal',target:1,range:'1~4',clash:false,effects:[
+    {kind:'detonatePoison',when:'hit',to:'target',amount:50,amountMode:'percent',conversion:300},
+    {kind:'graveToShield',when:'use',to:'self',amount:50,amountMode:'percent',perCard:7},
+    {kind:'delayedStrike',when:'hit',to:'target',amount:10,amountMode:'percent',delayRounds:3},
+    {kind:'doubleEdge',when:'use',to:'self',amount:2,amountMode:'fixed'}
+  ]}});
+  const card=f.state.profile.cards[0];
+  await f.act('deck',{cards:[card.id,...f.state.defaults.filter(c=>!c.optional).slice(1).map(c=>c.id),'strike','guard']});
+  await f.act('start',{solo:true,bots:0});
+  const code=f.host.body.code,db=f.DB;
+  const saved=JSON.parse(db.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(code).first().state);
+  const {units,intent}=saved.battle;
+  const self=units[f.state.me];
+  self.pos=16;self.hand=[card.id,'guard','draw','hold'];self.grave=['shot','burn'];
+  units.enemy.pos=20;units.enemy.poison=8;
+  intent.card={...intent.card,power:'0'};intent.reachable=true;
+  db.prepare('UPDATE game_states SET state = ? WHERE room_code = ?').bind(JSON.stringify(saved),code).run();
+  await f.act('plan',{card:card.id,pos:16,targets:['enemy']});
+  await f.act('round');
+  const foe=f.state.battle.units.find(u=>u.enemy);
+  assert.equal(foe.hp,33); // 3 from the attack, 14 from the explosion, 4 from remaining poison.
+  assert.equal(foe.poison,3);
+  assert.equal(foe.delayedStrike[0].round,4);
+  assert.equal(foe.delayedStrike[0].amount,5);
+  assert.equal(f.state.battle.units.find(u=>u.id===self.id).shield,7);
+});
+
+test('critical charges, stack spending and on-critical effects resolve without consuming charges on zero damage rolls',async()=>{
+  const f=await fixture();
+  const fx=(kind,when,to,amount,extra={})=>({kind,when,to,amount,...extra});
+  await f.act('card',{card:{name:'치명타 시험',power:'8',role:'normal',target:1,range:'1~4',clash:false,effects:[
+    fx('critStacks','use','self',6),
+    fx('critSpend','use','self',50,{amountMode:'percent'}),
+    fx('critChance','use','self',-15),
+    fx('critCharges','use','self',1),
+    fx('critMultiplier','use','self',25),
+    fx('critPerSpent','critical','target',2),
+    fx('replay','hit','self',1),
+    fx('mind','end','self',4,{condition:'criticalHit'})
+  ]}});
+  const card=f.state.profile.cards[0];
+  await f.act('deck',{cards:[card.id,...f.state.defaults.filter(c=>!c.optional).slice(1).map(c=>c.id),'strike','guard']});
+  await f.act('start',{solo:true,bots:0});
+  const code=f.host.body.code,db=f.DB;
+  const configure=(power,charges)=>{
+    const saved=JSON.parse(db.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(code).first().state);
+    const {units,intent}=saved.battle;
+    const self=units[f.state.me];
+    self.pos=16;self.hand=[card.id,'draw','hold','guard'];self.mind=50;
+    self.library[card.id].power=power;
+    units.enemy.pos=20;units.enemy.critCharges=charges;
+    intent.card={...intent.card,power:'0'};intent.reachable=true;
+    db.prepare('UPDATE game_states SET state = ? WHERE room_code = ?').bind(JSON.stringify(saved),code).run();
+  };
+  configure('8',1);
+  await f.act('plan',{card:card.id,pos:16,targets:['enemy']});
+  await f.act('round');
+  const self=f.state.battle.units.find(u=>u.id===f.state.me);
+  const foe=f.state.battle.units.find(u=>u.enemy);
+  assert.equal(foe.hp,26); // Critical 14, spent-stack damage 6, uncritical replay 8.
+  assert.equal(self.critStacks,3);
+  assert.equal(self.critCharges,0);
+  assert.equal(self.mind,54);
+  assert.equal(foe.critCharges,1);
+  assert.equal(f.state.battle.log.filter(line=>line.includes('치명타 (175%)')).length,1);
+});
+
+test('100 percent critical chance triggers critical effects without requiring charges',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'확률 시험',power:'10',role:'normal',target:1,range:'1~4',clash:false,effects:[
+    {kind:'critChance',when:'use',to:'self',amount:100},
+    {kind:'mind',when:'critical',to:'self',amount:5}
+  ]}});
+  const card=f.state.profile.cards[0];
+  await f.act('deck',{cards:[card.id,...f.state.defaults.filter(c=>!c.optional).slice(1).map(c=>c.id),'strike','guard']});
+  await f.act('start',{solo:true,bots:0});
+  const code=f.host.body.code,db=f.DB;
+  const saved=JSON.parse(db.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(code).first().state);
+  const {units,intent}=saved.battle;
+  units[f.state.me].hand=[card.id,'draw','hold','guard'];
+  units.enemy.pos=20;intent.reachable=true;intent.card={...intent.card,power:'0'};
+  db.prepare('UPDATE game_states SET state = ? WHERE room_code = ?').bind(JSON.stringify(saved),code).run();
+  await f.act('plan',{card:card.id,pos:16,targets:['enemy']});
+  await f.act('round');
+  assert.equal(f.state.battle.units.find(u=>u.enemy).hp,39);
+  assert.equal(f.state.battle.units.find(u=>u.id===f.state.me).mind,55);
+});
+
+function configureBattle(f,apply){
+  const code=f.host.body.code,db=f.DB;
+  const saved=JSON.parse(db.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(code).first().state);
+  apply(saved.battle,saved.battle.units[f.state.me]);
+  db.prepare('UPDATE game_states SET state = ? WHERE room_code = ?').bind(JSON.stringify(saved),code).run();
+}
+const livingForm=(f,id=f.state.me)=>f.state.battle.units.find(u=>u.id===id);
+
+test('awakening requires three consecutive rounds of the same vow and rejects form-locked cards',async()=>{
+  const f=await fixture();
+  for(const requiredState of ['crisis','awakened','any']){
+    await f.act('card',{card:{name:requiredState,power:'15',role:'normal',target:1,range:'1~4',clash:true,effects:[],requiredState}});
+  }
+  const [collapsed,awakened,normal]=['collapsed','awakened','any'].map(form=>f.state.profile.cards.find(c=>c.requiredState===form));
+  await f.act('deck',{cards:[collapsed.id,awakened.id,normal.id,...f.state.defaults.slice(0,5).map(c=>c.id),'strike','guard']});
+  await f.act('start',{solo:true,bots:0});
+  const configure=()=>configureBattle(f,(b,self)=>{
+    self.pos=16;
+    self.temptation=3;
+    self.hand=[collapsed.id,awakened.id,normal.id,'guard'];
+    b.units.enemy.pos=20;
+    b.intent={...b.intent,reachable:true,target:self.id,card:{...b.intent.card,power:'8'}};
+  });
+  const attempt=card=>f.send(f.endpoint,{action:'plan',revision:f.state.revision,card,pos:16,targets:['enemy'],vow:'face'},f.host.cookie);
+  configure();
+  assert.equal((await attempt(collapsed.id)).status,400);
+  await f.act('adjust',{target:f.state.me,mind:-100});
+  assert.equal(livingForm(f).collapseRound,3);
+  assert.equal(livingForm(f).hand.filter(card=>card.trial).length,6);
+  assert.equal((await attempt(awakened.id)).status,400);
+  assert.equal((await attempt(collapsed.id)).status,400);
+  for(let i=0;i<3;i++){
+    configure();
+    await f.act('plan',{card:normal.id,pos:16,targets:['enemy'],clash:true,vow:i?'give':'face'});
+    assert.equal(livingForm(f).plan.vow,'face');
+    await f.act('round');
+    if(i<2){
+      assert.equal(livingForm(f).zero,'crisis');
+      assert.equal(livingForm(f).crisisProofs,i+1);
+    }
+  }
+  assert.equal(livingForm(f).awakening,true);
+  assert.equal(livingForm(f).mind,25);
+  assert.equal(livingForm(f).zero,null);
+  assert.ok(f.state.battle.poses.some(p=>p.pose==='shift'));
+  configure();
+  assert.equal((await attempt(collapsed.id)).status,400);
+  await f.act('plan',{card:awakened.id,pos:16,targets:['enemy']});
+});
+
+test('collapsed players remain active and closest allies can be struck despite a submitted enemy target',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'균열',power:'12',role:'normal',target:1,range:'1~4',clash:true,effects:[],requiredState:'collapsed'}});
+  const card=f.state.profile.cards[0];
+  await f.act('start',{solo:true,bots:1});
+  const configure=()=>configureBattle(f,(b,self)=>{
+    self.pos=16;
+    self.temptation=3;
+    self.hand=[card.id,'hold'];
+    const ally=b.units.bot0;
+    ally.pos=17;ally.move=0;ally.hand=[];
+    b.units.enemy.pos=20;
+    b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'0'}};
+  });
+  configure();
+  await f.act('adjust',{target:f.state.me,mind:-100});
+  for(let i=0;i<3;i++){
+    configure();
+    await f.act('plan',{vow:'face'});
+    await f.act('round');
+  }
+  assert.equal(livingForm(f).collapsed,true);
+  assert.equal(f.state.battle.phase,'planning');
+  assert.ok(f.state.battle.awaiting.includes(livingForm(f).name));
+  assert.ok(livingForm(f).hand.some(card=>card.id==='collapseStrike'));
+  const allyHp=livingForm(f,'bot0').hp;
+  configure();
+  const invalid=await f.send(f.endpoint,{action:'plan',revision:f.state.revision,card:'hold',pos:16},f.host.cookie);
+  assert.equal(invalid.status,400);
+  await f.act('plan',{card:card.id,pos:16,targets:['enemy'],clash:true});
+  assert.deepEqual(livingForm(f).plan.targets,[]);
+  assert.equal(livingForm(f).plan.clash,false);
+  await f.act('round');
+  assert.equal(livingForm(f,'bot0').hp,allyHp-7);
+  assert.equal(livingForm(f,'enemy').hp,54);
+  assert.ok(f.state.battle.poses.some(p=>p.form==='concept'&&p.pose==='attack'));
+});
+
+test('endure proves taking enemy damage in place and a moved round breaks the streak',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  const configure=()=>configureBattle(f,(b,self)=>{
+    self.pos=16;
+    self.temptation=3;
+    b.units.enemy.pos=20;
+    b.intent={...b.intent,reachable:true,target:self.id,card:{...b.intent.card,power:'5'}};
+  });
+  configure();
+  await f.act('adjust',{target:f.state.me,mind:-100});
+  for(const [pos,proofs] of [[16,1],[17,0],[16,undefined]]){
+    configure();
+    await f.act('plan',{pos,vow:'endure'});
+    await f.act('round');
+    assert.equal(livingForm(f).crisisProofs,proofs);
+  }
+  assert.equal(livingForm(f).collapsed,true);
+});
+
+test('advance and precision require actual enemy health damage',async()=>{
+  for(const [vow,card,pos] of [['advance','crisisAdvance',18],['precision','crisisPrecision',16]]){
+    const f=await fixture();
+    await f.act('start',{solo:true,bots:0});
+    const configure=shield=>configureBattle(f,(b,self)=>{
+      self.pos=16;
+      self.temptation=3;
+      b.units.enemy.pos=20;
+      b.units.enemy.shield=shield;
+      b.intent={...b.intent,reachable:true,target:self.id,card:{...b.intent.card,power:'0'}};
+    });
+    configure(0);
+    await f.act('adjust',{target:f.state.me,mind:-100});
+    for(const shield of [0,999]){
+      configure(shield);
+      await f.act('plan',{card,pos,vow,targets:['enemy']});
+      await f.act('round');
+      assert.equal(livingForm(f).crisisProofs,shield?0:1);
+    }
+  }
+});
+
+test('character pose art is saved separately from the game view and requires room membership',async()=>{
+  const f=await fixture();
+  const slot='awakened.attack';
+  const image='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aO1sAAAAASUVORK5CYII=';
+  await f.act('art',{slot,image});
+  assert.deepEqual(f.state.profile.artSlots,[slot]);
+  assert.equal(f.state.profile.art,undefined);
+  const url=new URL('https://game.test'+f.endpoint);
+  url.searchParams.set('unit',f.state.me);
+  url.searchParams.set('art',slot);
+  const read=cookie=>worker.fetch(new Request(url,{headers:cookie?{Cookie:cookie}:{}}),{DB:f.DB});
+  const r=await read(f.host.cookie);
+  assert.equal(r.status,200);
+  assert.equal(r.headers.get('Content-Type'),'image/png');
+  assert.equal(Buffer.from(await r.arrayBuffer()).toString('base64'),image.split(',')[1]);
+  assert.equal((await read()).status,401);
+  await f.act('art',{slot,image:''});
+  assert.deepEqual(f.state.profile.artSlots,[]);
+  assert.equal((await read(f.host.cookie)).status,404);
+});
+
+test('custom grid offsets gate targeting and hit effects use the saved power and amplification stages',async()=>{
+  const f=await fixture();
+  const card={name:'연격',hitPowers:['4','4','4'],role:'normal',target:1,
+    rangeShape:{kind:'custom',cells:[[2,0]]},effects:[
+      {kind:'basePower',when:'use',to:'self',amount:50,amountMode:'percent'},
+      {kind:'power',when:'use',to:'self',amount:2},
+      {kind:'finalPower',when:'use',to:'self',amount:25,amountMode:'percent'},
+      {kind:'amplifyHit',hitIndex:1,when:'hit',to:'self',amount:50,amountMode:'percent',amplifyTarget:'remaining'},
+      {kind:'amplifyHit',hitIndex:2,when:'hit',to:'self',amount:2,amplifyTarget:'last'},
+      {kind:'stack',hitIndex:2,when:'hit',to:'target',tag:'2타 상처',amount:4},
+      {kind:'stack',hitIndex:3,when:'hit',to:'target',tag:'3타 상처',amount:4},
+      {kind:'stack',when:'hit',to:'target',tag:'카드 상처',amount:4}
+    ]};
+  await f.act('card',{card});
+  const id=f.state.profile.cards[0].id;
+  assert.deepEqual(f.state.profile.cards[0].rangeShape,card.rangeShape);
+  const save=card=>f.send(f.endpoint,{action:'card',collectionRevision:f.state.collectionRevision,card},f.host.cookie);
+  assert.equal((await save({...card,rangeShape:{kind:'custom',cells:[[9,0]]}})).status,400);
+  assert.equal((await save({...card,effects:[{...card.effects[3],hitIndex:3}]})).status,400);
+  assert.equal((await save({...card,effects:[{...card.effects[0],when:'hit'}]})).status,400);
+  await f.act('start',{solo:true,bots:0});
+  const position=pos=>configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[id],mind:50});
+    Object.assign(b.units.enemy,{pos,hp:54,shield:0});
+    b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'0'}};
+  });
+  position(25);
+  assert.equal((await f.send(f.endpoint,{action:'plan',revision:f.state.revision,card:id,targets:['enemy']},f.host.cookie)).status,400);
+  position(18);
+  await f.act('plan',{card:id,targets:['enemy']});
+  await f.act('round');
+  const enemy=livingForm(f,'enemy');
+  assert.equal(enemy.hp,29); // (12 × 150% + 2) × 125%
+  assert.deepEqual(enemy.stacks,{'2타 상처':6,'3타 상처':8,'카드 상처':4});
+});
+
+test('rectangles, circles and custom ranges use caster-relative offsets and legacy ranges still use grid distance',async()=>{
+  const {gridCardInRange}=await import('../public/grid.js');
+  assert.equal(gridCardInRange({rangeShape:{kind:'rectangle',x:2,y:1}},18,12),true);
+  assert.equal(gridCardInRange({rangeShape:{kind:'rectangle',x:2,y:1}},18,4),false);
+  assert.equal(gridCardInRange({rangeShape:{kind:'circle',radius:3}},18,36),true);
+  assert.equal(gridCardInRange({rangeShape:{kind:'circle',radius:2}},18,36),false);
+  assert.equal(gridCardInRange({rangeShape:{kind:'custom',cells:[[-2,1]]}},18,24),true);
+  assert.equal(gridCardInRange({rangeShape:{kind:'custom',cells:[[-2,1]]}},18,28),false);
+  assert.equal(gridCardInRange({range:'3'},18,24),true);
+});
+
+test('shared cards enter a different collection as independent copies and file imports round-trip card data',async()=>{
+  const f=await fixture();
+  const join=await f.send(f.room+'/join',{name:'동료'});
+  assert.equal(join.status,200);
+  const card={name:'카드 파일 시험',hitPowers:['1','2'],role:'normal',target:1,
+    rangeShape:{kind:'circle',radius:2},image:'data:image/png;base64,'+'AAAA'.repeat(7000),
+    effects:[{kind:'amplifyHit',when:'hit',hitIndex:1,to:'self',amount:50,amountMode:'percent',amplifyTarget:'last'}]};
+  await f.act('card',{card});
+  const original=f.state.profile.cards[0];
+  await f.act('cardClone',{id:original.id});
+  const clone=f.state.profile.cards.find(c=>c.id===f.state.editedCardId);
+  assert.equal(clone.name,card.name+' 사본');
+  await f.act('cardShare',{id:original.id});
+  const post=f.state.sharedCards[0];
+  let guest=(await f.send(f.endpoint,undefined,join.cookie)).body;
+  assert.equal(guest.sharedCards[0].author,'방장');
+  assert.equal((await f.send(f.endpoint,{action:'cardUnshare',revision:guest.revision,id:post.id},join.cookie)).status,400);
+  const take=await f.send(f.endpoint,{action:'cardTake',collectionRevision:guest.collectionRevision,id:post.id},join.cookie);
+  assert.equal(take.status,200);
+  guest=take.body;
+  const copy=guest.profile.cards[0];
+  assert.notEqual(copy.id,original.id);
+  assert.deepEqual({...copy,id:original.id},original);
+  await f.act('cardUnshare',{id:post.id});
+  assert.equal((await f.send(f.endpoint,undefined,join.cookie)).body.profile.cards[0].id,copy.id);
+  const upload=cards=>f.send(f.endpoint+'?import=1',{action:'cardImport',collectionRevision:guest.collectionRevision,
+    file:{format:'conceptterra-card-library',version:1,cards}},join.cookie);
+  assert.equal((await upload([original,original])).status,400);
+  const imported=await upload([original,clone]);
+  assert.equal(imported.status,200,JSON.stringify(imported.body.error));
+  assert.deepEqual(imported.body.profile.cards.map(entry=>entry.name),[card.name,card.name,clone.name]);
+  assert.deepEqual(imported.body.profile.cards[2].effects,card.effects.map(row=>({...row,tag:'',condition:'',threshold:1})));
+  await f.act('deck',{cards:[clone.id,...f.state.profile.deck.slice(1)]});
+  await f.act('cardDelete',{id:clone.id});
+  assert.equal(f.state.profile.deck.length,10);
+  assert.ok(!f.state.profile.deck.includes(clone.id));
+});
+
+test('the 15 by 15 custom range saves all 224 selectable offsets',async()=>{
+  const f=await fixture();
+  const cells=[];
+  for(let y=-7;y<=7;y++){
+    for(let x=-7;x<=7;x++){
+      if(x||y)cells.push([x,y]);
+    }
+  }
+  const card={name:'15칸 격자',power:'4',role:'normal',target:1,
+    rangeShape:{kind:'custom',cells},effects:[]};
+  await f.act('card',{card});
+  const saved=await f.send(f.endpoint,undefined,f.host.cookie);
+  assert.deepEqual(saved.body.profile.cards[0].rangeShape,card.rangeShape);
+  const invalid=await f.send(f.endpoint,{action:'card',collectionRevision:f.state.collectionRevision,
+    card:{...card,rangeShape:{kind:'custom',cells:[[0,8]]}}},f.host.cookie);
+  assert.equal(invalid.status,400);
+});
+
+test('dice conditions use only rolled faces and distinguish a card from an individual hit',async t=>{
+  const f=await fixture();
+  const card={name:'주사위 검증',hitPowers:['1d2+20','1d2','2'],role:'normal',target:1,range:'1~4',effects:[
+    {kind:'basePower',when:'roll',to:'self',amount:1,condition:'diceEqual',threshold:4},
+    {kind:'shield',when:'roll',to:'self',amount:2,condition:'diceAtLeast',threshold:4},
+    {kind:'shield',when:'roll',to:'self',amount:30,condition:'diceEqual',threshold:26},
+    {kind:'shield',when:'hit',hitIndex:1,to:'self',amount:4,condition:'diceAtMost',threshold:2},
+    {kind:'shield',when:'hit',hitIndex:2,to:'self',amount:8,condition:'diceEqual',threshold:2},
+    {kind:'shield',when:'hit',hitIndex:3,to:'self',amount:30,condition:'diceAtMost',threshold:2}
+  ]};
+  await f.act('card',{card});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[id],mind:50,shield:0});
+    Object.assign(b.units.enemy,{pos:18,hp:54});
+    b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'0'}};
+  });
+  await f.act('plan',{card:id,targets:['enemy']});
+  t.mock.method(Math,'random',()=>0.99);
+  await f.act('round');
+  assert.equal(livingForm(f).shield,14);
+  assert.equal(livingForm(f,'enemy').hp,27);
+  assert.ok(f.state.battle.log.some(line=>line.includes('주사위 눈 1타 2 / 2타 2')));
+  const save=effect=>f.send(f.endpoint,{action:'card',collectionRevision:f.state.collectionRevision,
+    card:{...card,effects:[effect]}},f.host.cookie);
+  assert.equal((await save({...card.effects[1],when:'use'})).status,400);
+  assert.equal((await save({...card.effects[1],threshold:0})).status,400);
+});
+
+test('stack consumption supports all, a budget per enemy, and a shared budget with a prioritized follow-up',async()=>{
+  async function run(consume,expected){
+    const f=await fixture();
+    const card={name:'상처 회수',power:'0',target:'self',range:'0',role:'normal',effects:[
+      {kind:'consume',when:'use',to:'allEnemies',amount:3,tag:'상처',...consume},
+      {kind:'perStack',when:'consume',to:'target',amount:1}
+    ]};
+    await f.act('card',{card});
+    const id=f.state.profile.cards[0].id;
+    await f.act('start',{solo:true,bots:0});
+    configureBattle(f,(b,self)=>{
+      Object.assign(self,{pos:16,hand:[id],mind:50});
+      Object.assign(b.units.enemy,{pos:18,hp:30,stacks:{상처:5}});
+      b.units.extra={...b.units.enemy,id:'extra',name:'잔존체',pos:19,hp:20,stacks:{상처:2}};
+      b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'0'}};
+    });
+    await f.act('plan',{card:id});
+    await f.act('round');
+    assert.deepEqual([livingForm(f,'enemy'),livingForm(f,'extra')].map(u=>[u.hp,u.stacks.상처]),expected);
+  }
+  await run({},[[27,2],[18,0]]);
+  await run({consumeAmount:'all'},[[25,0],[18,0]]);
+  await run({consumeScope:'total',consumePriority:'lowestHp'},[[30,4],[17,0]]);
+  await run({consumeScope:'total',consumePriority:'mostStacks',consumeAmount:'all'},[[23,0],[20,0]]);
+});
+
+test('stack grants stop at their configured cap and preserve a higher stack count already in play',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'상처 한도',power:'0',target:'self',range:'0',role:'normal',effects:[
+    {kind:'stack',when:'use',to:'self',tag:'상처',amount:8,stackCap:6},
+    {kind:'doubleStack',when:'use',to:'self',tag:'상처',amount:8,stackCap:7}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  async function run(count){
+    configureBattle(f,(b,self)=>{
+      self.hand=[id];self.stacks={상처:count};
+      b.intent={...b.intent,target:self.id,card:{...b.intent.card,power:'0'}};
+    });
+    await f.act('plan',{card:id});
+    await f.act('round');
+    return livingForm(f).stacks.상처;
+  }
+  assert.equal(await run(2),7);
+  assert.equal(await run(10),10);
+});
+
+test('boss targeting, damage bonuses and mitigation distinguish boss enemies from ordinary enemies',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'강적 전술',power:'4',target:'area',range:'1~4',role:'normal',effects:[
+    {kind:'bossOutgoingDamage',when:'use',to:'self',amount:50,amountMode:'percent'},
+    {kind:'bossIncomingDamage',when:'use',to:'self',amount:-2},
+    {kind:'stack',when:'use',to:'nearestBoss',tag:'징표',amount:1},
+    {kind:'bossDamage',when:'hit',to:'target',amount:2},
+    {kind:'stack',when:'hit',to:'target',condition:'bossTarget',tag:'약화',amount:1}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  const configure=boss=>configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[id],mind:50,hp:40,shield:0});
+    Object.assign(b.units.enemy,{pos:18,hp:54,boss,stacks:{}});
+    b.units.extra={...b.units.enemy,id:'extra',name:'잔존체',pos:19,boss:false,stacks:{}};
+    b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'6'}};
+  });
+  configure(true);
+  await f.act('plan',{card:id});
+  await f.act('round');
+  assert.deepEqual(livingForm(f,'enemy').stacks,{징표:1,약화:1});
+  assert.deepEqual(livingForm(f,'extra').stacks,{});
+  assert.equal(livingForm(f,'enemy').hp,45);
+  assert.equal(livingForm(f,'extra').hp,50);
+  assert.equal(livingForm(f).hp,36);
+  configure(false);
+  await f.act('plan',{card:id});
+  await f.act('round');
+  assert.deepEqual(livingForm(f,'enemy').stacks,{});
+  assert.equal(livingForm(f,'enemy').hp,50);
+  assert.equal(livingForm(f).hp,34);
+});
+
+test('dodge prevents damage and hit effects on individual hits while precision counters one dodge',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'회피 대응 연격',hitPowers:['4','5','6'],target:1,range:'1~4',role:'normal',effects:[
+    {kind:'trueStrike',when:'use',to:'self',amount:1},
+    {kind:'stack',when:'hit',hitIndex:1,to:'target',amount:1,tag:'첫 타'},
+    {kind:'stack',when:'hit',hitIndex:2,to:'target',amount:1,tag:'둘째 타'},
+    {kind:'stack',when:'hit',hitIndex:3,to:'target',amount:1,tag:'셋째 타'},
+    {kind:'dodge',when:'use',to:'self',amount:1}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[id],mind:50,hp:40});
+    Object.assign(b.units.enemy,{pos:18,hp:54,dodge:2});
+    b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'10'}};
+  });
+  await f.act('plan',{card:id,targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').hp,44);
+  assert.deepEqual(livingForm(f,'enemy').stacks,{'첫 타':1,'셋째 타':1});
+  assert.equal(livingForm(f).hp,40);
+  assert.ok(!livingForm(f).dodge);
+  assert.ok(f.state.battle.log.some(line=>line.includes('회피 무효화')));
+});
+
+test('named stack ward blocks only new stacks and healing cuts expire independently',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'저항과 회복',power:'0',target:'self',range:'0',role:'normal',effects:[
+    {kind:'healCut',when:'use',to:'self',amount:50,duration:2},
+    {kind:'healCut',when:'use',to:'self',amount:100,duration:1},
+    {kind:'stackWard',when:'use',to:'self',tag:'상처',amount:3},
+    {kind:'stack',when:'use',to:'self',tag:'상처',amount:5},
+    {kind:'stack',when:'use',to:'self',tag:'징표',amount:2},
+    {kind:'regen',when:'use',to:'self',amount:10}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[id],hp:20,stacks:{상처:2}});
+    b.units.enemy.pos=39;
+    b.intent={...b.intent,target:self.id,card:{...b.intent.card,power:'0'}};
+  });
+  await f.act('plan',{card:id});
+  await f.act('round');
+  assert.deepEqual(livingForm(f).stacks,{상처:4,징표:2});
+  assert.equal(livingForm(f).hp,20);
+  assert.deepEqual(livingForm(f).healCuts,[{amount:50,through:2}]);
+  await f.act('plan',{});
+  await f.act('round');
+  assert.equal(livingForm(f).hp,24);
+  assert.deepEqual(livingForm(f).healCuts,[]);
+});
+
+test('a lowest-die reroll updates dice conditions and recovery uses damage after shields',async t=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'생명 돌림',power:'2d+1',target:1,range:'1~4',role:'normal',effects:[
+    {kind:'rerollLow',when:'use',to:'self',amount:1},
+    {kind:'hitLeech',when:'damage',to:'self',amount:50,condition:'diceEqual',threshold:10}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[id],mind:50,hp:20});
+    Object.assign(b.units.enemy,{pos:18,hp:54,shield:5});
+    b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'0'}};
+  });
+  await f.act('plan',{card:id,targets:['enemy']});
+  const samples=[0,0.51,0.99];
+  t.mock.method(Math,'random',()=>samples.shift()??0);
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').hp,48);
+  assert.equal(livingForm(f).hp,23);
+  assert.ok(f.state.battle.log.some(line=>line.includes('주사위 재굴림 1→6')));
+});
+
+test('counter cards arm without manual targeting and repay a landed attack once only within reach',async()=>{
+  const f=await fixture();
+  assert.equal(f.state.defaults.find(card=>card.id==='rebound').role,'counter');
+  const card={name:'받아 되돌리기',hitPowers:['3','3'],role:'counter',target:1,clash:true,range:'1~3',effects:[
+    {kind:'basePower',when:'counter',to:'self',amount:2},
+    {kind:'stack',when:'hit',to:'target',amount:1,tag:'반격 상처'}
+  ]};
+  await f.act('card',{card});
+  const saved=f.state.profile.cards[0];
+  assert.equal(saved.clash,false);
+  assert.equal(saved.target,'self');
+  const rejected=await f.send(f.endpoint,{action:'card',collectionRevision:f.state.collectionRevision,
+    card:{...card,role:'normal'}},f.host.cookie);
+  assert.equal(rejected.status,400);
+  await f.act('deck',{cards:[saved.id,...f.state.profile.deck.slice(1)]});
+  await f.act('start',{solo:true,bots:0});
+  async function run(pos,dodge){
+    configureBattle(f,(b,self)=>{
+      Object.assign(self,{pos:16,hand:[saved.id],mind:50,hp:40,shield:20,dodge});
+      Object.assign(b.units.enemy,{pos,hp:54,stacks:{}});
+      b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'6'}};
+    });
+    await f.act('plan',{card:saved.id});
+    await f.act('round');
+  }
+  await run(18,0);
+  assert.equal(livingForm(f).shield,14);
+  assert.equal(livingForm(f,'enemy').hp,46);
+  assert.equal(livingForm(f,'enemy').stacks['반격 상처'],1);
+  const hitLog=f.state.battle.log.filter(line=>line.includes(' · 반격 → '));
+  assert.equal(hitLog.length,1);
+  await run(20,0);
+  assert.equal(livingForm(f,'enemy').hp,54);
+  await run(18,1);
+  assert.equal(livingForm(f,'enemy').hp,54);
+  assert.equal(f.state.battle.log.filter(line=>line.includes(' · 반격 → ')).length,1);
+});
+
+test('one card is the default, extra action allows two ordered cards on the following turn only',async()=>{
+  const f=await fixture();
+  const card=(name,effects)=>({name,role:'normal',target:'self',range:'0',power:'0',effects});
+  await f.act('card',{card:card('행동량 증가',[{kind:'extraAction',when:'use',to:'self',amount:1}])});
+  await f.act('card',{card:card('보호막 카드',[{kind:'shield',when:'use',to:'self',amount:4}])});
+  await f.act('card',{card:card('보호막 위력 카드',[{kind:'shield',when:'use',to:'self',amount:2,condition:'shielded'}])});
+  const [grant,first,second]=f.state.profile.cards.map(card=>card.id);
+  await f.act('start',{solo:true,bots:0});
+  const stage=(cards)=>configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:cards,mind:50,shield:0});
+    b.units.enemy.pos=20;
+    b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'0'}};
+  });
+  const choice=id=>({card:id});
+  const attempt=cards=>f.send(f.endpoint,{action:'plan',revision:f.state.revision,cards},f.host.cookie);
+  assert.equal(livingForm(f).actionLimit,1);
+  stage([grant,first,second]);
+  assert.equal((await attempt([choice(grant),choice(first)])).status,400);
+  await f.act('plan',{cards:[choice(grant)]});
+  await f.act('round');
+  assert.equal(livingForm(f).actionLimit,2);
+  stage([first,second]);
+  assert.equal((await attempt([choice(first),choice(first)])).status,400);
+  await f.act('plan',{pos:17,cards:[choice(first),choice(second)]});
+  assert.deepEqual(livingForm(f).plan.cards.map(slot=>slot.card),[first,second]);
+  await f.act('unplan');
+  assert.equal(livingForm(f).ready,false);
+  await f.act('plan',{pos:17,cards:[choice(first),choice(second)]});
+  await f.act('round');
+  assert.equal(livingForm(f).shield,6);
+  assert.equal(livingForm(f).pos,17);
+  assert.equal(f.state.battle.log.filter(line=>line.includes('방장 이동 1칸')).length,1);
+  assert.equal(livingForm(f).actionLimit,1);
+});
+
+test('GM adjusts the base limit and a later slot may be the only action to clash',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'두 번째 합',role:'normal',target:1,range:'1~4',power:'10',clash:true,effects:[]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  await f.act('adjustActions',{target:f.state.me,baseActions:2});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[id,id],mind:50});
+    b.units.enemy.pos=18;
+    b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'4'}};
+  });
+  const strike={card:id,targets:['enemy']};
+  const clash={...strike,clash:true};
+  const invalid=await f.send(f.endpoint,{action:'plan',revision:f.state.revision,cards:[clash,clash]},f.host.cookie);
+  assert.equal(invalid.status,400);
+  await f.act('plan',{cards:[strike,clash]});
+  assert.equal(f.state.battle.clashActor,f.state.me);
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').hp,34);
+  assert.equal(livingForm(f).hp,40);
+  assert.equal(livingForm(f).actionLimit,2);
+});
+
+test('selected-target splashes use the impact tile and hit only nearby enemies after a successful primary hit',async()=>{
+  const f=await fixture();
+  const card={name:'하방 폭발',role:'normal',target:'splash',range:'2',power:'4',
+    splash:{rangeShape:{kind:'custom',cells:[[0,1]]}},effects:[
+      {kind:'push',when:'hit',to:'target',amount:1},
+      {kind:'stack',when:'hit',to:'target',tag:'폭발',amount:1}
+    ]};
+  await f.act('card',{card});
+  const saved=f.state.profile.cards[0];
+  assert.deepEqual(saved.splash.rangeShape,card.splash.rangeShape);
+  await f.act('start',{solo:true,bots:0});
+  const stage=dodge=>configureBattle(f,(b,self)=>{
+    self.pos=16;self.hand=[saved.id];self.mind=50;
+    Object.assign(b.units.enemy,{pos:18,hp:54,dodge,stacks:{}});
+    b.units.secondary={...b.units.enemy,id:'secondary',name:'인접한 적',pos:26,dodge:0,stacks:{}};
+    b.units.distant={...b.units.enemy,id:'distant',name:'범위 밖 적',pos:34,dodge:0,stacks:{}};
+    b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'0'}};
+  });
+  const select=targets=>f.send(f.endpoint,{action:'plan',revision:f.state.revision,card:saved.id,targets},f.host.cookie);
+  stage(1);
+  assert.equal((await select(['secondary'])).status,400);
+  assert.equal((await select(['enemy','secondary'])).status,400);
+  await f.act('plan',{card:saved.id,targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f,'secondary').hp,54);
+  assert.equal(livingForm(f,'enemy').hp,54);
+  stage(0);
+  await f.act('plan',{card:saved.id,targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').pos,19);
+  assert.equal(livingForm(f,'enemy').hp,50);
+  assert.equal(livingForm(f,'secondary').hp,50);
+  assert.deepEqual(livingForm(f,'secondary').stacks,{폭발:1});
+  assert.equal(livingForm(f,'distant').hp,54);
+});
+
+test('cross-shaped splash affects axial enemy tiles and excludes allies and diagonals',async()=>{
+  const {gridSplashTargets}=await import('../public/grid.js');
+  const actor={id:'self',pos:16,hp:4,enemy:false};
+  const primary={id:'primary',pos:18,hp:4,enemy:true};
+  const other=(id,pos,enemy=true)=>({id,pos,hp:4,enemy});
+  const units=[actor,primary,other('axial',20),other('diagonal',27),other('ally',17,false)];
+  const card={splash:{rangeShape:{kind:'cross',radius:2}}};
+  assert.deepEqual(gridSplashTargets(card,actor,primary,units).map(unit=>unit.id),['axial']);
+});
+
+test('saved and equipped character passives trigger at the start, on hit, and on receiving health damage',async()=>{
+  const f=await fixture();
+  const {me}=f.state;
+  await f.act('passive',{passive:{name:'회수원의 버팀목',notes:'자동 보호막',effects:[
+    {kind:'shield',when:'battleStart',to:'self',amount:4},
+    {kind:'stack',when:'hit',to:'target',tag:'표식',amount:1,limit:{period:'turn',count:1}},
+    {kind:'heal',when:'hurt',to:'self',amount:2}
+  ]}});
+  await f.act('passive',{passive:{name:'장착 해제 시험',effects:[{kind:'shield',when:'battleStart',to:'self',amount:30}]}});
+  await f.act('passiveToggle',{id:f.state.profile.passives[1].id});
+  const passives=(await f.send(f.endpoint,undefined,f.host.cookie)).body.profile.passives;
+  assert.equal(passives[0].notes,'자동 보호막');
+  assert.equal(passives[1].enabled,false);
+  await f.act('card',{card:{name:'표식 시험',hitPowers:['2','2'],role:'normal',target:1,range:'1~4',effects:[]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  assert.deepEqual(livingForm(f).passiveNames,['회수원의 버팀목']);
+  assert.equal(livingForm(f).shield,4);
+  const toggle=await f.send(f.endpoint,{action:'passiveToggle',revision:f.state.revision,id:passives[0].id},f.host.cookie);
+  assert.equal(toggle.status,400);
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[id],mind:50});
+    b.units.enemy.pos=18;
+    b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'8'}};
+  });
+  await f.act('plan',{card:id,targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').stacks.표식,1);
+  assert.equal(livingForm(f,me).hp,38);
+  assert.ok(f.state.battle.log.some(line=>line.includes('패시브 「회수원의 버팀목」 발동')));
+  await f.act('reset');
+  await f.act('passive',{passive:{...passives[0],name:'이름 수정'}});
+  await f.act('passiveDelete',{id:passives[1].id});
+  assert.deepEqual(f.state.profile.passives.map(passive=>passive.name),['이름 수정']);
+});
+
+test('a conditional replacement spends only the original card and executes the replacement once',async()=>{
+  const f=await fixture();
+  const replace=(replacementId,extra={})=>({kind:'replaceCard',when:'replace',to:'self',amount:1,replacementId,...extra});
+  const card=(name,power,effects)=>({name,power,range:'1~4',target:1,role:'normal',effects});
+  await f.act('card',{card:card('교체 공격','8',[
+    replace('strike'),{kind:'stack',when:'hit',to:'target',amount:1,tag:'교체'}
+  ])});
+  const replacement=f.state.profile.cards[0].id;
+  await f.act('card',{card:card('원래 공격','2',[
+    replace(replacement,{condition:'lowHp',threshold:50}),{kind:'stack',when:'hit',to:'target',amount:1,tag:'원본'}
+  ])});
+  const id=f.state.profile.cards[1].id;
+  await f.act('start',{solo:true,bots:0});
+  async function run(hp){
+    configureBattle(f,(b,self)=>{
+      Object.assign(self,{pos:16,hand:[id],hp,mind:50,deck:['guard','guard','hold','hold'],grave:[]});
+      Object.assign(b.units.enemy,{pos:18,hp:54,stacks:{}});
+      b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'0'}};
+    });
+    await f.act('plan',{cards:[{card:id,targets:['enemy']}]});
+    await f.act('round');
+    assert.equal(livingForm(f).graveCount,1);
+  }
+  await run(20);
+  assert.equal(livingForm(f,'enemy').hp,46);
+  assert.deepEqual(livingForm(f,'enemy').stacks,{교체:1});
+  assert.ok(f.state.battle.log.some(line=>line.includes('원래 공격 → 교체 공격으로 발동')));
+  await run(40);
+  assert.equal(livingForm(f,'enemy').hp,52);
+  assert.deepEqual(livingForm(f,'enemy').stacks,{원본:1});
+});
+
+test('a passive replacement can match a particular card and use separate pre-activation conditions',async()=>{
+  const f=await fixture();
+  await f.act('passive',{passive:{name:'마지막 수단',effects:[
+    {kind:'replaceCard',when:'replace',to:'self',amount:1,fromCardId:'guard',
+      replacementId:'draw',condition:'lowMind',threshold:45,limit:{period:'battle',count:1}}
+  ]}});
+  await f.act('start',{solo:true,bots:0});
+  async function useGuard(){
+    configureBattle(f,(b,self)=>{
+      Object.assign(self,{pos:16,hand:['guard'],mind:40});
+      b.units.enemy.pos=18;
+      b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'0'}};
+    });
+    await f.act('plan',{card:'guard'});
+    await f.act('round');
+  }
+  await useGuard();
+  assert.equal(livingForm(f).coverCount,0);
+  assert.ok(f.state.battle.log.some(line=>line.includes('패시브 「마지막 수단」 발동')));
+  await useGuard();
+  assert.equal(livingForm(f).coverCount,1);
+});
+
+test('stack potency is separate from count and count caps, and consumption uses the oldest grants first',async()=>{
+  const f=await fixture();
+  const card={name:'중첩 시험',power:'0',role:'normal',range:'0',target:'self',effects:[
+    {kind:'stack',when:'use',amount:2,to:'self',tag:'표식',stackPower:4,stackPowerCap:3,stackCap:5},
+    {kind:'stack',when:'use',amount:5,to:'self',tag:'표식',stackPower:2,stackCap:5},
+    {kind:'consume',when:'use',amount:3,to:'self',tag:'표식'},
+    {kind:'shieldPerStack',when:'consume',amount:2,to:'self'}
+  ]};
+  await f.act('card',{card});
+  const saved=f.state.profile.cards[0];
+  assert.equal(saved.effects[0].stackPower,4);
+  assert.equal(saved.effects[0].stackPowerCap,3);
+  assert.equal(saved.effects[0].stackCap,5);
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{hand:[saved.id],stacks:{표식:1},shield:0});
+    b.intent={...b.intent,target:self.id,card:{...b.intent.card,power:'0'}};
+  });
+  await f.act('plan',{card:saved.id});
+  await f.act('round');
+  const unit=livingForm(f);
+  assert.equal(unit.stacks.표식,2);
+  assert.deepEqual(unit.stackRuns.표식,[{count:2,power:2}]);
+  assert.equal(unit.shield,14); // Legacy stack 1 + two capped stacks of 3, doubled by the effect.
+});
+
+test('stack theft preserves potency and named removal clears potency together with count',async()=>{
+  const f=await fixture();
+  const card={name:'이전 시험',power:'0',role:'normal',range:'1~4',target:1,effects:[
+    {kind:'stealStack',when:'hit',amount:2,to:'target',tag:'표식'},
+    {kind:'cleanseStacks',when:'hit',amount:1,to:'target',tag:'표식'},
+    {kind:'stack',when:'hit',amount:1,to:'target',tag:'표식'}
+  ]};
+  await f.act('card',{card});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[id],mind:50});
+    Object.assign(b.units.enemy,{pos:18,stacks:{표식:3},stackRuns:{표식:[{count:1,power:4},{count:2,power:2}]}});
+    b.intent={...b.intent,target:self.id,card:{...b.intent.card,power:'0'}};
+  });
+  await f.act('plan',{card:id,targets:['enemy']});
+  await f.act('round');
+  assert.deepEqual(livingForm(f).stackRuns.표식,[{count:1,power:4},{count:1,power:2}]);
+  assert.equal(livingForm(f,'enemy').stacks.표식,1);
+  assert.equal(livingForm(f,'enemy').stackRuns.표식,undefined);
+});
+
+test('numbered hits can choose primary, splash targets beyond cast range, and alternate random targets',async t=>{
+  const f=await fixture();
+  const card={name:'교차 사격',hitPowers:['1','2','3','4','5'],hitTargets:['primary','secondary','randomDistinct','randomDistinct','all'],
+    role:'normal',target:'splash',range:'3',splash:{range:'1~2'},effects:[
+      {kind:'stack',when:'hit',hitIndex:1,to:'primary',amount:1,tag:'주 표시'},
+      {kind:'stack',when:'hit',hitIndex:2,to:'secondary',condition:'secondaryTarget',amount:1,tag:'부 표시'},
+      {kind:'stack',when:'hit',hitIndex:5,to:'target',condition:'primaryTarget',amount:1,tag:'본체 표시'}
+    ]};
+  await f.act('card',{card});
+  const saved=f.state.profile.cards[0];
+  assert.deepEqual(saved.hitTargets,card.hitTargets);
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[saved.id],mind:50});
+    Object.assign(b.units.enemy,{pos:19,hp:50});
+    b.units.first={...b.units.enemy,id:'first',name:'부 대상 A',pos:20,stacks:{}};
+    b.units.second={...b.units.enemy,id:'second',name:'부 대상 B',pos:27,stacks:{}};
+    b.intent={...b.intent,target:self.id,card:{...b.intent.card,power:'0'}};
+  });
+  await f.act('plan',{card:saved.id,targets:['enemy']});
+  t.mock.method(Math,'random',()=>0);
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').hp,41);
+  assert.equal(livingForm(f,'first').hp,39);
+  assert.equal(livingForm(f,'second').hp,43);
+  assert.deepEqual(livingForm(f,'enemy').stacks,{'주 표시':1,'본체 표시':1});
+  assert.deepEqual(livingForm(f,'first').stacks,{'부 표시':1});
+  assert.deepEqual(livingForm(f,'second').stacks,{'부 표시':1});
+});
+
+test('a passive can react to a specific card use and grant a collection card to an ally',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'보급 기록',power:'0',role:'normal',target:'self',range:'0',effects:[]}});
+  const supplied=f.state.profile.cards[0].id;
+  await f.act('passive',{passive:{name:'카드 보급',effects:[
+    {kind:'giveCard',when:'use',to:'nearestAlly',condition:'cardUsed',conditionCardId:'guard',givenCardId:supplied,amount:1}
+  ]}});
+  await f.act('start',{solo:true,bots:1});
+  const stage=(card)=>configureBattle(f,(b,self)=>{
+    self.hand=[card];
+    const bot=Object.values(b.units).find(u=>u.bot&&!u.enemy);
+    bot.hand=[];bot.deck=[];
+    b.intent={...b.intent,target:self.id,card:{...b.intent.card,power:'0'}};
+  });
+  stage('draw');
+  await f.act('plan',{card:'draw'});
+  await f.act('round');
+  const loot=[];
+  configureBattle(f,b=>loot.push(...Object.values(b.units).find(u=>u.bot&&!u.enemy).hand));
+  assert.deepEqual(loot,[]);
+  stage('guard');
+  await f.act('plan',{card:'guard'});
+  await f.act('round');
+  configureBattle(f,b=>{
+    const bot=Object.values(b.units).find(u=>u.bot&&!u.enemy);
+    assert.ok(bot.hand.includes(supplied));
+    assert.equal(bot.library[supplied].name,'보급 기록');
+  });
+});
+
+test('tile casts hit enemies around empty centers beyond primary range and validate the centered tile',async()=>{
+  const f=await fixture();
+  const card={name:'빈 칸 폭발',hitPowers:['8','6'],hitTargets:['primary','secondary'],target:'tile',
+    role:'normal',clash:true,range:'1',splash:{range:'1'},effects:[
+      {kind:'stack',when:'hit',to:'primary',amount:1,tag:'중심'},
+      {kind:'stack',when:'hit',to:'secondary',amount:1,tag:'폭발'}
+    ]};
+  await f.act('card',{card});
+  const saved=f.state.profile.cards[0];
+  assert.equal(saved.clash,false);
+  await f.act('start',{solo:true,bots:0});
+  const stage=(enemyPos,allyPos=16,wall=false)=>configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:allyPos,mind:50,hand:[saved.id]});
+    Object.assign(b.units.enemy,{pos:enemyPos,hp:54,stacks:{}});
+    b.units.side={...b.units.enemy,id:'side',name:'주변 적',pos:9,stacks:{}};
+    b.units.outside={...b.units.enemy,id:'outside',name:'범위 밖 적',pos:19,stacks:{}};
+    b.walls=wall?[17]:[];
+    b.intent={...b.intent,card:{...b.intent.card,power:'0'}};
+  });
+  const invalid=tile=>f.send(f.endpoint,{action:'plan',revision:f.state.revision,cards:[{card:saved.id,targetTile:tile}]},f.host.cookie);
+  stage(18,16,true);
+  assert.equal((await invalid(17)).status,400);
+  stage(18);
+  assert.equal((await invalid(null)).status,400);
+  assert.equal((await invalid(18)).status,400);
+  await f.act('plan',{cards:[{card:saved.id,targetTile:17}]});
+  assert.equal(livingForm(f).plan.cards[0].targetTile,17);
+  await f.act('unplan');
+  await f.act('plan',{cards:[{card:saved.id,targetTile:17}]});
+  await f.act('round');
+  assert.deepEqual([livingForm(f,'enemy').hp,livingForm(f,'side').hp,livingForm(f,'outside').hp],[48,48,54]);
+  assert.deepEqual(livingForm(f,'enemy').stacks,{폭발:1});
+  stage(17);
+  await f.act('plan',{card:saved.id,targetTile:17});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').hp,46);
+  assert.deepEqual(livingForm(f,'enemy').stacks,{중심:1});
+  stage(8,1);
+  await f.act('plan',{card:saved.id,targetTile:0});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').hp,48);
+});
+
+test('duration poison snapshots real HP damage, and ratio effects support mental and card bases',async()=>{
+  const f=await fixture();
+  const ratio=(kind,when,to,amount,ratioBasis,extra={})=>({kind,when,to,amount,amountMode:'percent',ratioBasis,...extra});
+  await f.act('card',{card:{name:'기준과 지속 턴',hitPowers:['8','4'],role:'normal',target:1,range:'1~4',effects:[
+    ratio('shield','use','self',10,'mindCurrent'),
+    ratio('shield','use','self',50,'cardMin'),
+    ratio('shield','use','self',25,'cardMax'),
+    ratio('shield','attackEnd','self',25,'cardTotal'),
+    ratio('shield','attackEnd','self',50,'totalDamage'),
+    ratio('poison','attackEnd','target',50,'damageDealt',{dotRounds:3}),
+    {kind:'poison',to:'target',when:'attackEnd',amount:2,dotRounds:2}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[id],mind:50});
+    Object.assign(b.units.enemy,{pos:18,shield:4});
+    b.intent={...b.intent,card:{...b.intent.card,power:'0'}};
+  });
+  await f.act('plan',{card:id,targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f).shield,21);
+  assert.equal(livingForm(f,'enemy').hp,40);
+  assert.deepEqual(livingForm(f,'enemy').damageOverTime,[{amount:4,through:3},{amount:2,through:2}]);
+  await f.act('plan',{cards:[]});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').hp,34);
+  await f.act('plan',{cards:[]});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').hp,30);
+  assert.deepEqual(livingForm(f,'enemy').damageOverTime,[]);
+});
+
+test('action disable and reduction apply next turn, and removing disable allows planning again',async()=>{
+  const f=await fixture();
+  const control=(kind,amount,to)=>({kind,amount,to,when:'use'});
+  for(const [name,effects] of [
+    ['행동 감소',[control('reduceActions',1,'self')]],
+    ['행동 봉쇄',[control('blockAction',2,'nearestEnemy')]],
+    ['봉쇄 해제',[control('unblockAction',1,'nearestEnemy'),control('blockAction',1,'self')]]
+  ])await f.act('card',{card:{name,role:'normal',power:'0',range:'0',target:'self',effects}});
+  const [reduce,block,cleanse]=f.state.profile.cards.map(card=>card.id);
+  await f.act('start',{solo:true,bots:0});
+  const hand=id=>configureBattle(f,(b,self)=>{
+    self.hand=[id];self.pos=16;b.units.enemy.pos=18;
+    b.intent={...b.intent,card:{...b.intent.card,power:'0'}};
+  });
+  hand(reduce);
+  await f.act('plan',{card:reduce});
+  await f.act('round');
+  assert.equal(livingForm(f).actionLimit,0);
+  for(const plan of [{card:block},{cards:[{card:block}]}]){
+    assert.equal((await f.send(f.endpoint,{action:'plan',revision:f.state.revision,...plan},f.host.cookie)).status,400);
+  }
+  await f.act('plan',{cards:[],pos:17});
+  await f.act('round');
+  assert.equal(livingForm(f).pos,17);
+  assert.equal(livingForm(f).actionLimit,1);
+  hand(block);
+  await f.act('plan',{card:block});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').blockedRounds,2);
+  assert.equal(f.state.battle.intent.reachable,false);
+  hand(cleanse);
+  await f.act('plan',{card:cleanse});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').blockedRounds,0);
+  assert.equal(livingForm(f).blockedRounds,1);
+  assert.deepEqual(f.state.battle.awaiting,[]);
+  assert.equal((await f.send(f.endpoint,{action:'plan',revision:f.state.revision},f.host.cookie)).status,400);
+  await f.act('round');
+  assert.equal(livingForm(f).actionLimit,1);
+});
+
+test('a player can take a shared passive with a custom card, edit it, and equip it independently',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'동료'});
+  const member=id=>f.send(f.room+'/seat',{id,seat:2},f.host.cookie);
+  await member(guest.body.me);
+  await f.act('card',{card:{name:'공유되는 보급품',role:'normal',power:'0',range:'0',target:'self',effects:[]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('passive',{passive:{name:'보급 담당',effects:[
+    {kind:'giveCard',when:'battleStart',to:'self',amount:1,givenCardId:id}
+  ]}});
+  const original=f.state.profile.passives[0];
+  await f.act('passiveShare',{id:original.id});
+  let shared=f.state.sharedPassives[0];
+  assert.deepEqual(shared.included,[{id,name:'공유되는 보급품'}]);
+  const guestAct=async(action,payload)=>{
+    const {body}=await f.send(f.endpoint,undefined,guest.cookie);
+    const response=await f.send(f.endpoint,{action,revision:body.revision,...payload},guest.cookie);
+    assert.equal(response.status,200,JSON.stringify(response.body));
+    return response.body;
+  };
+  assert.equal((await f.send(f.endpoint,{action:'passiveUnshare',revision:f.state.revision,id:shared.id},guest.cookie)).status,400);
+  const received=(await guestAct('passiveTake',{id:shared.id})).profile.passives[0];
+  assert.notEqual(received.id,original.id);
+  assert.equal(received.enabled,false);
+  await guestAct('passive',{passive:{...received,name:'동료의 보급 담당',enabled:true}});
+  let updated=await f.send(f.endpoint,undefined,f.host.cookie);
+  const release=await f.send(f.endpoint,{action:'passiveUnshare',revision:updated.body.revision,id:shared.id},f.host.cookie);
+  assert.equal(release.status,200);
+  const started=await f.send(f.endpoint,{action:'start',revision:release.body.revision,bots:0},f.host.cookie);
+  assert.equal(started.status,200);
+  updated=await f.send(f.endpoint,undefined,guest.cookie);
+  const unit=updated.body.battle.units.find(unit=>unit.id===guest.body.me);
+  assert.deepEqual(unit.passiveNames,['동료의 보급 담당']);
+  assert.ok(unit.hand.some(card=>card.id===id));
+});
+
+test('a block script runs a nested branch in order, re-reads live values, and shares limits across repeats',async()=>{
+  const f=await fixture();
+  const number=value=>({type:'number',value});
+  const stat=stat=>({type:'stat',stat});
+  const compare=(op,left,right)=>({type:'compare',op,left,right});
+  const decide=(id,branch,test)=>({kind:'if',id,branch,test});
+  const repeat={kind:'repeat',id:2,count:3};
+  const outer={type:'and',
+    left:compare('lt',stat('selfHp'),number(30)),
+    right:{type:'not',test:compare('lt',stat('selfMind'),number(20))}
+  };
+  const inner=compare('lt',stat('selfShield'),number(8));
+  const then=decide(1,'then',outer),otherwise=decide(1,'else',outer);
+  const fx=(kind,amount,flow,rest={})=>({kind,amount,flow,when:'use',to:'self',...rest});
+  const effects=[
+    fx('heal',25,[then]),
+    fx('shield',1,[then,repeat,decide(3,'then',inner)],{
+      amountExpr:{type:'math',op:'divide',left:stat('selfMind'),right:number(10)}
+    }),
+    fx('shield',2,[then,repeat,decide(3,'else',inner)],{limit:{period:'turn',count:1}}),
+    fx('shield',60,[otherwise]),
+    fx('mind',1,[])
+  ];
+  const card={name:'저체력 방어 스크립트',power:'0',role:'normal',target:'self',range:'0',effects};
+  await f.act('card',{card});
+  const saved=f.state.profile.cards[0];
+  assert.deepEqual(saved.effects[1].flow,effects[1].flow);
+  assert.deepEqual(saved.effects[1].amountExpr,effects[1].amountExpr);
+  await f.act('start',{solo:true,bots:0});
+  const play=async(hp,mind)=>{
+    configureBattle(f,(b,self)=>{
+      Object.assign(self,{hp,mind,shield:0,hand:[saved.id]});
+      b.intent={...b.intent,card:{...b.intent.card,power:'0'}};
+    });
+    await f.act('plan',{cards:[{card:saved.id}]});
+    await f.act('round');
+  };
+  await play(10,80);
+  assert.equal(livingForm(f).hp,35);
+  assert.equal(livingForm(f).shield,10); // 8 from the first iteration, 2 from the second, limit stops the third.
+  assert.equal(livingForm(f).mind,86); // Healing restores 5 mental power, then the last block adds 1.
+  await play(39,80);
+  assert.equal(livingForm(f).hp,39);
+  assert.equal(livingForm(f).shield,60);
+});
+
+test('block reference cards are remapped on import and invalid control trees are rejected',async()=>{
+  const f=await fixture();
+  const base={power:'0',role:'normal',target:'self',range:'0'};
+  const referenced={...base,id:'old-card',name:'참조 원본',effects:[]};
+  const step={kind:'if',id:1,branch:'then',test:{type:'not',test:{
+    type:'condition',subject:'self',condition:'cardUsed',conditionCardId:referenced.id
+  }}};
+  const row={kind:'shield',when:'use',to:'self',amount:2,flow:[step]};
+  const conditional={...base,id:'script',name:'공유 스크립트',effects:[row]};
+  await f.act('cardImport',{file:{format:'conceptterra-card-library',version:1,cards:[referenced,conditional]}});
+  const [imported,script]=f.state.profile.cards;
+  assert.equal(script.effects[0].flow[0].test.test.conditionCardId,imported.id);
+  const invalid=effects=>f.send(f.endpoint,{action:'card',collectionRevision:f.state.collectionRevision,card:{...base,name:'잘못된 스크립트',effects}},f.host.cookie);
+  const repeat=id=>({kind:'repeat',id,count:5});
+  assert.equal((await invalid([{...row,flow:[repeat(1),repeat(2),repeat(3)]}])).status,400);
+  const good={...row,flow:[{...step,test:{type:'condition',subject:'self',condition:'cardUsed',conditionCardId:imported.id}}]};
+  assert.equal((await invalid([good,{...good,flow:[{...good.flow[0],test:{...good.flow[0].test,condition:'criticalHit'}}]}])).status,400);
+});
+
+test('a passive block script can choose a branch at the use event and resolve an expression',async()=>{
+  const f=await fixture();
+  await f.act('passive',{passive:{name:'정신력 연산 패시브',effects:[
+    {kind:'shield',when:'use',to:'self',amount:1,flow:[{
+      kind:'if',id:1,branch:'then',test:{type:'condition',subject:'self',condition:'cardUsed',conditionCardId:'draw'}
+    }],amountExpr:{type:'math',op:'divide',left:{type:'stat',stat:'selfMind'},right:{type:'number',value:5}}}
+  ]}});
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{mind:55,hand:['draw'],shield:0});
+    b.intent={...b.intent,card:{...b.intent.card,power:'0'}};
+  });
+  await f.act('plan',{cards:[{card:'draw'}]});
+  await f.act('round');
+  assert.equal(livingForm(f).shield,11);
+});
+
+test('nested hit outcomes distinguish the critical, collision, and damage of each strike',async()=>{
+  const f=await fixture();
+  const branch=(id,result)=>({kind:'if',id,branch:'then',test:{type:'hitResult',result}});
+  const row=(hitIndex,kind,tag,flow)=>({kind,hitIndex,when:'hit',to:'target',amount:1,tag,flow});
+  const crit=branch(1,'critical'),wall=branch(2,'wall');
+  const card={name:'충돌 분기',role:'normal',target:1,range:'1~4',hitPowers:['6','6'],effects:[
+    row(1,'push','',[crit]),
+    row(1,'stack','치명타벽',[crit,wall]),
+    row(1,'stack','보호막파괴',[branch(3,'shieldBreak')]),
+    row(1,'stack','체력피해',[branch(4,'damage')]),
+    row(2,'stack','일반적중',[branch(1,'noncritical')]),
+    row(2,'stack','오래된충돌',[branch(1,'noncritical'),wall])
+  ]};
+  await f.act('card',{card});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  async function play(wall,dodge){
+    configureBattle(f,(b,self)=>{
+      Object.assign(self,{pos:16,hand:[id],mind:50,critCharges:1});
+      Object.assign(b.units.enemy,{pos:18,hp:54,shield:9,stacks:{},dodge});
+      delete b.units.enemy.stackRuns;
+      b.walls=wall?[19]:[];
+      b.intent={...b.intent,card:{...b.intent.card,power:'0'}};
+    });
+    await f.act('plan',{cards:[{card:id,targets:['enemy']}]});
+    await f.act('round');
+    return livingForm(f,'enemy').stacks;
+  }
+  assert.deepEqual(await play(true,0),{치명타벽:1,보호막파괴:1,일반적중:1});
+  assert.deepEqual(await play(false,0),{보호막파괴:1,일반적중:1});
+  assert.deepEqual(await play(true,1),{});
+});
+
+test('whole-card hit conditions can react to their own push and reject using hit results outside hit',async()=>{
+  const f=await fixture();
+  const flow=[{kind:'if',id:1,branch:'then',test:{type:'hitResult',result:'wall'}}];
+  const stack={kind:'stack',when:'hit',to:'target',amount:1,tag:'벽표식',flow};
+  const card={name:'카드 충돌',power:'1',role:'normal',target:1,range:'1~4',effects:[
+    {kind:'push',when:'hit',to:'target',amount:1},stack
+  ]};
+  assert.equal((await f.send(f.endpoint,{action:'card',collectionRevision:f.state.collectionRevision,
+    card:{...card,effects:[{...stack,when:'use'}]}},f.host.cookie)).status,400);
+  await f.act('card',{card});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[id],mind:50});
+    b.units.enemy.pos=18;b.walls=[19];
+    b.intent={...b.intent,card:{...b.intent.card,power:'0'}};
+  });
+  await f.act('plan',{cards:[{card:id,targets:['enemy']}]});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').stacks.벽표식,1);
+});
+
+test('variadic logic gates distinguish AND, OR, and parity and reject too many inputs',async()=>{
+  const f=await fixture();
+  const gates=['and','or','xor','nand','nor','xnor'];
+  const yes={type:'hitResult',result:'noncritical'}, no={type:'hitResult',result:'critical'};
+  const make=(inputs)=>gates.map((gate,index)=>({kind:'stack',when:'hit',to:'target',amount:1,tag:gate,
+    flow:[{kind:'if',id:index+1,branch:'then',test:{type:'gate',gate,inputs}}]}));
+  const card={name:'논리 게이트 검증',power:'1',role:'normal',range:'1~4',target:1,effects:make([yes,yes,no])};
+  const invalid=await f.send(f.endpoint,{action:'card',collectionRevision:f.state.collectionRevision,
+    card:{...card,effects:make(Array(13).fill(yes)).slice(0,1)}},f.host.cookie);
+  assert.equal(invalid.status,400);
+  await f.act('card',{card});
+  await f.act('card',{card:{...card,name:'홀수 게이트',effects:make([yes,yes,yes])}});
+  const [even,odd]=f.state.profile.cards;
+  assert.equal(even.effects[0].flow[0].test.inputs.length,3);
+  await f.act('start',{solo:true,bots:0});
+  async function play(id){
+    configureBattle(f,(b,self)=>{
+      Object.assign(self,{pos:16,hand:[id],mind:50});
+      Object.assign(b.units.enemy,{pos:18,stacks:{}});
+      delete b.units.enemy.stackRuns;
+      b.intent={...b.intent,card:{...b.intent.card,power:'0'}};
+    });
+    await f.act('plan',{cards:[{card:id,targets:['enemy']}]});
+    await f.act('round');
+    return Object.keys(livingForm(f,'enemy').stacks);
+  }
+  assert.deepEqual(await play(even.id),['or','nand','xnor']);
+  assert.deepEqual(await play(odd.id),['and','or','xor']);
+});
+
+test('custom stack names follow the collection, alongside names used in legacy cards and condition blocks',async()=>{
+  const f=await fixture();
+  const untouched=f.state.collectionRevision;
+  await f.act('stackCreate',{name:'  균열  '});
+  assert.equal(f.state.collectionRevision,untouched+1);
+  assert.deepEqual(f.state.profile.customStacks,['균열']);
+  assert.ok(f.state.profile.stackNames.includes('상처'));
+  const duplicate=await f.send(f.endpoint,{action:'stackCreate',collectionRevision:f.state.collectionRevision,name:'균열'},f.host.cookie);
+  assert.equal(duplicate.status,400);
+  await f.act('card',{card:{name:'중첩 파츠 카드',role:'normal',power:'1',range:'1~4',target:1,effects:[
+    {kind:'stack',when:'hit',amount:2,to:'target',tag:'균열'},
+    {kind:'damage',when:'hit',amount:10,amountMode:'percent',ratioBasis:'hpMax',to:'target',
+      flow:[{kind:'if',id:1,branch:'then',test:{type:'gate',gate:'and',inputs:[
+        {type:'condition',subject:'target',condition:'stack',tag:'균열',threshold:2},
+        {type:'not',test:{type:'condition',subject:'target',condition:'stack',tag:'유예 표식',threshold:1}}
+      ]}}]}
+  ]}});
+  const saved=f.state.profile.cards[0];
+  assert.ok(f.state.profile.stackNames.includes('유예 표식'));
+  const other=await f.send('/api/rooms',{title:'다른 객차',name:'방장'},f.host.cookie);
+  const otherRoom=await f.send('/api/rooms/'+other.body.code+'/game',undefined,other.cookie);
+  assert.deepEqual(otherRoom.body.profile.customStacks,['균열']);
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[saved.id],mind:50});
+    b.units.enemy.pos=18;
+    b.intent={...b.intent,card:{...b.intent.card,power:'0'}};
+  });
+  await f.act('plan',{cards:[{card:saved.id,targets:['enemy']}]});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').stacks.균열,2);
+  assert.equal(livingForm(f,'enemy').hp,48);
+});
+
+test('arithmetic supports extra terms in effects and comparison operands',async()=>{
+  const f=await fixture();
+  const literal=value=>({type:'number',value});
+  const math=(op,...terms)=>({type:'math',op,terms:terms.map(term=>typeof term==='number'?literal(term):term)});
+  const condition={type:'compare',op:'eq',left:math('min',8,2,5),right:literal(2)};
+  const effect=(op,...terms)=>({kind:'shield',when:'use',to:'self',amount:1,amountExpr:math(op,...terms),
+    flow:[{kind:'if',id:1,branch:'then',test:condition}]});
+  const card={name:'여러 항 연산',power:'0',role:'normal',target:'self',range:'0',effects:[
+    effect('subtract',12,3,2),
+    effect('divide',48,4,2),
+    effect('add',2,3,math('multiply',2,3,4)),
+    effect('max',2,9,4)
+  ]};
+  const invalid=await f.send(f.endpoint,{action:'card',collectionRevision:f.state.collectionRevision,
+    card:{...card,effects:[effect('add',...Array(13).fill(1))]}},f.host.cookie);
+  assert.equal(invalid.status,400);
+  await f.act('card',{card});
+  const saved=f.state.profile.cards[0];
+  assert.deepEqual(saved.effects[2].amountExpr,card.effects[2].amountExpr);
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{hand:[saved.id],mind:50,shield:0});
+    b.intent={...b.intent,card:{...b.intent.card,power:'0'}};
+  });
+  await f.act('plan',{cards:[{card:saved.id}]});
+  await f.act('round');
+  assert.equal(livingForm(f).shield,51); // 7 + 6 + 29 + 9
+});

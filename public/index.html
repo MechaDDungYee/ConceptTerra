@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#101410"><title>콘셉트테라 TRPG</title><meta name="description" content="콘셉트테라 온라인 TRPG 세션 로비"><link rel="stylesheet" href="/style.css"><script type="module" src="/app.js"></script></head>
+<body>
+<header><a class="brand" href="/" aria-label="콘셉트테라 로비"><span class="mark" aria-hidden="true">✦</span><span>CONCEPTTERRA<small>TABLETOP ROLEPLAY</small></span></a><a class="home" href="/">세션 로비</a></header>
+<main id="app" aria-live="polite"><p>세션 로비를 불러오는 중…</p></main>
+<footer><span>CONCEPTTERRA</span><span>온라인 TRPG 세션 로비</span></footer>
+<template id="lobby">
+  <section class="hero"><div><p class="tag">CONCEPTTERRA / TRPG</p><h1>콘셉트테라<br><em>세션 로비</em></h1><p class="intro">개념이 힘이 되는 세계. 동료를 모아<br class="desktop"> 다음 의뢰를 시작하세요.</p></div><div class="diagram" aria-hidden="true"><i></i><i></i><i></i><b>✦</b></div></section>
+  <div class="cards"><section class="card"><h2>새 세션 만들기</h2><p>방장이 되어 플레이어와 GM 자리를 배정합니다.</p>
+  <form id="create"><label>세션 이름<input name="title" required maxlength="48" placeholder="예: 안개 도시의 의뢰"></label><label>내 닉네임<input name="name" required maxlength="24" placeholder="닉네임 입력" autocomplete="nickname"></label><button class="primary">방 만들기 <span aria-hidden="true">↗</span></button><p class="error" role="alert"></p></form></section>
+  <section class="card"><h2>초대받은 방에 참가</h2><p>초대 링크 또는 방 코드를 입력하세요.</p>
+  <form id="find"><label>초대 링크 또는 방 코드<input name="code" required maxlength="240" placeholder="링크 또는 16자리 방 코드" autocomplete="off" autocapitalize="none" spellcheck="false"></label><button class="secondary">방 찾기 <span aria-hidden="true">→</span></button><p class="error" role="alert"></p></form></section></div>
+</template>
+</body></html>

@@ -1,0 +1,10 @@
+{
+  "name": "conceptterra-trpg",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/dev.mjs",
+    "test": "node --test scripts/*.test.mjs"
+  }
+}

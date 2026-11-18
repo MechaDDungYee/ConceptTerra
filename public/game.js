@@ -149,7 +149,7 @@ function character(){
   status.onchange=check;check();
   form.append(field('캐릭터 이름',input('name',p.name,'text',{required:true,maxlength:36})),field('출신국',select('country',opts(countryNames),p.country)),field('시작 신분',status),wall,
     field('직업 / 소속',input('job',p.job,'text',{maxlength:36,placeholder:'회수원, 군인, 해결사…'})),
-    field('개념 능력 / 의체',area('concept',p.concept,180)),field('개인 목적',area('goal',p.goal,180),'full'));
+    field('개념 능력 / 의체',area('concept',p.concept,180),'full'),field('개인 목적',area('goal',p.goal,180),'full'));
   const stats=el('fieldset',undefined,{class:'full'}), list=el('div',undefined,{class:'stats'});
   const legend=el('legend');const total=()=>{legend.textContent='능력치 '+[...list.querySelectorAll('input')].reduce((sum,x)=>sum+Number(x.value),0)+' / 300';};
   statNames.forEach((name,i)=>list.append(field(name,input('stat'+i,p.stats[i],'number',{min:0,max:100,required:true}))));

@@ -165,6 +165,29 @@ export function blockWorkspace(config){
   const checksHit=test=>test?.type==='hitResult'||!!test&&[test.left,test.right,test.test,...(test.inputs||[])].some(checksHit);
   const hasHitBranch=node=>isControl(node)&&
     (checksHit(node.test)||[...node.then,...(node.else||[])].some(hasHitBranch));
+  const compatibleTiming=(hat,when)=>!hats.some(other=>other!==hat&&other.when===when)&&
+    (when==='hit'||!hat.body.some(hasHitBranch))&&actionsFor(hat.body).every(node=>{
+      const row=readEffect(node.widget);
+      return available(row.kind,when,row);
+    });
+  function changeTiming(hat,when){
+    if(!compatibleTiming(hat,when))return false;
+    hat.when=when;
+    for(const node of actionsFor(hat.body))node.widget.dispatchEvent(new CustomEvent('block-phase-change',{detail:when}));
+    return true;
+  }
+  function suggestTiming(payload,slot){
+    const {hat}=slot;
+    const choices=Object.keys(events).filter(when=>available(payload.kind,when));
+    const preferred=defaultEffect(payload.kind).when;
+    const next=[preferred,...choices].find(when=>choices.includes(when)&&compatibleTiming(hat,when));
+    status.textContent=hat.when==='replace'?'카드 교체 판정 시에는 카드 교체 효과만 연결할 수 있어요.':
+      '‘'+(events[hat.when]||timings[hat.when])+'’에는 ‘'+effects[payload.kind]+'’ 효과를 연결할 수 없어요.';
+    if(next)status.append(' ',action('‘'+events[next]+'’로 바꿔 연결',()=>{
+      if(changeTiming(hat,next))place(payload,slot);
+    },'block-text-button'));
+    else if(choices.length)status.append(' 연결 가능한 이벤트 · '+choices.map(when=>events[when]).join(', '));
+  }
   function place(payload,slot=target()){
     if(!payload)return;
     if(payload.type==='event'){addHat(payload.when);return;}
@@ -182,7 +205,7 @@ export function blockWorkspace(config){
     let index=slot.index;
     let node=payload.node;
     if(payload.type==='action'){
-      if(!available(payload.kind,hat.when)){status.textContent=messages.compatible;return;}
+      if(!available(payload.kind,hat.when)){suggestTiming(payload,slot);return;}
       node=leaf(defaultEffect(payload.kind,hat.when),hat.when);
     }else if(payload.type==='control'){
       node=buildControl(payload.kind);
@@ -413,7 +436,14 @@ export function blockWorkspace(config){
     const content=hats.map(hat=>{
       const script=create('section',null,'block-script');
       const head=create('header',null,'block-hat');
-      head.append(create('strong','⚑ '+(events[hat.when]||timings[hat.when]||hat.when)),action('이벤트 삭제',()=>{
+      const timingOptions=Object.fromEntries([[hat.when,events[hat.when]||timings[hat.when]||hat.when],
+        ...Object.entries(events).filter(([when])=>when!==hat.when&&compatibleTiming(hat,when))]);
+      head.append(choose('이벤트 발동 시점',timingOptions,hat.when,when=>{
+        if(changeTiming(hat,when)){
+          status.textContent='이벤트를 ‘'+events[when]+'’로 바꿨어요.';
+          changed();
+        }
+      }),action('이벤트 삭제',()=>{
         hats.splice(hats.indexOf(hat),1);moving=null;selection=null;changed();
       },'block-text-button'));
       script.append(head,stack(hat,hat.body,0));
@@ -472,7 +502,7 @@ export function blockWorkspace(config){
     menu.append(action(category,()=>{active=category;renderTools();}));
   }
   tools.append(menu,body);
-  root.append(tools,canvas,status);
+  root.append(tools,status,canvas);
   renderTools();
   renderCanvas();
   return {node:root,rows,refreshTools:renderTools};

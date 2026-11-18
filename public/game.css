@@ -175,6 +175,10 @@ body:has(.battle-dummy) > main > :is(#error,#feedback):not(:empty){
 .card-filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));gap:8px}
 .card-library-search input,.card-library-search select{width:100%;min-width:0}
 .card-filter-status{justify-content:space-between}
+.card-tag-picker{border:1px solid var(--line);border-radius:4px;padding:8px}
+.card-tag-picker > label{margin-top:8px}
+.card-tag-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr));gap:6px;max-height:12rem;overflow:auto;margin-top:8px}
+.card-tag-options button{text-align:left;overflow-wrap:anywhere}
 .deck-card-controls{flex-wrap:nowrap}
 .deck-row .picture{width:44px;height:44px;object-fit:cover}
 .effect-picker{width:min(620px,calc(100% - 24px));max-height:80dvh;padding:18px;background:#172019;color:var(--ink);border:1px solid #637957;border-radius:12px;overflow:auto}

@@ -899,31 +899,40 @@ function cardLibraryFilter(entries){
     number('offset','한 타격의 주사위 증감값'));
   const refreshTags=[];
   const tags=(label,options,selected)=>{
-    const wrap=el('div',undefined,{class:'stack'});
-    const picker=select(undefined,[],''), chips=el('div',undefined,{class:'row'});
+    const wrap=el('details',undefined,{class:'card-tag-picker'});
+    const picker=input(undefined,'','search',{placeholder:label+' 검색'});
+    const choices=el('div',undefined,{class:'card-tag-options',role:'group','aria-label':label+' 검색 결과'});
+    const chips=el('div',undefined,{class:'row'});
+    const refreshChoices=()=>{
+      const query=picker.value.normalize('NFKC').toLocaleLowerCase().trim();
+      const matches=options.filter(([id,name])=>!selected.has(id)&&name.normalize('NFKC').toLocaleLowerCase().includes(query));
+      choices.replaceChildren(...(matches.length?matches.map(([id,name])=>button(name,()=>{
+        selected.add(id);refresh();update();picker.focus();
+      })):[el('small',query?'일치하는 태그가 없어요.':'추가할 태그가 없어요.')]));
+    };
     const refresh=()=>{
-      picker.replaceChildren(el('option','태그 추가',{value:''}),
-        ...options.filter(([id])=>!selected.has(id)).map(([id,name])=>el('option',name,{value:id})));
       chips.replaceChildren(...[...selected].map(id=>{
         const name=options.find(option=>option[0]===id)?.[1]||id;
         const remove=button(name+' ×',()=>{selected.delete(id);refresh();update();picker.focus();});
         remove.setAttribute('aria-label',name+' 태그 제거');
         return remove;
       }));
+      refreshChoices();
     };
-    picker.onchange=()=>{
-      if(!picker.value)return;
-      selected.add(picker.value);refresh();update();
-    };
+    picker.addEventListener('input',refreshChoices);
     refreshTags.push(refresh);refresh();
-    wrap.append(field(label,picker),chips);
-    return wrap;
+    wrap.append(el('summary',label+' 추가'),field(label+' 검색',picker),choices);
+    const group=el('div',undefined,{class:'stack'});
+    group.append(wrap,chips);
+    return group;
   };
-  const stackNames=[...new Set(index.flatMap(item=>[...item.stacks]))].sort((a,b)=>a.localeCompare(b,'ko'));
-  const effectKinds=[...new Set(index.flatMap(item=>[...item.kinds]))].sort((a,b)=>(effects[a]||a).localeCompare(effects[b]||b,'ko'));
+  const sharedStacks=(state.sharedCards||[]).flatMap(({card})=>(card.effects||[]).flatMap(effectStackNames));
+  const stackNames=[...new Set([...(state.profile.customStacks||[]),...sharedStacks,
+    ...index.flatMap(item=>[...item.stacks])])].sort((a,b)=>a.localeCompare(b,'ko'));
+  const effectOptions=Object.entries(effects).sort(([,a],[,b])=>a.localeCompare(b,'ko'));
   advanced.append(el('summary','상세 필터'),grid,
     note('총 위력은 전투 보정 전 범위와 겹치는 카드를 찾아요. 기본 고정 위력은 모든 타격의 고정값과 주사위 뒤 증감값을 더한 값이에요.'),
-    tags('중첩 태그',opts(stackNames),stackTags),tags('효과 태그',effectKinds.map(kind=>[kind,effects[kind]||kind]),effectTags));
+    tags('중첩 태그',opts(stackNames),stackTags),tags('효과 태그',effectOptions,effectTags));
   root.append(field('카드 검색',bind('search',search)),advanced,
     el('div',undefined,{class:'row card-filter-status'}));
   root.lastChild.append(result,button('검색·필터 초기화',()=>{

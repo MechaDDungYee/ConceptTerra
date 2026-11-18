@@ -278,6 +278,60 @@ test('unopposed effects precede power and damage and only fire if the attack has
   }
 });
 
+test('clash and card hit reactions run once per event and expire after the selected rounds',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'객차의 반응',power:'1',role:'normal',target:1,range:'1~4',clash:true,effects:[
+    {kind:'damage',when:'clash',to:'target',amount:2},
+    {kind:'mind',when:'struck',to:'self',amount:3},
+    {kind:'mind',when:'hurt',to:'self',amount:4,reactionRounds:2}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  const setup=()=>configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[id],mind:50,hp:50,shield:0});
+    b.units.enemy.pos=20;
+    b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'8'}};
+  });
+  setup();
+  await f.act('plan',{card:id,targets:['enemy'],clash:true});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').hp,52);
+  assert.equal(livingForm(f).mind,57);
+  setup();
+  await f.act('plan',{pos:16});
+  await f.act('round');
+  assert.equal(livingForm(f).mind,54);
+  setup();
+  await f.act('plan',{pos:16});
+  await f.act('round');
+  assert.equal(livingForm(f).mind,50);
+});
+
+test('custom stack effects follow the holder, scale by count, and grant held critical chance',async()=>{
+  const f=await fixture();
+  await f.act('stackCreate',{name:'잔류'});
+  await f.act('stackEdit',{name:'잔류',critical:50,effects:[
+    {kind:'damage',when:'turnEnd',to:'self',amount:1,scaleStack:'count'},
+    {kind:'shield',when:'struck',to:'self',amount:3}
+  ]});
+  await f.act('card',{card:{name:'잔류 부여',power:'4',role:'normal',target:1,range:'1~4',effects:[
+    {kind:'stack',when:'use',to:'self',tag:'잔류',amount:2}
+  ]}});
+  assert.equal(f.state.profile.stackTraits[0].effects[0].scaleStack,'count');
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[id],mind:50,hp:50,shield:0});
+    b.units.enemy.pos=20;
+    b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'4'}};
+  });
+  await f.act('plan',{card:id,targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').hp,48);
+  assert.equal(livingForm(f).hp,46);
+  assert.equal(livingForm(f).shield,1);
+});
+
 test('unstoppable uses the modified minimum for each hit after losing a clash',async()=>{
   const f=await fixture();
   await f.act('card',{card:{name:'저지불가 시험',hitPowers:['1d+2','2d+1'],role:'normal',target:1,range:'1~4',clash:true,unstoppable:true,effects:[

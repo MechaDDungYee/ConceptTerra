@@ -46,9 +46,9 @@ async function send(action,payload={}){
     const releasedUnit=action==='unplan'?state.battle?.units.find(u=>u.id===state.me):null;
     const released=releasedUnit?.plan;
     state=await request({action,revision:state.revision,collectionRevision:state.collectionRevision,...payload});
-    if(action==='stackCreate'){
+    if(action==='stackCreate'||action==='stackEdit'){
       updateStackControls();
-      feedback.textContent='중첩을 만들었어요.';
+      feedback.textContent=action==='stackCreate'?'중첩을 만들었어요.':'중첩 효과를 저장했어요.';
       return true;
     }
     if(action==='card'||action==='cardDelete'&&payload.id===edit)edit=null;
@@ -62,7 +62,7 @@ async function send(action,payload={}){
     feedback.textContent={plan:'행동을 확정했어요.',unplan:'행동을 수정할 수 있어요.',round:'라운드 처리를 마쳤어요.',card:'카드 보관함에 저장했어요.',deck:'전투 덱을 저장했어요.',cardClone:'카드 사본을 만들었어요.',cardDelete:'카드를 삭제했어요.',cardShare:'이 방에 카드를 공유했어요.',cardUnshare:'공유를 해제했어요.',cardTake:'공유 카드를 보관함에 가져왔어요.',cardImport:'파일의 카드를 보관함에 가져왔어요.',passive:'패시브를 저장했어요.',passiveClone:'패시브 사본을 만들었어요.',passiveShare:'이 방에 패시브를 공유했어요.',passiveUnshare:'패시브 공유를 해제했어요.',passiveTake:'패시브를 가져왔어요. 장착하면 전투에서 발동해요.'}[action]||'반영했어요.';
   }catch(err){
     errors.textContent=err.message;
-    if(err.status===409){state=await request().catch(()=>state);if(action==='stackCreate')updateStackControls();else if(!draftDirty||tab==='battle')render();}
+    if(err.status===409){state=await request().catch(()=>state);if(action==='stackCreate'||action==='stackEdit')updateStackControls();else if(!draftDirty||tab==='battle')render();}
   }finally{busy=false;}
 }
 function fillStackSelect(control,value){
@@ -84,6 +84,13 @@ function updateStackControls(){
     const names=state.profile.customStacks||[];
     list.replaceChildren(...(names.length?names.map(name=>el('span',name)):[el('small','등록한 중첩이 없어요.')]));
   }
+  for(const control of panel.querySelectorAll('[data-stack-trait-select]'))fillStackTraitSelect(control);
+}
+function fillStackTraitSelect(control){
+  const value=control.value;
+  control.replaceChildren(el('option','효과를 편집할 중첩 선택',{value:''}),
+    ...(state.profile.customStacks||[]).map(name=>el('option',name,{value:name})));
+  control.value=value;
 }
 function stackManager(){
   const root=el('details',undefined,{class:'stack-manager'});
@@ -98,7 +105,27 @@ function stackManager(){
     event.preventDefault();
     if(await send('stackCreate',{name:name.value}))name.value='';
   };
-  root.append(el('summary','중첩 관리'),form,list);
+  const picker=el('select',undefined,{'data-stack-trait-select':true,'aria-label':'효과를 편집할 중첩'});
+  const editor=el('div',undefined,{class:'stack'});
+  fillStackTraitSelect(picker);
+  picker.onchange=()=>{
+    editor.replaceChildren();
+    const chosen=picker.value;
+    if(!chosen)return;
+    const trait=state.profile.stackTraits?.find(item=>item.name===chosen);
+    const workspace=effectWorkspace(trait?.effects||[],{passive:true,stack:true,onChange:()=>{draftDirty=true;}});
+    const critical=input('critical',trait?.critical??0,'number',{min:-100,max:100,required:true});
+    const traitForm=el('form',undefined,{class:'stack'});
+    traitForm.append(field('보유 중 중첩 1개당 치명타 확률 증감 (%p)',critical),
+      note('이 중첩을 보유한 대상에게 이벤트 효과가 발동해요. 설정은 다음 전투부터 반영돼요.'),
+      workspace.node,submit('중첩 효과 저장'));
+    traitForm.onsubmit=async event=>{
+      event.preventDefault();
+      if(await send('stackEdit',{name:chosen,critical:Number(critical.value),effects:workspace.rows()}))draftDirty=false;
+    };
+    editor.append(traitForm);
+  };
+  root.append(el('summary','중첩 관리'),form,list,picker,editor);
   return root;
 }
 function character(){
@@ -354,26 +381,28 @@ function readEffect(row){
   return effect;
 }
 function effectTiming(effect){
-  return (effect.hitIndex?effect.hitIndex+'타 · ':'')+timings[effect.when];
+  return (effect.hitIndex?effect.hitIndex+'타 · ':'')+timings[effect.when]+
+    (effect.reactionRounds?' · 사용 라운드부터 '+effect.reactionRounds+'라운드':'');
 }
 function effectTimingAllowed(kind,when,scoped,passive,role){
   if(kind==='replaceCard'||when==='replace')return kind==='replaceCard'&&when==='replace'&&!scoped;
   if(passive)return passiveEffectKinds.includes(kind)&&passiveTimingsFor(kind).includes(when);
-  if(['struck','hurt'].includes(when)||when==='counter'&&role!=='counter')return false;
+  if(when==='counter'&&role!=='counter')return false;
   if(discardCosts.includes(kind)||resourceCosts.includes(kind))return !scoped&&when==='use';
   if(kind==='hitLeech')return ['hit','damage'].includes(when)||!scoped&&when==='attackEnd';
   if(scoped)return hitEffectTimings.includes(when)&&!stagedPowerEffects.includes(kind)&&kind!=='replay'&&
     (when!=='roll'||!['amplifyHit','replayHit'].includes(kind));
   return !['amplifyHit','replayHit'].includes(kind)&&(!stagedPowerEffects.includes(kind)||stagedPowerTimings.includes(when));
 }
-function effectWorkspace(initial,{scoped=false,passive=false,role,onChange}){
+function effectWorkspace(initial,{scoped=false,passive=false,stack=false,role,onChange}){
+  const kinds=stack?passiveEffectKinds.filter(kind=>!['replaceCard','giveCard'].includes(kind)):passiveEffectKinds;
   const events=Object.fromEntries(Object.entries(timings).filter(([when])=>!legacyHitEvents.includes(when)&&(passive?
-    passiveEffectKinds.some(kind=>effectTimingAllowed(kind,when,false,true)):
-    scoped?hitEffectTimings.includes(when):!['struck','hurt'].includes(when))));
+    kinds.some(kind=>effectTimingAllowed(kind,when,false,true)):
+    !scoped||hitEffectTimings.includes(when))));
   const families={...effectFamilies};
   const listed=new Set(Object.values(families).flat());
   families['기타 효과']=Object.keys(effects).filter(kind=>!listed.has(kind));
-  const available=(kind,when,row)=>effectTimingAllowed(kind,when,scoped,passive,role?.value)&&
+  const available=(kind,when,row)=>(!stack||kinds.includes(kind))&&effectTimingAllowed(kind,when,scoped,passive,role?.value)&&
     (!Object.hasOwn(diceConditions,row?.condition)||diceConditionTimings.includes(when))&&
     (row?.condition!=='cardUsed'||!passiveRoundTimings.includes(when));
   return blockWorkspace({
@@ -387,16 +416,19 @@ function effectWorkspace(initial,{scoped=false,passive=false,role,onChange}){
         amount:['amplifyHit','healCut','hitLeech'].includes(kind)?50:1,...(kind==='poison'?{dotRounds:2}:{}),
         ...(kind==='amplifyHit'?{amountMode:'percent'}:{})};
     },
-    makeEffect:(row,when)=>effectRow({...row,when},onChange,scoped,passive),onChange
+    makeEffect:(row,when)=>effectRow({...row,when},onChange,scoped,passive,stack),onChange
   });
 }
-function effectRow(row,refresh,scoped,passive){
+function effectRow(row,refresh,scoped,passive,stack){
   const x=el('details',undefined,{class:'effect-tile'});
   const title=el('summary');
   const fields=el('div',undefined,{class:'effect'});
   const staged=stagedPowerEffects.includes(row.kind);
   const replace=row.kind==='replaceCard';
   const when=input('when',row.when,'hidden');
+  const reactionRounds=input('reactionRounds',row.reactionRounds??0,'number',{min:0,max:maxStatusRounds,required:true});
+  const reactionField=field('카드 발동 후 지속 라운드 (0이면 예약·대기 중만)',reactionRounds);
+  const stackScale=stack?[field('효과 수치',select('scaleStack',[['fixed','입력한 수치'],['count','입력한 수치 × 보유 중첩 수']],row.scaleStack||'fixed'))]:[];
   const ratio=ratioEffects[row.kind];
   const amplify=row.kind==='amplifyHit';
   const canSign=signedEffects.includes(row.kind)||ratio?.[1]===0;
@@ -446,7 +478,7 @@ function effectRow(row,refresh,scoped,passive){
   const tagControl=stackSelect(row.tag,undefined,'tag');
   const tag=field('중첩 이름',tagControl);
   const toOptions=replace?[['self','자신'],['target','원래 대상']]:
-    Object.entries(effectRecipients).map(([id,label])=>[id,passive&&id==='target'?'공격 또는 피격 상대':label]);
+    Object.entries(effectRecipients).map(([id,label])=>[id,(passive||['struck','hurt','clash'].includes(row.when))&&id==='target'?'전투 상대':label]);
   const to=select('to',toOptions,row.to||'target');
   to.title='카드 대상 이외의 자동 대상은 효과 발동 시 전장 전체에서 정해요.';
   const condition=select('condition',Object.entries(effectConditions).filter(([key])=>!replace||replacementConditions.includes(key)),row.condition||'');
@@ -509,6 +541,7 @@ function effectRow(row,refresh,scoped,passive){
     }
     const showScale=!all&&!!scale.value;
     scaleField.hidden=passive||all||amplify||isCost||unnumberedEffects.includes(row.kind);
+    reactionField.hidden=reactionRounds.disabled=passive||scoped||!['struck','hurt'].includes(when.value);
     const dice=Object.hasOwn(diceConditions,condition.value);
     thresholdValue.max=dice?maxDiceTotal:100;
     if(!dice&&Number(thresholdValue.value)>100)thresholdValue.value=100;
@@ -573,7 +606,7 @@ function effectRow(row,refresh,scoped,passive){
   fields.append(input('kind',row.kind,'hidden'),when,...(x.amountPart?[]:[amount]),
     part('대상','target',field(replace?'조건을 확인할 대상':'누구에게?',to)),
     part('효과 옵션','effect',...replacementFields,...consumeFields,...(row.kind==='giveCard'?[giveField]:[]),
-      ...capFields,...ampFields,...duration,...settings,tag,fixedField),
+      ...capFields,...ampFields,...duration,...settings,...stackScale,reactionField,tag,fixedField),
     part('대가와 발동 제한','limit',field('발동 제한',limit),limitCountField,scaleField,scaleModeField,scaleAmountField,scaleBasisField));
   if(row.condition||passive){
     fields.append(part('효과 자체 조건','condition',field('어떤 조건에서?',condition),conditionCardField,threshold,diceHelp));

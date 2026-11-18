@@ -166,7 +166,8 @@ function gameCard(input,id=gameId(),owned=[],passive=false) {
     if(rows.filter(row=>row?.kind===kind).length>1)gameFail('체력과 정신력 지불은 각각 카드당 하나만 넣을 수 있어요.');
   }
   const entries=rows.map(row=>{
-    if(row&&['struck','hurt'].includes(row.when)&&!passive)gameFail('이 발동 시점은 캐릭터 패시브 전용이에요.');
+    const reactionRounds=!passive&&['struck','hurt'].includes(row?.when)?row.reactionRounds??0:0;
+    if(!gameInt(reactionRounds,0,maxStatusRounds))gameFail('피격 효과의 지속 라운드를 확인하세요.');
     if(row?.when==='counter'&&!counter)gameFail('반격 발동 시 효과는 반격 카드에만 사용할 수 있어요.');
     if (!row || !Object.hasOwn(effects,row.kind) || !Object.hasOwn(timings,row.when) || !Object.hasOwn(effectRecipients,row.to)) gameFail('효과 항목을 확인하세요.');
     const hitIndex=row.hitIndex??0;
@@ -275,7 +276,7 @@ function gameCard(input,id=gameId(),owned=[],passive=false) {
     const flow=gameNormalizeFlow(row,id,owned);
     const amountExpr=row.amountExpr!=null&&!unnumberedEffects.includes(row.kind)?gameExpression(row.amountExpr):undefined;
     return {...settings,...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
-      ...(hitIndex?{hitIndex}:{}),
+      ...(hitIndex?{hitIndex}:{}),...(reactionRounds?{reactionRounds}:{}),
       ...(givenCardId?{givenCardId}:{}),...(conditionCardId?{conditionCardId}:{}),
       ...(replace?{replacementId,...(fromCardId?{fromCardId}:{})}:{}),
       ...(consumeAll?{consumeAmount}:{}),
@@ -311,10 +312,12 @@ function gamePassive(input,id=gameId(),owned=[]){
 const gamePassiveSource=passive=>({id:'passive:'+passive.id,name:passive.name,effects:passive.effects,passive:true});
 function gamePassives(b,actor,when,target,source){
   if(!gameAlive(actor))return;
-  for(const passive of actor.passives||[]){
+  const sources=[...(actor.passives||[]).map(gamePassiveSource),...gameHeldStackSources(actor)];
+  for(const card of sources){
     if(!gameAlive(actor))break;
-    if(!passive.effects.some(effect=>effect.when===when))continue;
-    const ctx=gameContext(actor,gamePassiveSource(passive),[target],source.moved);
+    if(card.stackCount&&!actor.stacks[card.name])continue;
+    if(!card.effects.some(effect=>effect.when===when))continue;
+    const ctx=gameContext(actor,card,[target],source.moved);
     Object.assign(ctx,{base:source.base,critical:source.critical,anyCritical:source.anyCritical,
       brokeShield:source.brokeShield,diceRolls:source.diceRolls,clashDifference:source.clashDifference,
       actionCard:source.card,hitIndex:source.hitIndex,hitRolls:source.hitRolls,rawHitRolls:source.rawHitRolls,totalDamage:source.totalDamage,
@@ -323,6 +326,23 @@ function gamePassives(b,actor,when,target,source){
     if(when==='hit')gameTriggerHit(b,ctx,target);
     else gameTriggers(b,ctx,when,target);
   }
+}
+function gameHeldStackSources(unit){
+  return Object.entries(unit.stackTraits||{}).filter(([name])=>unit.stacks[name]>0).map(([name,trait])=>({
+    id:'stack:'+name,name,effects:trait.effects,passive:true,stackCount:unit.stacks[name]
+  }));
+}
+function gameStackTrait(input,owned){
+  const effects=input.effects??[];
+  const critical=input.critical??0;
+  if(!Array.isArray(effects)||effects.length>maxPassiveEffects||!gameInt(critical,-100,100)||
+    effects.some(effect=>!effect||effect.kind==='replaceCard'||effect.kind==='giveCard')){
+    gameFail('중첩 효과와 치명타 확률을 확인하세요.');
+  }
+  const normalized=effects.length?gamePassive({name:input.name,effects},'stack',owned).effects:[];
+  return {name:input.name,critical,effects:normalized.map((effect,index)=>({...effect,
+    ...(effects[index].scaleStack==='count'?{scaleStack:'count'}:{})
+  }))};
 }
 const gamePreset = (id,name,power,range,role='normal',target=1,rows=[],cost=0,clash=true) =>
   ({id,name,power,range,role,target,clash,cost,notes:'',image:'',effects:rows});
@@ -658,9 +678,10 @@ function gameDeckEffects(b,when){
   for(const actor of Object.values(b.units)){
     if(!gameAlive(actor))continue;
     const sources=(actor.startingCards||[]).map(id=>actor.library[id]);
-    sources.push(...(actor.passives||[]).map(gamePassiveSource));
+    sources.push(...(actor.passives||[]).map(gamePassiveSource),...gameHeldStackSources(actor));
     for(const card of sources){
       if(!gameAlive(actor)||!card||(!card.passive&&!cardUsable(actor,card))||!card.effects.some(effect=>effect.when===when))continue;
+      if(card.stackCount&&!actor.stacks[card.name])continue;
       const targets=card.passive||card.target==='tile'?[]:actor.collapsed?collapseTargets(card,actor,Object.values(b.units)):gameAllowedTargets(b,actor,card);
       const ctx=gameContext(actor,card,targets);
       const base=ctx.mod;
@@ -716,8 +737,10 @@ function gameCollection(profile,row){
   if(row)for(const card of JSON.parse(row.cards))cards.set(card.id,card);
   const deck=row?JSON.parse(row.deck):[];
   const entries=[...cards.values()];
+  const stacks=row?.stack_names?JSON.parse(row.stack_names):[];
   return {cards:entries.filter(card=>!card.deleted),deleted:entries.filter(card=>card.deleted),
-    deck:deck.length?deck:profile?.deck||[],stackNames:row?.stack_names?JSON.parse(row.stack_names):[],revision:row?.revision||0};
+    deck:deck.length?deck:profile?.deck||[],stackNames:stacks.map(stack=>typeof stack==='string'?stack:stack.name),
+    stackTraits:stacks.filter(stack=>typeof stack==='object'),revision:row?.revision||0};
 }
 function gameShareBundle(card,cards){
   const builtIns=new Set(gameCatalogue.map(entry=>entry.id));
@@ -782,6 +805,7 @@ function gameBegin(state,members,settings,actor,collections) {
     const cards=gameDeck(owned,collection.deck);
     units[m.id]=gameUnit(m.id,p?.name||m.name,gameSpawns[m.seat-1],cards,false,false,[...owned,...(p?.passiveCards||[])]);
     units[m.id].passives=(p?.passives||[]).filter(passive=>passive.enabled);
+    units[m.id].stackDefinitions=Object.fromEntries(collection.stackTraits.map(trait=>[trait.name,trait]));
     if(p?.mind!==undefined)units[m.id].mind=p.mind;
     if(units[m.id].mind===0)units[m.id].zero='pending';
   }
@@ -792,6 +816,7 @@ function gameBegin(state,members,settings,actor,collections) {
     const cards=gameDeck(owned,collection.deck);
     units[actor.id]=gameUnit(actor.id,p?.name||actor.name,gameSpawns[0],cards,false,false,[...owned,...(p?.passiveCards||[])]);
     units[actor.id].passives=(p?.passives||[]).filter(passive=>passive.enabled);
+    units[actor.id].stackDefinitions=Object.fromEntries(collection.stackTraits.map(trait=>[trait.name,trait]));
     if(p?.mind!==undefined)units[actor.id].mind=p.mind;
     if(units[actor.id].mind===0)units[actor.id].zero='pending';
   }
@@ -1063,6 +1088,7 @@ function gameSplitStacks(runs,count){
 }
 function gameWriteStacks(unit,tag,runs){
   unit.stacks[tag]=runs.reduce((total,run)=>total+run.count,0);
+  if(!unit.stacks[tag]&&unit.stackTraits)delete unit.stackTraits[tag];
   if(runs.every(run=>run.power===1)){
     if(unit.stackRuns)delete unit.stackRuns[tag];
     return;
@@ -1080,7 +1106,7 @@ function gameTakeStacks(unit,tag,count){
   if(taken.length)gameWriteStacks(unit,tag,remaining);
   return taken.reduce((total,run)=>total+run.count*run.power,0);
 }
-function gameGrantStacks(b,unit,effect,amount,sourceRuns){
+function gameGrantStacks(b,unit,effect,amount,trait,sourceRuns){
   const tag=effect.tag;
   const room=Math.max(0,(effect.stackCap??maxStatusStacks)-(unit.stacks[tag]||0));
   const gained=Math.min(amount,room);
@@ -1095,6 +1121,7 @@ function gameGrantStacks(b,unit,effect,amount,sourceRuns){
   if(!count)return 0;
   const runs=sourceRuns?gameSplitStacks(sourceRuns,count).taken:[{count,power:1}];
   const added=runs.map(run=>({...run,power:Math.min(effect.stackPower??run.power,effect.stackPowerCap??maxStackPotency)}));
+  if(trait&&!unit.stackTraits?.[tag])(unit.stackTraits??={})[tag]=trait;
   gameWriteStacks(unit,tag,[...gameStackRuns(unit,tag),...added]);
   return count;
 }
@@ -1343,6 +1370,7 @@ function gameTriggers(b,ctx,when,target,depth=0,hitIndex=0) {
   const {actor,card}=ctx;
   const entries=card.effects.filter(effect=>{
     if(effect.when!==when&&!(when==='use'&&effect.when==='base'))return false;
+    if(ctx.reactionRound!=null&&(!effect.reactionRounds||ctx.reactionRound+effect.reactionRounds<=b.round))return false;
     if(hitIndex)return effect.hitIndex===hitIndex;
     return !effect.hitIndex||(['wall','consume'].includes(when)&&effect.hitIndex===ctx.hitIndex);
   });
@@ -1441,7 +1469,8 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
     Math.sign(value)*(Math.floor(Math.abs(value)*(100+amplifier.percent)/100)+amplifier.fixed):value;
   const multiplier=effect.scaleCost?gamePayScaleCost(b,ctx,effect):effect.scaleDiscard?ctx.discarded:
     effect.scaleResource==='health'?ctx.paidHealth:effect.scaleResource==='mind'?ctx.paidMind:1;
-  const amount=magnitude*multiplier,tag=effect.tag;
+  const stackScale=effect.scaleStack==='count'?(actor.stacks[card.name]||0):1;
+  const amount=magnitude*multiplier*stackScale,tag=effect.tag;
   if(!amount)return;
   const converted=(effect.kind==='amplifyHit'||stagedPowerEffects.includes(effect.kind)&&!effect.ratioBasis)?amount:gameRatioAmount(ctx,effect,u,amount);
   const n=effect.kind==='healthCost'&&gameHealthBase(u,effect.healthBasis)>0?Math.max(1,converted):converted;
@@ -1454,7 +1483,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
     (actor.effectUsage??={})[key]={period,count:count+1};
   }
   if(card.passive&&!ctx.passiveLogged){
-    gameLog(b,actor.name+' · 패시브 「'+card.name+'」 발동');
+    gameLog(b,actor.name+' · '+(card.stackCount?'중첩':'패시브')+' 「'+card.name+'」 발동');
     ctx.passiveLogged=true;
   }
   applied?.add(u.id);
@@ -1748,7 +1777,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
         }
         break;
       }
-      case 'stack': gameGrantStacks(b,u,effect,n); break;
+      case 'stack': gameGrantStacks(b,u,effect,n,actor.stackDefinitions?.[tag]); break;
       case 'remove': gameTakeStacks(u,tag,n); break;
       case 'consume': {
         const budget=effect.consumeAmount==='all'?Infinity:n;
@@ -1798,10 +1827,10 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
         }
         break;
       }
-      case 'doubleStack': gameGrantStacks(b,u,effect,Math.min(n,u.stacks[tag]||0),gameStackRuns(u,tag)); break;
+      case 'doubleStack': gameGrantStacks(b,u,effect,Math.min(n,u.stacks[tag]||0),u.stackTraits?.[tag],gameStackRuns(u,tag)); break;
       case 'stealStack': {
         if(u===actor)break;
-        const count=gameGrantStacks(b,actor,effect,Math.min(n,u.stacks[tag]||0),gameStackRuns(u,tag));
+        const count=gameGrantStacks(b,actor,effect,Math.min(n,u.stacks[tag]||0),u.stackTraits?.[tag],gameStackRuns(u,tag));
         if(count)gameTakeStacks(u,tag,count);
         break;
       }
@@ -1867,7 +1896,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
         if(path.length){u.pos=position;gameLog(b,u.name+' · 측면 이동 '+path.length+'칸');}
         break;
       }
-      case 'cleanseStacks': delete u.stacks[tag];if(u.stackRuns)delete u.stackRuns[tag];break;
+      case 'cleanseStacks': gameWriteStacks(u,tag,[]);delete u.stacks[tag];break;
       case 'shieldPerStack': if(ctx.usedPotency)u.shield=Math.min(999,u.shield+ctx.usedPotency*n);break;
       case 'shuffleDeck': u.deck=gameShuffle(u.deck);break;
       case 'buryHand': u.deck.unshift(...u.hand.splice(0,n).reverse());break;
@@ -1888,6 +1917,33 @@ function gameFinishCard(b,ctx){
   else if(ctx.destination==='exile')u.exile.push(id);
   else u.grave.push(id);
 }
+function gameCardReactions(b,unit,when,attacker,event){
+  if(!gameAlive(unit))return;
+  const pending=[...(b.waitingCards?.get(unit.id)?.values()||[])];
+  const queuedCovers=new Set(pending.map(source=>source.coverCharge));
+  for(const charge of unit.cover||[]){
+    const card=unit.library[charge.card??charge];
+    if(card&&!queuedCovers.has(charge)&&cardUsable(unit,card))pending.push({...charge,card});
+  }
+  const pendingIds=new Set(pending.map(({card})=>card.id));
+  const active=Object.entries(unit.cardReactions||{}).flatMap(([id,round])=>
+    !pendingIds.has(id)&&unit.library[id]?[{card:unit.library[id],reactionRound:round}]:[]);
+  for(const source of [...pending,...active]){
+    if(!gameAlive(unit))break;
+    if(!source.card.effects.some(effect=>effect.when===when))continue;
+    const ctx=gameContext(unit,source.card,[attacker],source.moved);
+    Object.assign(ctx,{base:event.base,critical:event.critical,brokeShield:event.brokeShield,
+      discarded:source.discarded||0,paidHealth:source.paidHealth||0,paidMind:source.paidMind||0,
+      reactionRound:source.reactionRound});
+    gameTriggers(b,ctx,when,attacker);
+  }
+}
+function gameClashEffects(b,left,right){
+  for(const [ctx,opponent] of [[left,right.actor],[right,left.actor]]){
+    gameTriggers(b,ctx,'clash',opponent);
+    gamePassives(b,ctx.actor,'clash',opponent,ctx);
+  }
+}
 function gameStrike(b,ctx,target,roll){
   gamePose(b,ctx.actor,'attack');
   const actor=ctx.actor;
@@ -1900,7 +1956,9 @@ function gameStrike(b,ctx,target,roll){
     actor.trueStrike--;
     gameLog(b,actor.name+' · '+target.name+'의 회피 무효화');
   }
-  const chance=bounded((actor.critChance||0)+(actor.critStacks||0)*5,0,100);
+  const stackChance=Object.entries(actor.stackTraits||{}).reduce((sum,[name,trait])=>
+    sum+(actor.stacks[name]||0)*trait.critical,0);
+  const chance=bounded((actor.critChance||0)+(actor.critStacks||0)*5+stackChance,0,100);
   ctx.critical=roll>0&&(actor.critCharges>0||chance>0&&gameRoll(100)<=chance);
   if(ctx.critical){
     if(actor.critCharges>0)actor.critCharges--;
@@ -1911,13 +1969,17 @@ function gameStrike(b,ctx,target,roll){
   }
   const shield=target.shield;
   const dealt=gameDamage(b,target,roll,actor,false,true);
-  if(actor.enemy!==target.enemy&&(actor.passives?.length||target.passives?.length)){
+  if(actor.enemy!==target.enemy||actor.collapsed&&actor!==target){
     const event={...ctx,base:dealt,brokeShield:shield>0&&target.shield===0};
     gamePassives(b,actor,'hit',target,event);
     if(dealt)gamePassives(b,actor,'damage',target,event);
     gamePassives(b,actor,event.critical?'critical':'noncritical',target,event);
-    if(dealt)gamePassives(b,target,'hurt',actor,event);
+    if(dealt){
+      gamePassives(b,target,'hurt',actor,event);
+      gameCardReactions(b,target,'hurt',actor,event);
+    }
     gamePassives(b,target,'struck',actor,event);
+    gameCardReactions(b,target,'struck',actor,event);
   }
   return dealt;
 }
@@ -2101,6 +2163,7 @@ function gameHit(b,ctx,roll,intercepted=false){
   }
 }
 function gameUnopposedAttack(b,ctx){
+  b.waitingCards?.get(ctx.actor.id)?.delete(ctx.waitingPlan);
   const tile=ctx.card.target==='tile';
   if(tile){
     if(b.walls.includes(ctx.targetTile)||!gridValid(ctx.targetTile)||!gridCardInRange(ctx.card,ctx.actor.pos,ctx.targetTile)){
@@ -2144,8 +2207,8 @@ function gameCover(b,attacker,target){
   Object.assign(ctx,charge.powerStages);
   ctx.copyId=charge.copyId;
   gameLog(b,unit.name+' · 원호 방어 1 소모 → '+target.name+' 대신 합');
-  gameTriggers(b,ctx,'clash',attacker);
   const incoming=gameContext(attacker,b.intent.card,[unit]);
+  gameClashEffects(b,ctx,incoming);
   const defense=gameActionPower(b,ctx,attacker),attack=gameActionPower(b,incoming,unit);
   gameLog(b,'합 '+unit.name+' '+defense+' : '+attack+' '+attacker.name+' (원호 방어)');
   ctx.clashDifference=defense-attack;
@@ -2154,6 +2217,9 @@ function gameCover(b,attacker,target){
   gameTriggers(b,ctx,outcome,attacker);
   gamePassives(b,ctx.actor,outcome,attacker,ctx);
   if(defense<attack)gameHit(b,incoming,attack,true);
+  for(const [plan,waiting] of b.waitingCards?.get(unit.id)||[]){
+    if(waiting.coverCharge===charge)b.waitingCards.get(unit.id).delete(plan);
+  }
   if(gameAlive(unit))gameProof(b,unit,'protect');
   return true;
 }
@@ -2192,6 +2258,8 @@ function gameReplacement(b,u,original,plan,moved,originalTargets){
   }
 }
 function gamePrepareAction(b,u,plan,moved){
+  const waiting=b.waitingCards?.get(u.id);
+  waiting?.delete(plan);
   if(!plan?.card||!gameCanPlan(u))return;
   const original=u.library[plan.card];
   if(!cardUsable(u,original))return;
@@ -2208,6 +2276,11 @@ function gamePrepareAction(b,u,plan,moved){
   const targets=replacement?.targets||originalTargets;
   if(card.cost){gameMental(b,u,-card.cost);gameLog(b,u.name+' 혹사 · 정신력 -'+card.cost);}
   const ctx=gameContext(u,card,targets,moved);
+  ctx.waitingPlan=plan;
+  waiting?.set(plan,ctx);
+  if(card.effects.some(effect=>effect.reactionRounds)&&(u.library[card.id]===card)){
+    (u.cardReactions??={})[card.id]=b.round;
+  }
   ctx.originId=original.id;
   if(card.target==='tile'){
     ctx.targetTile=replacement?replacement.targetTile:plan.targetTile;
@@ -2222,7 +2295,8 @@ function gamePrepareAction(b,u,plan,moved){
   if(card.role!=='assist')gamePassives(b,u,'use',targets[0]||null,ctx);
   if(card.role==='guard'){
     const protectedId=(replacement?replacement.protectedId:plan.targets?.[0])||null;
-    (u.cover??=[]).push({card:card.id,target:protectedId,copyId:ctx.copyId});
+    ctx.coverCharge={card:card.id,target:protectedId,copyId:ctx.copyId};
+    (u.cover??=[]).push(ctx.coverCharge);
     gameLog(b,u.name+' · 원호 방어 1 획득 (보유 '+u.cover.length+') · '+(protectedId?b.units[protectedId].name+' 지정':'자동'));
   }
   if(card.role==='counter'){
@@ -2264,7 +2338,7 @@ function gameResolveWave(b,contexts,countered){
   if(!countered&&duelist&&gameEnemyReady(b)){
     b.shock={};
     const incoming=gameContext(enemy,b.intent.card,[target]);
-    gameTriggers(b,duelist,'clash',enemy);
+    gameClashEffects(b,duelist,incoming);
     const ours=gameActionPower(b,duelist,enemy),theirs=gameActionPower(b,incoming,duelist.actor);
     gameLog(b,'합 '+duelist.actor.name+' '+ours+' : '+theirs+' 집행체');
     duelist.clashDifference=ours-theirs;
@@ -2286,6 +2360,7 @@ function gameResolveWave(b,contexts,countered){
       }
     }
     duelist.done=true;countered=true;
+    b.waitingCards?.get(duelist.actor.id)?.delete(duelist.waitingPlan);
   }
   for(const ctx of contexts.filter(c=>!c.done&&!['guard','assist','counter'].includes(c.card.role))){
     if(!gameAlive(ctx.actor))continue;
@@ -2325,6 +2400,9 @@ function gameResolve(b) {
   for(const u of party)if(u.bot&&!b.plans[u.id]){
     if(gameCanPlan(u))b.plans[u.id]=gameBotTurn(b,u);
   }
+  b.waitingCards=new Map(party.map(u=>[u.id,new Map(gamePlannedCards(b.plans[u.id])
+    .filter(plan=>plan.card&&u.library[plan.card])
+    .map(plan=>[plan,{card:u.library[plan.card]}]))]));
   const contexts=[],movedThisTurn=new Map();
   b.counterPlans=new Map();
   for(const u of party) {
@@ -2381,6 +2459,7 @@ function gameResolve(b) {
     if(gameAlive(reaction.actor))gameLog(b,reaction.actor.name+' · 반격 조건 미충족');
   }
   delete b.counterPlans;
+  delete b.waitingCards;
   for(const ctx of contexts){
     if(ctx.card.role==='assist'&&!ctx.triggered){if(!ctx.temporary)ctx.actor.hand.push(ctx.originId||ctx.card.id);}
     else gameFinishCard(b,ctx);
@@ -2392,6 +2471,9 @@ function gameResolve(b) {
   }
   gameDeckEffects(b,'turnEnd');
   for(const u of Object.values(b.units).filter(gameAlive)){
+    for(const [id,round] of Object.entries(u.cardReactions||{})){
+      if(!u.library[id]?.effects.some(effect=>round+(effect.reactionRounds||0)>b.round+1))delete u.cardReactions[id];
+    }
     for(const strike of u.delayedStrike||[]){
       if(strike.round>b.round||!gameAlive(u))continue;
       b.shock={};
@@ -2558,6 +2640,7 @@ async function gameApi(db,room,actor,input,artQuery){
     data.profile.deck=gameDeck([...gameCatalogue,...collection.cards],collection.deck).map(card=>card.id);
     data.profile.deckSaved=collection.deck.length===deckSize;
     data.profile.customStacks=collection.stackNames;
+    data.profile.stackTraits=collection.stackTraits;
     const known=[...gameCatalogue,...collection.cards,...(data.profile.passives||[]),...(data.profile.passiveCards||[])];
     data.profile.stackNames=[...new Set([...collection.stackNames,...known.flatMap(source=>
       (source.effects||[]).flatMap(effectStackNames))])];
@@ -2566,7 +2649,7 @@ async function gameApi(db,room,actor,input,artQuery){
     return json(data);
   };
   if(!input)return view();
-  const collectionEdit=['card','deck','cardClone','cardDelete','cardImport','cardTake','stackCreate'].includes(input.action);
+  const collectionEdit=['card','deck','cardClone','cardDelete','cardImport','cardTake','stackCreate','stackEdit'].includes(input.action);
   if(collectionEdit?input.collectionRevision!==ownCollection.revision:input.revision!==revision){
     return error('저장 데이터가 먼저 변경됐어요. 다시 시도해 주세요.',409);
   }
@@ -2673,8 +2756,9 @@ async function gameApi(db,room,actor,input,artQuery){
       case 'cardDelete':
       case 'cardImport':
       case 'stackCreate':
+      case 'stackEdit':
       case 'cardTake': {
-        const {cards,deleted,stackNames}=ownCollection;
+        const {cards,deleted,stackNames,stackTraits}=ownCollection;
         let {deck}=ownCollection,editedCardId;
         const owned=[...gameCatalogue,...cards];
         switch(input.action){
@@ -2685,6 +2769,13 @@ async function gameApi(db,room,actor,input,artQuery){
             if(stackNames.includes(name))gameFail('이미 등록한 중첩이에요.');
             if(stackNames.length>=maxCustomStacks)gameFail('중첩은 '+maxCustomStacks+'개까지 등록할 수 있어요.');
             stackNames.push(name);
+            break;
+          }
+          case 'stackEdit': {
+            if(!stackNames.includes(input.name))gameFail('편집할 중첩을 먼저 등록하세요.');
+            const trait=gameStackTrait(input,owned);
+            const index=stackTraits.findIndex(item=>item.name===trait.name);
+            if(index<0)stackTraits.push(trait);else stackTraits[index]=trait;
             break;
           }
           case 'card': {
@@ -2744,18 +2835,20 @@ async function gameApi(db,room,actor,input,artQuery){
         }
         const serializedCards=JSON.stringify([...cards,...deleted]);
         if(serializedCards.length>900000)gameFail('카드 보관함 용량을 초과했어요.');
+        const serializedStacks=JSON.stringify(stackNames.map(name=>stackTraits.find(trait=>trait.name===name)||name));
+        if(serializedStacks.length>150000)gameFail('중첩 효과 보관함 용량을 초과했어요.');
         const saved=ownRow?
-          await query(db,'UPDATE player_collections SET cards = ?, deck = ?, stack_names = ?, revision = revision+1 WHERE id = ? AND revision = ?',serializedCards,JSON.stringify(deck),JSON.stringify(stackNames),self.collection_id,ownCollection.revision).run():
-          await query(db,'INSERT OR IGNORE INTO player_collections(id, cards, deck, stack_names, revision) VALUES (?, ?, ?, ?, 1)',self.collection_id,serializedCards,JSON.stringify(deck),JSON.stringify(stackNames)).run();
+          await query(db,'UPDATE player_collections SET cards = ?, deck = ?, stack_names = ?, revision = revision+1 WHERE id = ? AND revision = ?',serializedCards,JSON.stringify(deck),serializedStacks,self.collection_id,ownCollection.revision).run():
+          await query(db,'INSERT OR IGNORE INTO player_collections(id, cards, deck, stack_names, revision) VALUES (?, ?, ?, ?, 1)',self.collection_id,serializedCards,JSON.stringify(deck),serializedStacks).run();
         if(!saved.meta.changes)return error('보관함이 다른 화면에서 먼저 변경됐어요. 다시 시도해 주세요.',409);
-        return view(revision,{cards,deck,stackNames,revision:ownCollection.revision+1},editedCardId);
+        return view(revision,{cards,deck,stackNames,stackTraits,revision:ownCollection.revision+1},editedCardId);
       }
       case 'start': {
         if(!manager)return error('GM 또는 방장만 시작할 수 있어요.',403);
         if(gameActive(b))gameFail('이미 전투 중이에요.');
         const players=members.filter(member=>member.seat>0&&member.id!==actor);
         const collections=new Map(await Promise.all(players.map(async member=>{
-          const row=await query(db,'SELECT cards, deck, revision FROM player_collections WHERE id = ?',member.collection_id).first();
+          const row=await query(db,'SELECT cards, deck, stack_names, revision FROM player_collections WHERE id = ?',member.collection_id).first();
           return [member.id,gameCollection(state.profiles[member.id],row)];
         })));
         collections.set(actor,ownCollection);

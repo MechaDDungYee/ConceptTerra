@@ -545,7 +545,7 @@ function gameRemoveShield(u,n){
   return removed;
 }
 const gameBoss=unit=>!!(unit?.boss??(unit?.enemy&&unit.id==='enemy'));
-function gameDamage(b,u,amount,actor,piercing=false,attack=false,settled=false) {
+function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=false) {
   if(!gameAlive(u))return 0;
   const bonus=attack&&amount>0?u.expose||0:0;
   if(bonus){
@@ -554,25 +554,27 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,settled=false) 
   }
   const hostile=actor.enemy!==u.enemy||actor.collapsed&&actor!==u;
   const bossOutgoing=gameBoss(u),bossIncoming=gameBoss(actor);
-  const outgoing=hostile?gameHeldModifiers(b,actor,u):{};
-  const incoming=hostile?gameHeldModifiers(b,u,actor):{};
-  const fixed=hostile&&amount>0?(actor.outgoingDamage||0)+(u.incomingDamage||0)+
+  const modified=hostile&&!fixedDamage;
+  const outgoing=modified?gameHeldModifiers(b,actor,u):{};
+  const incoming=modified?gameHeldModifiers(b,u,actor):{};
+  const fixed=modified&&amount>0?(actor.outgoingDamage||0)+(u.incomingDamage||0)+
     (outgoing.outgoingDamage||0)+(incoming.incomingDamage||0)+
     (bossOutgoing?(actor.bossOutgoingDamage||0):0)+(bossIncoming?(u.bossIncomingDamage||0):0):0;
-  const percent=hostile?(actor.outgoingDamagePercent||0)+(u.incomingDamagePercent||0)+
+  const percent=modified?(actor.outgoingDamagePercent||0)+(u.incomingDamagePercent||0)+
     (outgoing.outgoingDamagePercent||0)+(incoming.incomingDamagePercent||0)+
     (bossOutgoing?(actor.bossOutgoingDamagePercent||0):0)+(bossIncoming?(u.bossIncomingDamagePercent||0):0):0;
-  const adjusted=applyPowerRatio(Math.max(0,Math.floor(amount)+bonus+fixed-(settled?0:u.reduce)),percent);
-  if(!settled)u.reduce=0;
+  const adjusted=fixedDamage?Math.max(0,Math.floor(amount)):
+    applyPowerRatio(Math.max(0,Math.floor(amount)+bonus+fixed-u.reduce),percent);
+  if(!fixedDamage)u.reduce=0;
   const absorbed=piercing?0:gameRemoveShield(u,adjusted);
   let healthDamage=adjusted-absorbed;
-  if(attack&&hostile&&healthDamage>0&&u.afterimage){
+  if(attack&&modified&&healthDamage>0&&u.afterimage){
     const blocked=Math.min(healthDamage,u.afterimage);
     healthDamage-=blocked;
     delete u.afterimage;
     gameLog(b,u.name+' · 잔상으로 피해 '+blocked+' 방어');
   }
-  if(attack&&hostile&&healthDamage>0&&u.deferrals?.length){
+  if(attack&&modified&&healthDamage>0&&u.deferrals?.length){
     const originalDamage=healthDamage;
     for(const {amount,mode,rounds} of u.deferrals){
       const delayed=Math.min(healthDamage,mode==='fixed'?amount:Math.floor(originalDamage*amount/100));
@@ -590,7 +592,7 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,settled=false) 
     }
   }
   let actual=Math.min(u.hp,healthDamage);
-  if(attack&&hostile&&actual===u.hp&&u.lethalGuard){
+  if(attack&&modified&&actual===u.hp&&u.lethalGuard){
     actual=u.hp-Math.min(u.hp,u.lethalGuard);
     u.lethalGuard=0;
     gameLog(b,u.name+' · 치명상 방지');
@@ -1192,14 +1194,17 @@ function gameGrantStacks(b,unit,effect,amount,trait,sourceRuns){
   return count;
 }
 function gameBasicStackDamage(b,unit,when){
+  const labels={physical:'물리 피해',mental:'정신 피해',fixed:'고정 피해',
+    piercing:'방어막 관통 피해',piercingFixed:'방어막 관통 고정 피해'};
   for(const [name,stack] of Object.entries(basicStacks)){
     if(stack.when!==when||!gameAlive(unit)||!unit.stacks[name]||stack.damage==='mental'&&(unit.enemy||unit.collapsed))continue;
     const amount=stackPotency(unit,name);
-    gameLog(b,unit.name+' · '+name+' '+amount+(stack.damage==='mental'?' 정신 피해':stack.damage==='fixed'?' 고정 피해':' 물리 피해'));
+    gameLog(b,unit.name+' · '+name+' '+amount+' '+labels[stack.damage]);
     if(stack.damage==='mental')gameMental(b,unit,-amount);
     else {
-      const fixed=stack.damage==='fixed';
-      gameDamage(b,unit,amount,unit,fixed,false,fixed);
+      const pierce=stack.damage==='piercing'||stack.damage==='piercingFixed';
+      const fixed=stack.damage==='fixed'||stack.damage==='piercingFixed';
+      gameDamage(b,unit,amount,unit,pierce,false,fixed);
     }
   }
 }
@@ -1933,6 +1938,8 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
       case 'drain': gameMental(b,u,-n);break;
       case 'pierce':
       case 'recoil': gameDamage(b,u,n,actor,true);break;
+      case 'fixedDamage':
+      case 'piercingFixedDamage': gameDamage(b,u,n,actor,effect.kind==='piercingFixedDamage',false,true);break;
       case 'stripShield': gameRemoveShield(u,n);break;
       case 'drainLife': if(u!==actor)gameHeal(b,actor,gameDamage(b,u,n,actor));break;
       case 'healPercent': gameHeal(b,u,Math.floor(u.maxHp*n/100));break;

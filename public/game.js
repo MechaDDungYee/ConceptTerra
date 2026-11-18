@@ -284,7 +284,7 @@ const effectFamilies = {
   '체력과 정신력 대가':['healthCost','mindCost','mind','power','allyHeal','rallyHeal','rallyShield','focusClash'],
   '특수 기믹':['delayedStrike','positionAnchor','debtShield','clashMemory','afterimage','overloadEcho','emptyHandReload','clashStreak','shareCopy','hastenStrike','preserveMove','spareShield','revealDistance','lastStand'],
   '피해 증감과 조건부 효과':['outgoingDamage','incomingDamage','doubleEdge','damageDebt','eraseDebt','barrierBurst','shieldBreakDraw'],
-  '공격과 합':['basePower','finalPower','damage','percent','pierce','stripShield','drainLife','recoil','power','focus','weaken','expose','thorns','guardBreak','riposte','shieldPower','gravePower'],
+  '공격과 합':['basePower','finalPower','damage','percent','fixedDamage','pierce','piercingFixedDamage','stripShield','drainLife','recoil','power','focus','weaken','expose','thorns','guardBreak','riposte','shieldPower','gravePower'],
   '방어와 회복':['dodge','stackWard','healCut','hitLeech','shield','reduce','fortify','heal','healPercent','healMissing','regen','clearStatus','temporaryShield','stealShield','shieldGift','allyHeal','lethalGuard','graveToShield'],
   '이동과 위치':['push','pull','move','movement','nextMove','nextSlow','retreat','swapPosition','rootNext','provoke','evadeStep'],
   '중첩과 정신력':['stack','consume','remove','perStack','doubleStack','stealStack','consumeHeal','stackDamage','poison','mind','drain','mindTransfer','cleanseStacks','shieldPerStack','recoverMindFloor','purgePoison','detonatePoison'],

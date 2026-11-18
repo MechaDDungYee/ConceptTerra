@@ -353,9 +353,28 @@ test('built-in stacks cap focus, boost critical damage, and resolve fixed and me
   const self=livingForm(f);
   assert.equal(self.stacks.집중,100);
   assert.equal(livingForm(f,'enemy').hp,34);
-  assert.equal(self.hp,35);
-  assert.equal(self.shield,19);
+  assert.equal(self.hp,40);
+  assert.equal(self.shield,14);
   assert.equal(self.mind,41);
+});
+
+test('fixed and shield piercing damage bypass independent defenses',async()=>{
+  for(const [kind,hp,shield] of [['fixedDamage',50,0],['pierce',53,6],['piercingFixedDamage',44,6]]){
+    const f=await fixture();
+    await f.act('card',{card:{name:kind,power:'0',role:'normal',target:1,range:'1~4',effects:[
+      {kind,when:'use',to:'target',amount:10}
+    ]}});
+    const id=f.state.profile.cards[0].id;
+    await f.act('start',{solo:true,bots:0});
+    configureBattle(f,(b,self)=>{
+      Object.assign(self,{pos:16,hand:[id],mind:50});
+      Object.assign(b.units.enemy,{pos:20,shield:6,reduce:8,incomingDamagePercent:-50});
+    });
+    await f.act('plan',{card:id,targets:['enemy']});
+    await f.act('round');
+    assert.equal(livingForm(f,'enemy').hp,hp,kind);
+    assert.equal(livingForm(f,'enemy').shield,shield,kind);
+  }
 });
 
 test('mental ward effects protect resolve and enemies can strip the protection and combat buffs',async()=>{

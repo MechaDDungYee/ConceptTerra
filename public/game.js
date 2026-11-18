@@ -1,7 +1,7 @@
 import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
 import {gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridCardInRange,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
-import {basicStacks,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,cardUsable,deckSize,deckCopyLimit,cardFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
+import {basicStacks,planningTimings,cardZoneTimings,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
 const code=location.pathname.split('/')[2], endpoint='/api/rooms/'+code+'/game';
 document.querySelector('#back').href='/room/'+code;
@@ -35,7 +35,8 @@ function formFor(action,read){
 }
 function submit(text){return el('button',text,{class:'primary'});}
 async function request(body){
-  const r=await fetch(endpoint+(body?.action==='cardImport'?'?import=1':''),body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const large=['cardImport','passiveImport','characterImport'].includes(body?.action);
+  const r=await fetch(endpoint+(large?'?import=1':''),body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const data=await r.json().catch(()=>({}));
   if(!r.ok)throw Object.assign(new Error(data.error||'세션 연결을 확인하세요.'),{status:r.status});
   return data;
@@ -54,7 +55,7 @@ async function send(action,payload={}){
     }
     if(action==='card'||action==='cardDelete'&&payload.id===edit)edit=null;
     if(action==='cardClone')edit=state.editedCardId;
-    if(['passive','passiveDelete','passiveTake','passiveClone'].includes(action))passiveEdit=null;
+    if(['passive','passiveDelete','passiveTake','passiveClone','passiveImport','characterImport'].includes(action))passiveEdit=null;
 
     if(['plan','start','round','reset'].includes(action))battleDraft=null;
     if(released)battleDraft={...released,key:state.battle.round+':'+state.me+(releasedUnit.collapsed?':collapsed':releasedUnit.zero==='crisis'?':crisis':''),card:released.card||'',discard:released.discard||''};
@@ -147,7 +148,10 @@ function character(){
   const sheet=group(section('캐릭터 시트',form),section('정신력',el('strong',p.mind+' / 100'),note('기본 위력 '+signed(mentalPower(p.mind))),note('전투가 끝나면 정신력이 다음 전투까지 이어집니다.'),button('휴식 · 정신력 +20',()=>send('rest'))));
   const art=characterArt(p);
   art.classList.add('full');
-  sheet.append(characterPassives(p),art);
+  const locked=state.battle?.phase==='planning'&&state.battle.units.some(unit=>unit.id===state.me);
+  const files=section('캐릭터 파일',note('캐릭터 시트, 정신력, 일러스트, 패시브와 참조 카드를 한 파일로 옮길 수 있어요.'),characterFileControls('character',locked));
+  files.classList.add('full');
+  sheet.append(files,characterPassives(p),art);
   return sheet;
 }
 function characterPassives(profile){
@@ -173,10 +177,12 @@ function characterPassives(profile){
     }
     const post=shared.find(entry=>entry.owner===state.me&&entry.passive.id===passive.id);
     card.append(button(post?'공유본 갱신':'이 방에 공유',()=>send('passiveShare',{id:passive.id})));
+    card.append(button('이 패시브 다운로드',()=>downloadCharacterFile('passive',passive.id)));
     saved.append(card);
   }
   if(!list.length)saved.append(note('아직 저장한 패시브가 없어요.'));
-  const root=section('캐릭터 패시브',note('장착한 패시브는 이 방의 전투에서 조건을 충족하면 자동으로 발동해요.'),saved);
+  const root=section('캐릭터 패시브',note('장착한 패시브는 이 방의 전투에서 조건을 충족하면 자동으로 발동해요.'),
+    characterFileControls('passive',locked,!list.length),saved);
   root.classList.add('full','character-passives');
   const gallery=el('div',undefined,{class:'stack'});
   gallery.append(el('h3','방에서 공유한 패시브'));
@@ -274,6 +280,7 @@ function combatStatusLabels(unit){
   return labels;
 }
 const effectFamilies = {
+  '카드 표식':['markCard','clearCardMark'],
   '행동 제어':['extraAction','reduceActions','blockAction','unblockAction','clearActionPenalty','clearActionBonus','clearRoot'],
   '정신력과 붕괴':['mind','drain','mindTransfer','recoverMindFloor','mindRegen','mindBurn','mindGuard','mindRecoveryCut','collapseResist','collapseImmune','clearTemptation'],
   '상태 해제':['clearCollapse','clearAwakening','unblockAction','clearMindBuffs','clearMindDebuffs','purgeDefense','purgeOffense','purgeRegen','clearStatus','cleanseStacks'],
@@ -395,6 +402,7 @@ function effectTiming(effect){
 }
 function effectTimingAllowed(kind,when,scoped,passive,role){
   if(kind==='replaceCard'||when==='replace')return kind==='replaceCard'&&when==='replace'&&!scoped;
+  if(kind==='power'&&(planningTimings.includes(when)||cardZoneTimings.includes(when)))return false;
   if(passive)return passiveEffectKinds.includes(kind)&&passiveTimingsFor(kind).includes(when);
   if(when==='counter'&&role!=='counter')return false;
   if(discardCosts.includes(kind)||resourceCosts.includes(kind))return !scoped&&when==='use';
@@ -553,18 +561,22 @@ function effectRow(row,refresh,scoped,passive,stack){
       amountLabel.hidden=amount.disabled=all;
       if(!total&&Number(amount.value)>maxStatusStacks)amount.value=maxStatusStacks;
     }
+    const beforeUse=planningTimings.includes(when.value)||cardZoneTimings.includes(when.value);
+    if(beforeUse)scale.value='';
     const showScale=!all&&!!scale.value;
-    scaleField.hidden=passive||all||amplify||isCost||unnumberedEffects.includes(row.kind);
+    scaleField.hidden=beforeUse||passive||all||amplify||isCost||unnumberedEffects.includes(row.kind);
     reactionField.hidden=reactionRounds.disabled=passive||scoped||!['struck','hurt'].includes(when.value);
     const dice=Object.hasOwn(diceConditions,condition.value);
     thresholdValue.max=dice?maxDiceTotal:100;
     if(!dice&&Number(thresholdValue.value)>100)thresholdValue.value=100;
     diceHelp.hidden=!dice;
     if(passive&&!replace){
-      const automatic=passiveRoundTimings.includes(when.value);
+      const automatic=passiveRoundTimings.includes(when.value)||cardZoneTimings.includes(when.value);
       for(const option of to.options)option.disabled=when.value==='held'?option.value!=='self':automatic&&['target','primary','secondary'].includes(option.value);
       if(to.selectedOptions[0]?.disabled)to.value='self';
     }
+    if(!passive&&cardZoneTimings.includes(when.value)&&['target','primary','secondary'].includes(to.value))to.value='self';
+    if(!passive)for(const option of to.options)option.disabled=cardZoneTimings.includes(when.value)&&['target','primary','secondary'].includes(option.value);
     const held=when.value==='held';
     limit.disabled=held;
     if(held){limit.value='none';if(condition.value==='cardUsed')condition.value='';}
@@ -574,6 +586,7 @@ function effectRow(row,refresh,scoped,passive,stack){
     ratioBasisField.hidden=ratioBasis.disabled=!customizable||mode.value!=='percent';
     for(const option of ratioBasis.options){
       option.disabled=!!option.value&&(held||!ratioBasisAvailable(option.value,when.value)||
+        beforeUse&&option.value.startsWith('card')||
         passive&&passiveRoundTimings.includes(when.value)&&option.value.startsWith('card'));
     }
     if(ratioBasis.selectedOptions[0]?.disabled)ratioBasis.value='';
@@ -902,6 +915,40 @@ function cardList(label,preview){
   list.addEventListener('scroll',()=>preview.dismiss());
   return list;
 }
+async function downloadCharacterFile(kind,id){
+  try{
+    const data=await request({action:kind+'Export',id});
+    const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+    const name=data.character?.name||data.passives?.[0]?.name||'콘셉트테라';
+    const anchor=el('a',undefined,{href:url,download:name.replace(/[<>:"/\\|?*]/g,'_')+'-'+kind+'.json'});
+    document.body.append(anchor);anchor.click();anchor.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }catch(err){errors.textContent=err.message;}
+}
+function characterFileControls(kind,locked,empty=false){
+  const label=kind==='character'?'캐릭터 전체':'패시브';
+  const actions=el('div',undefined,{class:'row library-file-actions'});
+  const download=button(label+' 다운로드',()=>downloadCharacterFile(kind));
+  download.disabled=empty;
+  const file=input(undefined,'','file',{accept:'.json,application/json',hidden:true});
+  const upload=button(label+' 업로드',()=>file.click());
+  upload.disabled=locked;
+  file.onchange=async()=>{
+    const selected=file.files?.[0];
+    file.value='';
+    if(!selected)return;
+    try{
+      if(selected.size>maxCardFileBytes)throw new Error('파일 크기가 너무 커요.');
+      const data=JSON.parse(await selected.text());
+      if(data?.format!==(kind==='character'?characterFileFormat:passiveFileFormat)||data.version!==1)
+        throw new Error('콘셉트테라 '+label+' JSON 파일을 선택하세요.');
+      if(kind==='character'&&!confirm('이 방의 캐릭터 시트, 일러스트, 패시브를 파일 내용으로 교체할까요?'))return;
+      await send(kind+'Import',{file:data});
+    }catch(err){errors.textContent=err instanceof SyntaxError?'JSON 파일 형식을 확인하세요.':err.message;}
+  };
+  actions.append(file,download,upload);
+  return actions;
+}
 function cardFileControls(cards){
   const actions=el('div',undefined,{class:'row library-file-actions'});
   const download=button('카드 목록 다운로드',()=>{
@@ -1203,7 +1250,8 @@ function cards(){
   };
   const globalEditor=el('section',undefined,{class:'stack full'});
   globalEditor.append(el('h3','카드 스크립트'),
-    note('이벤트 아래에 효과와 제어 블록을 끼워 넣으세요. 모바일에서는 연결 칸을 누른 뒤 도구함의 블록을 누르면 돼요. 연결된 효과가 저장돼요.'),workspace.node);
+    note('이벤트 아래에 효과와 제어 블록을 끼워 넣으세요. 모바일에서는 연결 칸을 누른 뒤 도구함의 블록을 누르면 돼요.'),
+    note('카드 결정 시와 행동 확정 시 효과는 라운드 처리 시작에 실행돼요. 그 전에 예약을 취소하면 발동하지 않아요.'),workspace.node);
   const hitEditor=el('section',undefined,{class:'stack full'});
   hitEditor.append(el('h3','타격'),el('p','각 타격의 위력을 더해 합을 판정해요. 2d+5는 6면체 주사위 2개에 5를 더한다는 뜻이에요.',{id:'power-formula-guide',class:'notice minor'}),hitList,addHit);
   makeCard.append(globalEditor,hitEditor,submit(c.id?'변경한 카드 저장':'카드 완성'));
@@ -1645,6 +1693,7 @@ function battlePanel(){
     if(card.requiredState&&card.requiredState!=='any')label.append(el('small',cardStates[card.requiredState]));
     if(art)label.append(el('img',undefined,{src:art,alt:'',class:'hand-art'}));
     label.append(el('strong',card.name,{class:'compact-card-name'}));
+    if(self.cardMarks?.[card.id])label.append(el('small','피해 표식 '+self.cardMarks[card.id],{class:'tag'}));
     if(card.power)label.append(el('strong',cardHitPowers(card).length>1?cardHitPowers(card).length+'타':card.power,{class:'compact-card-power'}),el('span','사거리 '+gridCardRangeLabel(card)+' · '+(card.role==='guard'?'자동 합':card.role==='counter'?'자동 반격':card.clash&&card.role!=='assist'?'합 가능':'합 불가'),{class:'compact-card-meta'}));
     const direction=index-(selection.length-1)/2;
     label.style.setProperty('--fan-position',String(Math.max(-3,Math.min(3,direction))));

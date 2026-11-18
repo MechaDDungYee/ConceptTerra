@@ -6,6 +6,8 @@ export const hitTargetModes={all:'전부',primary:'주 대상',secondary:'부 �
 export const cardReferenceFields=['copyId','replacementId','givenCardId','conditionCardId'];
 export const newEffects = {
   giveCard:['지정 카드 지급','use','self','지정 카드를 손패에 {n}장 지급'],
+  markCard:['카드에 피해 표식','decide','self','선택한 카드에 피해 표식 {n} 부여 · 해당 카드 사용 시 표식이 터져 사용자에게 피해'],
+  clearCardMark:['카드 표식 해제','confirm','self','선택한 카드의 피해 표식을 해제'],
   replaceCard:['다른 카드로 발동','replace','self','지정한 카드로 발동'],
   blockAction:['행동 불가 부여','hit','target','다음 {n}라운드 동안 이동과 행동 불가'],
   unblockAction:['행동 불가 해제','use','self','현재 행동 불가와 예약된 행동 불가를 해제'],
@@ -291,7 +293,7 @@ export const stagedPowerEffects = ['basePower','finalPower'];
 export const stagedPowerTimings = ['base','battleStart','turnStart','turnEnd','use','clash','unopposed','counter','roll'];
 export const amplifyHitTargets = {next:'다음 타격',last:'마지막 타격',number:'지정 타격',remaining:'이후 모든 타격'};
 export const unnumberedEffects = ['replaceCard','discardAllCost','return','exile','replay','replayHit','unblockAction','clearStatus','topdeck','bottomdeck','rootNext','provoke','cleanseStacks','shuffleDeck','positionAnchor',
-  'clearActionPenalty','clearActionBonus','clearRoot','collapseImmune','clearAwakening','clearMindBuffs','clearMindDebuffs','purgeDefense','purgeOffense','purgeRegen'];
+  'clearActionPenalty','clearActionBonus','clearRoot','collapseImmune','clearAwakening','clearMindBuffs','clearMindDebuffs','purgeDefense','purgeOffense','purgeRegen','clearCardMark'];
 export const effects = {
   draw:'드로우', discard:'손패 버리기', recover:'묘지에서 회수', return:'이 카드 손으로 복귀', exile:'이 카드 전투에서 제외', replay:'즉시 재사용', replayHit:'이 타격 재사용', amplifyHit:'다른 타격 효과 증폭',
   damage:'추가 피해', percent:'기본 피해 비율 추가', heal:'체력 회복', shield:'보호막', reduce:'피해 경감', power:'이번 판정 위력',basePower:'기본 위력 증가',finalPower:'최종 위력 증가',
@@ -303,7 +305,7 @@ export const healthBases = {max:'최대 체력',current:'현재 체력',missing:
 export const healthRatioEffects = Object.keys(ratioEffects).filter(kind=>ratioEffects[kind][2]?.endsWith('최대 체력'));
 export const effectLimitPeriods = {none:'제한 없음',turn:'턴당',battle:'전투당'};
 export const maxEffectActivations = 99;
-export const timings = {held:'보유 시',base:'기본 적용 효과',battleStart:'전투 시작 시',turnStart:'턴 시작 시',turnEnd:'턴 종료 시',replace:'카드 교체 판정 시',use:'사용 시', clash:'합 진행 시', roll:'주사위 판정 시', win:'합 승리 시', lose:'합 패배 시', tie:'합 동점 시', unopposed:'일방공격 시', counter:'반격 발동 시', hit:'적중 시',critical:'치명타 적중 시',noncritical:'치명타 미적중 시', damage:'피해 발생 시', wall:'벽 충돌 시', consume:'중첩 소모 시', attackEnd:'공격 종료 시', struck:'피격 시', hurt:'피격으로 체력 피해를 받을 때', end:'처리 후'};
+export const timings = {held:'보유 시',base:'기본 적용 효과',battleStart:'전투 시작 시',turnStart:'턴 시작 시',turnEnd:'턴 종료 시',cardDrawn:'이 카드가 뽑혔을 시',toGrave:'이 카드가 묘지로 갔을 시',toDeck:'이 카드가 덱으로 갔을 시',toExile:'이 카드가 제외되었을 시',toHand:'이 카드가 손패로 돌아오거나 지급될 시',decide:'카드 결정 시',confirm:'행동 확정 시',replace:'카드 교체 판정 시',use:'사용 시', clash:'합 진행 시', roll:'주사위 판정 시', win:'합 승리 시', lose:'합 패배 시', tie:'합 동점 시', unopposed:'일방공격 시', counter:'반격 발동 시', hit:'적중 시',critical:'치명타 적중 시',noncritical:'치명타 미적중 시', damage:'피해 발생 시', wall:'벽 충돌 시', consume:'중첩 소모 시', attackEnd:'공격 종료 시', struck:'피격 시', hurt:'피격으로 체력 피해를 받을 때', end:'처리 후'};
 export const roles = {normal:'일반', chain:'연계', assist:'원호 공격', guard:'원호 방어', counter:'반격', overload:'혹사'};
 export const maxCardHits = 8;
 export const maxCardEffects = 24;
@@ -311,9 +313,11 @@ export const maxPassives = 8;
 export const maxPassiveEffects = 8;
 export const heldStackEffectKinds = ['critChance','critMultiplier','outgoingDamage','incomingDamage'];
 export const passiveRoundTimings = ['battleStart','turnStart','turnEnd'];
-export const passiveTimings = [...passiveRoundTimings,'use','clash','win','lose','tie','hit','damage','critical','noncritical','attackEnd','struck','hurt'];
+export const planningTimings=['decide','confirm'];
+export const cardZoneTimings=['cardDrawn','toGrave','toDeck','toExile','toHand'];
+export const passiveTimings = [...passiveRoundTimings,...planningTimings,...cardZoneTimings,'use','clash','win','lose','tie','hit','damage','critical','noncritical','attackEnd','struck','hurt'];
 export const passiveEffectKinds = [
-  'replaceCard','giveCard',
+  'replaceCard','giveCard','markCard','clearCardMark',
   'clearActionPenalty','clearActionBonus','clearRoot','collapseResist','collapseImmune','clearCollapse','clearAwakening','clearTemptation',
   'mindGuard','mindRecoveryCut','mindRegen','mindBurn','clearMindBuffs','clearMindDebuffs','purgeDefense','purgeOffense','purgeRegen',
   'power','basePower','finalPower','focus','weaken','shield','reduce','fortify','heal','healPercent','healMissing','regen',
@@ -376,6 +380,8 @@ export const deckSize = 10;
 export const deckCopyLimit = 3;
 
 export const cardFileFormat='conceptterra-card-library';
+export const passiveFileFormat='conceptterra-passives';
+export const characterFileFormat='conceptterra-character';
 export const maxCardFileBytes=1_200_000;
 
 export const maxFlowDepth=4;

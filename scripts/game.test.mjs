@@ -51,6 +51,64 @@ test('a saved collection follows the browser into a new room and the exact deck 
   assert.equal(other.body.profile.deck.length,10);
 });
 
+test('planning events apply once at resolution and a marked card spends its mark on use',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'표식 카드',power:'0',role:'normal',range:'0',target:'self',effects:[
+    {kind:'markCard',when:'decide',to:'self',amount:5},
+    {kind:'shield',when:'confirm',to:'self',amount:2}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{self.hand=[id];b.units.enemy.blockedRounds=1;});
+  await f.act('plan',{card:id,targets:[]});
+  await f.act('unplan');
+  assert.equal(livingForm(f).hp,40);
+  await f.act('plan',{card:id,targets:[]});
+  await f.act('round');
+  assert.equal(livingForm(f).hp,37);
+  assert.equal(livingForm(f).cardMarks[id],undefined);
+});
+
+test('cards trigger their own destination and draw events on real zone entry',async()=>{
+  for(const [effect,zone] of [[null,'toGrave'],['topdeck','toDeck'],['exile','toExile'],['return','toHand']]){
+    const f=await fixture();
+    const effects=[{kind:'mind',when:zone,to:'self',amount:5},{kind:'mind',when:'cardDrawn',to:'self',amount:3}];
+    if(effect)effects.push({kind:effect,when:'end',to:'self',amount:1});
+    await f.act('card',{card:{name:'더미 이동 카드',power:'0',role:'normal',range:'0',target:'self',effects}});
+    const id=f.state.profile.cards[0].id;
+    await f.act('start',{solo:true,bots:0});
+    configureBattle(f,(b,self)=>{
+      Object.assign(self,{hand:[id],deck:['strike','strike','strike',id],mind:50});
+      b.units.enemy.blockedRounds=1;
+    });
+    await f.act('plan',{card:id,targets:[]});
+    await f.act('round');
+    assert.equal(livingForm(f).mind,zone==='toDeck'?61:58,zone);
+  }
+});
+
+test('passive and character files round-trip artwork and remap referenced cards',async()=>{
+  const f=await fixture();
+  await f.act('profile',{name:'승객',country:'제4국',status:'하위층 시민',stats:[50,50,50,50,50,50]});
+  await f.act('art',{slot:'normal.idle',image:'data:image/png;base64,AAAA'});
+  await f.act('card',{card:{name:'참조 카드',power:'0',role:'normal',range:'0',target:'self',effects:[]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('passive',{passive:{name:'카드 지급',effects:[{kind:'giveCard',when:'turnStart',to:'self',amount:1,givenCardId:id}]}});
+  const portable=(await f.send(f.endpoint,{action:'passiveExport'},f.host.cookie)).body;
+  const character=(await f.send(f.endpoint,{action:'characterExport'},f.host.cookie)).body;
+  assert.equal(portable.cards[0].id,id);
+  assert.equal(character.character.art['normal.idle'],'data:image/png;base64,AAAA');
+  await f.act('passiveImport',{file:portable});
+  assert.equal(f.state.profile.passives[1].enabled,false);
+  assert.equal(f.state.profile.passives[1].effects[0].givenCardId,f.state.profile.passiveCards[0].id);
+  assert.notEqual(f.state.profile.passiveCards[0].id,id);
+  await f.act('characterImport',{file:character});
+  assert.equal(f.state.profile.name,'승객');
+  assert.deepEqual(f.state.profile.artSlots,['normal.idle']);
+  assert.equal(f.state.profile.passives.length,1);
+  assert.equal(f.state.profile.passives[0].enabled,true);
+});
+
 test('card start effects trigger once per card type and base effects spend their own cost',async()=>{
   const f=await fixture();
   await f.act('card',{card:{name:'체력 계산',power:'0',role:'normal',target:'self',range:'0',effects:[

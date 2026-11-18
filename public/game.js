@@ -10,6 +10,7 @@ const counterHelp='이번 라운드에 적의 공격을 맞고 살아남으면, 
 const coverHelp='사용 시 원호 방어 +1. 맵에서 아군 한 명을 지정하거나, 대상을 비워 자동 엄호로 확정할 수 있어요.';
 const statNames=['근력','민첩','체력','지능','감각','의지'];
 let state,tab='battle', busy=false, edit=null, passiveEdit=null, draftDirty=false, battleDraft=null;
+const libraryFilters={values:{},effects:new Set(),stacks:new Set()};
 
 function el(tag,value,attrs={}){
   const node=document.createElement(tag);
@@ -844,6 +845,95 @@ function cardFileControls(cards){
   return actions;
 }
 let previewFolded=matchMedia('(max-width: 690px)').matches;
+function cardLibraryFilter(entries){
+  const {values,effects:effectTags,stacks:stackTags}=libraryFilters;
+  const index=entries.map(({card,line})=>{
+    const powers=cardHitPowers(card).map(parsePower);
+    const rows=card.effects||[];
+    const stacks=new Set(rows.flatMap(effectStackNames));
+    const kinds=new Set(rows.map(effect=>effect.kind));
+    return {line,card,powers,range:powers.every(Boolean)?powerBounds(card):null,stacks,kinds,
+      text:[card.name,card.notes,...stacks,...[...kinds].map(kind=>effects[kind])].join(' ').normalize('NFKC').toLocaleLowerCase()};
+  });
+  const controls=[];
+  const search=input(undefined,values.search||'','search',{placeholder:'카드 이름, 설명, 중첩, 효과 검색'});
+  const result=el('output','',{class:'minor','aria-live':'polite'});
+  const root=el('div',undefined,{class:'stack card-library-search'});
+  const advanced=el('details',undefined,{class:'card-library-filters'});
+  advanced.open=!!libraryFilters.open;
+  advanced.ontoggle=()=>{libraryFilters.open=advanced.open;};
+  const grid=el('div',undefined,{class:'card-filter-grid'});
+  const query=key=>values[key]===''||values[key]==null?null:Number(values[key]);
+  const update=()=>{
+    const terms=(values.search||'').normalize('NFKC').toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
+    const min=query('min'),max=query('max'),base=query('base'),dice=query('dice'),faces=query('faces'),offset=query('offset');
+    const reversed=min!=null&&max!=null&&min>max;
+    let visible=0;
+    for(const item of index){
+      const {line,card,powers,range,stacks,kinds,text}=item;
+      const matchesPower=min===null&&max===null||range&&!reversed&&(min===null||range[1]>=min)&&(max===null||range[0]<=max);
+      const matchesDice=dice===null&&faces===null&&offset===null||powers.some(power=>power?.count&&
+        (dice===null||power.count===dice)&&(faces===null||power.sides===faces)&&(offset===null||power.bonus===offset));
+      const match=terms.every(term=>text.includes(term))&&(!values.hits||powers.length===Number(values.hits))&&
+        (!values.role||card.role===values.role)&&matchesPower&&matchesDice&&
+        (base===null||powers.every(Boolean)&&powers.reduce((sum,power)=>sum+power.bonus,0)===base)&&
+        [...effectTags].every(tag=>kinds.has(tag))&&[...stackTags].every(tag=>stacks.has(tag));
+      line.hidden=!match;
+      if(match)visible++;
+    }
+    result.textContent=reversed?'총 위력의 최솟값은 최댓값 이하여야 해요.':visible?
+      visible+' / '+index.length+'장 표시':'조건에 맞는 카드가 없어요.';
+  };
+  const bind=(key,control)=>{
+    controls.push([key,control]);
+    control.addEventListener('input',()=>{values[key]=control.value;update();});
+    return control;
+  };
+  const number=(key,label,min)=>field(label,bind(key,input(undefined,values[key]??'','number',{min,step:1,placeholder:'전체'})));
+  grid.append(
+    field('타수',bind('hits',select(undefined,[['','전체'],...Array.from({length:maxCardHits},(_,i)=>[i+1,(i+1)+'타'])],values.hits||''))),
+    field('카드 종류',bind('role',select(undefined,[['','전체'],...Object.entries(roles)],values.role||''))),
+    number('min','총 위력 범위 · 최솟값',0),number('max','총 위력 범위 · 최댓값',0),
+    number('base','기본 고정 위력 합'),
+    number('dice','한 타격의 주사위 개수',1),number('faces','한 타격의 주사위 면수',2),
+    number('offset','한 타격의 주사위 증감값'));
+  const refreshTags=[];
+  const tags=(label,options,selected)=>{
+    const wrap=el('div',undefined,{class:'stack'});
+    const picker=select(undefined,[],''), chips=el('div',undefined,{class:'row'});
+    const refresh=()=>{
+      picker.replaceChildren(el('option','태그 추가',{value:''}),
+        ...options.filter(([id])=>!selected.has(id)).map(([id,name])=>el('option',name,{value:id})));
+      chips.replaceChildren(...[...selected].map(id=>{
+        const name=options.find(option=>option[0]===id)?.[1]||id;
+        const remove=button(name+' ×',()=>{selected.delete(id);refresh();update();picker.focus();});
+        remove.setAttribute('aria-label',name+' 태그 제거');
+        return remove;
+      }));
+    };
+    picker.onchange=()=>{
+      if(!picker.value)return;
+      selected.add(picker.value);refresh();update();
+    };
+    refreshTags.push(refresh);refresh();
+    wrap.append(field(label,picker),chips);
+    return wrap;
+  };
+  const stackNames=[...new Set(index.flatMap(item=>[...item.stacks]))].sort((a,b)=>a.localeCompare(b,'ko'));
+  const effectKinds=[...new Set(index.flatMap(item=>[...item.kinds]))].sort((a,b)=>(effects[a]||a).localeCompare(effects[b]||b,'ko'));
+  advanced.append(el('summary','상세 필터'),grid,
+    note('총 위력은 전투 보정 전 범위와 겹치는 카드를 찾아요. 기본 고정 위력은 모든 타격의 고정값과 주사위 뒤 증감값을 더한 값이에요.'),
+    tags('중첩 태그',opts(stackNames),stackTags),tags('효과 태그',effectKinds.map(kind=>[kind,effects[kind]||kind]),effectTags));
+  root.append(field('카드 검색',bind('search',search)),advanced,
+    el('div',undefined,{class:'row card-filter-status'}));
+  root.lastChild.append(result,button('검색·필터 초기화',()=>{
+    for(const [key,control] of controls){delete values[key];control.value='';}
+    effectTags.clear();stackTags.clear();refreshTags.forEach(refresh=>refresh());update();
+  }));
+  update();
+  return root;
+}
+
 function cards(){
   const p=state.profile, c=p.cards.find(x=>x.id===edit)||{};
   const role=select('role',Object.entries(roles),c.role||'normal');
@@ -1043,6 +1133,7 @@ function cards(){
   const ownedList=cardList('보관함 카드 목록',cataloguePreview);
   deck.append(ownedList);
   const shares=state.sharedCards||[];
+  const libraryEntries=[];
   for(const card of [...state.defaults,...p.cards]){
     const line=el('div',undefined,{class:'deck-row'});
     const stateLabel=card.requiredState&&card.requiredState!=='any'?' · '+cardStates[card.requiredState]:'';
@@ -1073,6 +1164,7 @@ function cards(){
     if(card.image)line.append(el('img',undefined,{src:card.image,alt:'',class:'picture'}));
     line.append(details,controls);
     ownedList.append(line);
+    libraryEntries.push({card,line});
   }
   deck.addEventListener('change',update);update();deck.append(saveDeck);
   const preview=section('카드 미리보기',live,rangeGuide,rangeHint);
@@ -1089,7 +1181,7 @@ function cards(){
   syncPreview();
   preview.insertBefore(previewToggle,live);
   const editor=section(c.id?'카드 다듬기':'새 카드 만들기',stackManager(),makeCard,...(c.id?[button('새 카드 제작',()=>{edit=null;render();})]:[]));
-  const library=section('카드 보관함 · 전투 덱',note('카드 목록 파일에는 제작 카드와 이미지가 들어가요. 가져온 카드는 보관함에 추가돼요.'),cardFileControls(p.cards),deck);library.classList.add('full');
+  const library=section('카드 보관함 · 전투 덱',note('카드 목록 파일에는 제작 카드와 이미지가 들어가요. 가져온 카드는 보관함에 추가돼요.'),cardFileControls(p.cards),cardLibraryFilter(libraryEntries),deck);library.classList.add('full');
   const shared=section('이 방의 공유 카드');
   shared.classList.add('full');
   if(!shares.length)shared.append(note('아직 공유된 카드가 없어요.'));

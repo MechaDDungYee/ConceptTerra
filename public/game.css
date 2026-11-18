@@ -169,6 +169,12 @@ body:has(.battle-dummy) > main > :is(#error,#feedback):not(:empty){
 .deck-count{color:var(--acid);font-weight:700;font-variant-numeric:tabular-nums}
 .deck-card-text{flex:1;min-width:0;overflow-wrap:anywhere}
 .deck-card-text small{display:block;color:var(--muted)}
+.deck-row[hidden]{display:none}
+.card-library-search{padding:12px;border:1px solid var(--line);border-radius:4px}
+.card-library-filters > :not(summary){margin-top:10px}
+.card-filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));gap:8px}
+.card-library-search input,.card-library-search select{width:100%;min-width:0}
+.card-filter-status{justify-content:space-between}
 .deck-card-controls{flex-wrap:nowrap}
 .deck-row .picture{width:44px;height:44px;object-fit:cover}
 .effect-picker{width:min(620px,calc(100% - 24px));max-height:80dvh;padding:18px;background:#172019;color:var(--ink);border:1px solid #637957;border-radius:12px;overflow:auto}

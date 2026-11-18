@@ -455,13 +455,47 @@ function gameUnit(id,name,pos,cards,bot=false,enemy=false,owned=cards) {
   if(!enemy)gameDraw(unit,4);
   return unit;
 }
-function gameMental(b,u,delta) {
-  if(u.enemy||u.collapsed||!delta)return;
+const gameMindStatus=(b,u,kind)=>u.mindStatuses?.[kind]?.through>=b.round?u.mindStatuses[kind].amount:0;
+const gameMentalPurges={
+  clearMindBuffs:['collapseImmune','mindGuard','mindRegen'],
+  clearMindDebuffs:['mindRecoveryCut','mindBurn'],
+  purgeRegen:['mindRegen']
+};
+const gameBuffPurges={
+  clearActionPenalty:['actionPenalty','nextActionPenalty'],
+  clearActionBonus:['bonusActions','nextActions'],
+  purgeDefense:['dodge','cover','nextShield','temporaryShield','lethalGuard','afterimage','barrierBurst','stackWard','deferrals'],
+  purgeOffense:['critChance','critMultiplier','critCharges','critStacks','nextPower','nextPowerPercent','nextPowerStages',
+    'clashMemory','outgoingDamage','outgoingDamagePercent','bossOutgoingDamage','bossOutgoingDamagePercent','lowRerolls','trueStrike']
+};
+function gameClearCrisis(b,u){
+  if(u.zero&&!b.resolving)delete b.plans?.[u.id];
+  u.zero=null;
+  for(const key of ['zeroRound','collapseRound','crisisVow','crisisProofs','crisisRecoveryBonus','crisisRulesVersion'])delete u[key];
+}
+function gamePreventCollapse(b,u){
+  const immune=gameMindStatus(b,u,'collapseImmune');
+  if(!immune&&!u.collapseResist)return false;
+  if(!immune)u.collapseResist--;
+  u.mind=Math.max(1,u.mind);
+  gameClearCrisis(b,u);
+  gameLog(b,u.name+' · '+(immune?'붕괴 불가':'붕괴 저항')+'로 위기 방지');
+  return true;
+}
+function gameMental(b,u,delta,unmodified=false) {
+  if(u.enemy||u.collapsed||!delta)return 0;
   const old=u.mind;
+  if(!unmodified){
+    const resist=gameMindStatus(b,u,delta<0?'mindGuard':'mindRecoveryCut');
+    delta=Math.sign(delta)*Math.floor(Math.abs(delta)*(100-resist)/100);
+    if(!delta)return 0;
+  }
   u.mind=bounded(old+delta,0,100);
   if(u.mind===0){
-    if(u.temptation&&!u.awakening)gameStartCollapse(b,u);
-    else if(!u.zero){u.zero='pending';gameLog(b,u.name+'의 정신력이 0이 되어 폭주 위기에 놓였습니다.');}
+    if(!gamePreventCollapse(b,u)){
+      if(u.temptation&&!u.awakening)gameStartCollapse(b,u);
+      else if(!u.zero){u.zero='pending';gameLog(b,u.name+'의 정신력이 0이 되어 폭주 위기에 놓였습니다.');}
+    }
   }else{
     if(u.zero==='crisis'){
       if(!b.resolving)delete b.plans[u.id];
@@ -469,9 +503,10 @@ function gameMental(b,u,delta) {
     }
     u.zero=null;delete u.zeroRound;delete u.collapseRound;delete u.crisisVow;delete u.crisisProofs;delete u.crisisRecoveryBonus;
   }
+  return u.mind-old;
 }
 function gameStartCollapse(b,u){
-  if(u.zero==='crisis'||u.collapsed)return;
+  if(u.zero==='crisis'||u.collapsed||u.awakening||gamePreventCollapse(b,u))return;
   if(!b.resolving)delete b.plans[u.id];
   u.zero='crisis';
   u.collapseRound=b.round+crisisRounds-(b.resolving?0:1);
@@ -480,6 +515,7 @@ function gameStartCollapse(b,u){
   gameLog(b,u.name+' · 붕괴 직전. '+u.collapseRound+'라운드 종료 전 탈피하거나 정신력을 회복해야 합니다.');
 }
 function gameConceptualize(b,u){
+  if(gamePreventCollapse(b,u))return;
   u.collapsed=true;
   u.awakening=false;
   u.zero=null;
@@ -1254,7 +1290,7 @@ function gamePayScaleCost(b,ctx,effect){
       ctx.paidHealth+=cost;
       paid=cost;
     }else if(resource==='mind'&&!actor.enemy&&actor.mind>=cost){
-      gameMental(b,actor,-cost);
+      gameMental(b,actor,-cost,true);
       ctx.paidMind+=cost;
       paid=cost;
     }
@@ -1536,6 +1572,58 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
           gameLog(b,u.name+' · 행동 불가 해제');
         }
         break;
+      case 'clearActionPenalty':
+      case 'clearActionBonus':
+      case 'purgeDefense':
+      case 'purgeOffense':
+        for(const key of gameBuffPurges[effect.kind])delete u[key];
+        if(effect.kind==='purgeDefense')u.shield=u.reduce=0;
+        gameLog(b,u.name+' · '+effects[effect.kind]);
+        break;
+      case 'clearRoot':
+        if(u.rooted)u.move=bounded(2+u.nextMove,0,7);
+        u.rooted=false;u.rootNext=false;
+        break;
+      case 'collapseResist':
+        if(!u.enemy)u.collapseResist=Math.min(99,(u.collapseResist||0)+n);
+        break;
+      case 'clearCollapse':
+        if(!u.enemy&&(u.collapsed||u.zero)){
+          u.collapsed=false;
+          u.mind=Math.max(u.mind,Math.min(n,100));
+          gameClearCrisis(b,u);
+          gamePose(b,u,'shift');
+          gameLog(b,u.name+' · 붕괴 해제');
+        }
+        break;
+      case 'clearAwakening':
+        if(u.awakening){
+          u.awakening=false;
+          gamePose(b,u,'shift');
+          gameLog(b,u.name+' · 각성 해제');
+        }
+        break;
+      case 'clearTemptation':
+        u.temptation=Math.max(0,(u.temptation||0)-n);
+        break;
+      case 'collapseImmune':
+      case 'mindGuard':
+      case 'mindRecoveryCut':
+      case 'mindRegen':
+      case 'mindBurn':
+        if(!u.enemy){
+          const statuses=u.mindStatuses??={};
+          statuses[effect.kind]={amount:Math.min(n,100),through:b.round+effect.duration-1};
+        }
+        break;
+      case 'clearMindBuffs':
+      case 'clearMindDebuffs':
+      case 'purgeRegen':
+        for(const key of gameMentalPurges[effect.kind])if(u.mindStatuses)delete u.mindStatuses[key];
+        if(effect.kind==='clearMindBuffs')delete u.collapseResist;
+        if(effect.kind==='purgeRegen')u.regen=0;
+        gameLog(b,u.name+' · '+effects[effect.kind]);
+        break;
       case 'reduceActions':
         u.nextActionPenalty=Math.min(maxActions,(u.nextActionPenalty||0)+n);
         gameLog(b,u.name+' · 다음 턴 행동량 −'+n);
@@ -1608,7 +1696,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
         break;
       case 'mindCost':
         if(!u.enemy&&gameAlive(u)&&u.mind>=n){
-          gameMental(b,u,-n);
+          gameMental(b,u,-n,true);
           ctx.paidMind=n;
           gameLog(b,u.name+' · 대가로 정신력 '+n+' 지불');
         }else gameLog(b,u.name+' · 정신력 대가 미지불');
@@ -1883,7 +1971,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
       case 'mindTransfer': {
         if(u===actor||u.enemy)break;
         const taken=Math.min(n,u.mind,100-actor.mind);
-        gameMental(b,u,-taken);gameMental(b,actor,taken);
+        gameMental(b,actor,Math.max(0,-gameMental(b,u,-taken)));
         break;
       }
       case 'cycle': {
@@ -1935,6 +2023,11 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
 }
 function gameContext(actor,card,targets,moved=0){
   return {actor,card,targets,moved,mod:actor.enemy?0:mentalPower(actor.mind),destination:'grave',replay:false,discarded:0,paidHealth:0,paidMind:0,once:new Set(),effectRecipients:new Map(),scalePayments:new Map()};
+}
+function gameEnemyAction(b,actor,target){
+  const ctx=gameContext(actor,b.intent.card,[target]);
+  gameTriggers(b,ctx,'use',target);
+  return ctx;
 }
 function gameFinishCard(b,ctx){
   gameTriggers(b,ctx,'end',ctx.targets[0]||ctx.actor);
@@ -2235,7 +2328,7 @@ function gameCover(b,attacker,target){
   Object.assign(ctx,charge.powerStages);
   ctx.copyId=charge.copyId;
   gameLog(b,unit.name+' · 원호 방어 1 소모 → '+target.name+' 대신 합');
-  const incoming=gameContext(attacker,b.intent.card,[unit]);
+  const incoming=gameEnemyAction(b,attacker,unit);
   gameClashEffects(b,ctx,incoming);
   const defense=gameActionPower(b,ctx,attacker),attack=gameActionPower(b,incoming,unit);
   gameLog(b,'합 '+unit.name+' '+defense+' : '+attack+' '+attacker.name+' (원호 방어)');
@@ -2302,7 +2395,7 @@ function gamePrepareAction(b,u,plan,moved){
   const replacement=gameReplacement(b,u,original,plan,moved,originalTargets);
   const card=replacement?.card||original;
   const targets=replacement?.targets||originalTargets;
-  if(card.cost){gameMental(b,u,-card.cost);gameLog(b,u.name+' 혹사 · 정신력 -'+card.cost);}
+  if(card.cost){gameMental(b,u,-card.cost,true);gameLog(b,u.name+' 혹사 · 정신력 -'+card.cost);}
   const ctx=gameContext(u,card,targets,moved);
   ctx.waitingPlan=plan;
   waiting?.set(plan,ctx);
@@ -2365,7 +2458,7 @@ function gameResolveWave(b,contexts,countered){
   const duelist=contexts.find(c=>c.clash&&gameAlive(c.actor)&&!['guard','assist','counter'].includes(c.card.role));
   if(!countered&&duelist&&gameEnemyReady(b)){
     b.shock={};
-    const incoming=gameContext(enemy,b.intent.card,[target]);
+    const incoming=gameEnemyAction(b,enemy,target);
     gameClashEffects(b,duelist,incoming);
     const ours=gameActionPower(b,duelist,enemy),theirs=gameActionPower(b,incoming,duelist.actor);
     gameLog(b,'합 '+duelist.actor.name+' '+ours+' : '+theirs+' 집행체');
@@ -2479,7 +2572,7 @@ function gameResolve(b) {
   if(!countered&&gameEnemyReady(b)){
     b.shock={};
     if(!gameCover(b,enemy,target)){
-      const incoming=gameContext(enemy,b.intent.card,[target]);
+      const incoming=gameEnemyAction(b,enemy,target);
       gameUnopposedAttack(b,incoming);
     }
   } else if(!countered&&gameAlive(enemy))gameLog(b,'집행체의 공격이 사거리 또는 대상 조건을 잃었습니다.');
@@ -2540,6 +2633,10 @@ function gameResolve(b) {
     }
   }
   for(const u of party){
+    if(gameAlive(u)){
+      gameMental(b,u,gameMindStatus(b,u,'mindRegen'));
+      gameMental(b,u,-gameMindStatus(b,u,'mindBurn'));
+    }
     if(gameAlive(u)&&!u.awakening&&u.mind>0&&u.mind<=mentalCrisisThreshold&&(u.temptation||0)>=temptationLimit){
       gameMental(b,u,-temptationStrain);
       gameLog(b,u.name+' · 심마의 압박 (정신력 −'+temptationStrain+')');
@@ -2569,6 +2666,9 @@ function gameResolve(b) {
     if(u.lateDraw)u.lateDraw=0;
   }
   for(const unit of Object.values(b.units)){
+    for(const [kind,status] of Object.entries(unit.mindStatuses||{})){
+      if(status.through<=b.round)delete unit.mindStatuses[kind];
+    }
     unit.bonusActions=unit.nextActions||0;
     unit.actionPenalty=unit.nextActionPenalty||0;
     unit.blockedRounds=Math.max(0,(unit.blockedRounds||0)-1,unit.nextBlockedRounds||0);
@@ -2912,7 +3012,7 @@ async function gameApi(db,room,actor,input,artQuery){
         if(!manager)return error('GM 또는 방장만 전투 상태를 조정할 수 있어요.',403);
         const target=b&&Object.hasOwn(b.units,input.target)?b.units[input.target]:null;
         if(!gameActive(b)||!target||target.enemy||target.collapsed||!gameInt(input.mind,-100,100)||!input.mind)gameFail('정신력 조정 값을 확인하세요.');
-        gameMental(b,target,input.mind);
+        gameMental(b,target,input.mind,true);
         gameLog(b,target.name+' · GM 정신력 조정 '+(input.mind>0?'+':'')+input.mind);
         break;
       }

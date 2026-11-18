@@ -8,7 +8,24 @@ export const newEffects = {
   giveCard:['지정 카드 지급','use','self','지정 카드를 손패에 {n}장 지급'],
   replaceCard:['다른 카드로 발동','replace','self','지정한 카드로 발동'],
   blockAction:['행동 불가 부여','hit','target','다음 {n}라운드 동안 이동과 행동 불가'],
-  unblockAction:['행동 불가 제거','use','self','현재 행동 불가와 예약된 행동 불가를 해제'],
+  unblockAction:['행동 불가 해제','use','self','현재 행동 불가와 예약된 행동 불가를 해제'],
+  clearActionPenalty:['행동량 감소 해제','use','self','현재 행동량 감소와 다음 턴 행동량 감소를 해제'],
+  clearActionBonus:['행동량 증가 해제','hit','target','현재 행동량 증가와 다음 턴 행동량 증가를 해제'],
+  clearRoot:['이동 불가 해제','use','self','현재와 예약된 이동 불가를 해제'],
+  collapseResist:['붕괴 저항','use','self','정신력 0 또는 붕괴에 이르는 것을 {n}회 막고 정신력 1을 확보'],
+  collapseImmune:['붕괴 불가','use','self','지정 라운드 동안 정신력 0과 붕괴를 막음'],
+  clearCollapse:['붕괴 해제','use','self','붕괴·붕괴 직전·폭주를 해제하고 정신력을 최소 {n}까지 회복'],
+  clearAwakening:['각성 해제','hit','target','각성과 각성 위력 보정을 해제'],
+  clearTemptation:['유혹 감소','use','self','유혹을 최대 {n} 감소'],
+  mindGuard:['정신 피해 저항','use','self','지정 라운드 동안 대가를 제외한 정신 피해를 {n}% 경감'],
+  mindRecoveryCut:['정신 회복 감소','hit','target','지정 라운드 동안 받는 정신력 회복을 {n}% 경감'],
+  mindRegen:['지속 정신 회복','use','self','지정 라운드 동안 턴 종료마다 정신력 {n} 회복'],
+  mindBurn:['지속 정신 피해','hit','target','지정 라운드 동안 턴 종료마다 정신 피해 {n}'],
+  clearMindBuffs:['정신 보호 효과 해제','hit','target','붕괴 저항·붕괴 불가·정신 피해 저항·지속 정신 회복을 해제'],
+  clearMindDebuffs:['정신 약화 효과 해제','use','self','지속 정신 피해와 정신 회복 감소를 해제'],
+  purgeDefense:['방어 효과 해제','hit','target','보호막·피해 경감·회피·원호 방어와 예약 보호막을 해제'],
+  purgeOffense:['공격 강화 해제','hit','target','치명타·추가 판정 위력·주는 피해 보정·회피 무효화·재굴림을 해제'],
+  purgeRegen:['지속 회복 해제','hit','target','지속 체력 회복과 지속 정신 회복을 해제'],
   reduceActions:['다음 턴 행동량 감소','hit','target','다음 턴에 사용할 수 있는 카드 수 −{n}'],
   extraAction:['다음 턴 행동량 증가','use','self','다음 턴에 사용할 수 있는 카드 수 +{n}'],
   dodge:['타격 회피','use','self','이번 라운드 적 공격의 다음 {n}타를 회피 · 해당 타격의 적중 효과도 막음'],
@@ -145,6 +162,8 @@ export const awakeningPower = 2;
 export const crisisRecovery = 25;
 export const effectSettings = {
   healCut:{duration:['지속 라운드 (이번 라운드 포함)',2,1,10]},
+  ...Object.fromEntries(['collapseImmune','mindGuard','mindRecoveryCut','mindRegen','mindBurn'].map(kind=>
+    [kind,{duration:['지속 라운드 (이번 라운드 포함)',2,1,10]}])),
   hearDemon:{powerGain:['이번 판정 위력 증가량',4,1,100]},
   refuseDemon:{perStack:['유혹 1당 정신력 회복',3,1,100]},
   detonatePoison:{conversion:['소모량 대비 피해 (%)',200,1,1000]},
@@ -254,13 +273,14 @@ export const copyEffects = ['copySelf','copyFixed','copyChosen'];
 export const stagedPowerEffects = ['basePower','finalPower'];
 export const stagedPowerTimings = ['base','battleStart','turnStart','turnEnd','use','clash','unopposed','counter','roll'];
 export const amplifyHitTargets = {next:'다음 타격',last:'마지막 타격',number:'지정 타격',remaining:'이후 모든 타격'};
-export const unnumberedEffects = ['replaceCard','discardAllCost','return','exile','replay','replayHit','unblockAction','clearStatus','topdeck','bottomdeck','rootNext','provoke','cleanseStacks','shuffleDeck','positionAnchor'];
+export const unnumberedEffects = ['replaceCard','discardAllCost','return','exile','replay','replayHit','unblockAction','clearStatus','topdeck','bottomdeck','rootNext','provoke','cleanseStacks','shuffleDeck','positionAnchor',
+  'clearActionPenalty','clearActionBonus','clearRoot','collapseImmune','clearAwakening','clearMindBuffs','clearMindDebuffs','purgeDefense','purgeOffense','purgeRegen'];
 export const effects = {
   draw:'드로우', discard:'손패 버리기', recover:'묘지에서 회수', return:'이 카드 손으로 복귀', exile:'이 카드 전투에서 제외', replay:'즉시 재사용', replayHit:'이 타격 재사용', amplifyHit:'다른 타격 효과 증폭',
   damage:'추가 피해', percent:'기본 피해 비율 추가', heal:'체력 회복', shield:'보호막', reduce:'피해 경감', power:'이번 판정 위력',basePower:'기본 위력 증가',finalPower:'최종 위력 증가',
   move:'즉시 이동', movement:'이번 라운드 이동 수', nextMove:'다음 라운드 이동 수', push:'넉백', pull:'끌어오기',
   ...Object.fromEntries(Object.entries(newEffects).map(([kind,[name]])=>[kind,name])),
-  stack:'중첩 부여', consume:'중첩 소모', remove:'중첩 제거', perStack:'소모한 중첩당 피해', mind:'정신력 회복', drain:'정신력 감소'
+  stack:'중첩 부여', consume:'중첩 소모', remove:'중첩 제거', perStack:'소모한 중첩당 피해', mind:'정신력 회복', drain:'정신 피해'
 };
 export const healthBases = {max:'최대 체력',current:'현재 체력',missing:'잃은 체력'};
 export const healthRatioEffects = Object.keys(ratioEffects).filter(kind=>ratioEffects[kind][2]?.endsWith('최대 체력'));
@@ -277,6 +297,8 @@ export const passiveRoundTimings = ['battleStart','turnStart','turnEnd'];
 export const passiveTimings = [...passiveRoundTimings,'use','clash','win','lose','tie','hit','damage','critical','noncritical','attackEnd','struck','hurt'];
 export const passiveEffectKinds = [
   'replaceCard','giveCard',
+  'clearActionPenalty','clearActionBonus','clearRoot','collapseResist','collapseImmune','clearCollapse','clearAwakening','clearTemptation',
+  'mindGuard','mindRecoveryCut','mindRegen','mindBurn','clearMindBuffs','clearMindDebuffs','purgeDefense','purgeOffense','purgeRegen',
   'power','basePower','finalPower','focus','weaken','shield','reduce','fortify','heal','healPercent','healMissing','regen',
   'clearStatus','temporaryShield','stealShield','shieldGift','allyHeal','lethalGuard','healCut','dodge','trueStrike','stackWard',
   'rerollLow','hitLeech','damage','bossDamage','pierce','drainLife','stack','consume','remove','doubleStack','stealStack',

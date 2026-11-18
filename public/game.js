@@ -255,6 +255,11 @@ function stackLabels(unit){
 }
 function combatStatusLabels(unit){
   const labels=[];
+  if(unit.collapseResist)labels.push('붕괴 저항 '+unit.collapseResist+'회');
+  for(const [kind,{amount,through}] of Object.entries(unit.mindStatuses||{})){
+    const suffix=kind==='collapseImmune'?'':kind==='mindGuard'||kind==='mindRecoveryCut'?' '+amount+'%':' '+amount;
+    labels.push(effects[kind]+suffix+' · '+through+'라운드까지');
+  }
   if(unit.critChance||unit.critStacks)labels.push('치명타 확률 '+Math.max(0,Math.min(100,(unit.critChance||0)+(unit.critStacks||0)*5))+'%');
   if(unit.critStacks)labels.push('치명타 중첩 '+unit.critStacks);
   if(unit.critCharges)labels.push('확정 치명타 '+unit.critCharges+'타');
@@ -267,7 +272,9 @@ function combatStatusLabels(unit){
   return labels;
 }
 const effectFamilies = {
-  '행동 제어':['extraAction','reduceActions','blockAction','unblockAction'],
+  '행동 제어':['extraAction','reduceActions','blockAction','unblockAction','clearActionPenalty','clearActionBonus','clearRoot'],
+  '정신력과 붕괴':['mind','drain','mindTransfer','recoverMindFloor','mindRegen','mindBurn','mindGuard','mindRecoveryCut','collapseResist','collapseImmune','clearTemptation'],
+  '상태 해제':['clearCollapse','clearAwakening','unblockAction','clearMindBuffs','clearMindDebuffs','purgeDefense','purgeOffense','purgeRegen','clearStatus','cleanseStacks'],
   '강적':['bossDamage','bossOutgoingDamage','bossIncomingDamage'],
   '타격':['amplifyHit','replayHit','trueStrike','rerollLow'],
   '심마와 탈피':['hearDemon','refuseDemon','shedShell','awakenBody','inscribeMeaning'],
@@ -310,7 +317,7 @@ function effectSentence(e,extra=[]){
     damage:`${target}에게 추가 피해 ${number}`,percent:`기본 피해의 ${number}%를 추가로 가한다`,
     perStack:`소모한 중첩의 총 위력 1당 피해 ${number}`,heal:`${target}의 체력 ${number} 회복`,
     shield:`${target}에게 보호막 ${number}`,mind:`${target}의 정신력 ${number} 회복`,
-    drain:`${target}의 정신력 ${number} 감소`,return:'이 카드를 손으로 가져온다',exile:'이 카드를 전투에서 제외',replay:'이 카드를 한 번 더 사용',replayHit:'이 타격만 한 번 더 사용'
+    drain:`${target}에게 정신 피해 ${number}`,return:'이 카드를 손으로 가져온다',exile:'이 카드를 전투에서 제외',replay:'이 카드를 한 번 더 사용',replayHit:'이 타격만 한 번 더 사용'
   };
   const added=newEffects[e.kind]?.[3].replace('{n}',String((signedEffects.includes(e.kind)||ratioEffects[e.kind]?.[1]===0)?signedAmount(number):number)).replace('지정 중첩',e.tag||'지정 중첩');
   const fixed=e.kind==='copyFixed'?effectCards(extra).find(c=>c.id===e.copyId)?.name:null;
@@ -370,7 +377,7 @@ function readEffect(row){
   const controls=[...row.querySelectorAll('[name]'),...(row.amountPart?.querySelectorAll('[name]')||[])];
   const {scaleBy,scaleCostMode,scaleCostAmount,scaleHealthBasis,limitPeriod,limitCount,...effect}=Object.fromEntries(controls.map(x=>[x.name,x.type==='number'?Number(x.value):x.value]));
   const all=effect.kind==='consume'&&effect.consumeAmount==='all';
-  if(all)effect.amount=1;
+  if(all||unnumberedEffects.includes(effect.kind))effect.amount=1;
   if(!effect.ratioBasis||effect.amountMode!=='percent')delete effect.ratioBasis;
   if(!effect.dotRounds)delete effect.dotRounds;
   for(const key of ['stackCap','stackPower','stackPowerCap'])if(!effect[key])delete effect[key];

@@ -334,6 +334,68 @@ test('custom stack effects follow the holder, scale by count, and grant held cri
   assert.equal(livingForm(f).shield,1);
 });
 
+test('mental ward effects protect resolve and enemies can strip the protection and combat buffs',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'정신 방벽',power:'0',role:'normal',target:'self',range:'0',effects:[
+    {kind:'collapseResist',when:'use',to:'self',amount:1},
+    {kind:'collapseImmune',when:'use',to:'self',amount:1,duration:2},
+    {kind:'mindGuard',when:'use',to:'self',amount:50,duration:2},
+    {kind:'mindRegen',when:'use',to:'self',amount:3,duration:2},
+    {kind:'drain',when:'use',to:'self',amount:40},
+    {kind:'shield',when:'use',to:'self',amount:4},
+    {kind:'critCharges',when:'use',to:'self',amount:1}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[id],mind:10});
+    b.units.enemy.pos=20;
+    b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'1'}};
+  });
+  await f.act('plan',{card:id,targets:[]});
+  await f.act('round');
+  assert.equal(livingForm(f).mind,4);
+  assert.equal(livingForm(f).collapseResist,1);
+  assert.equal(livingForm(f).zero,null);
+  configureBattle(f,(b,self)=>{
+    b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'1',effects:
+      ['clearMindBuffs','purgeDefense','purgeOffense'].map(kind=>({kind,when:'use',to:'target',amount:1}))}};
+  });
+  await f.act('plan',{pos:16});
+  await f.act('round');
+  assert.equal(livingForm(f).mind,4);
+  assert.equal(livingForm(f).shield,0);
+  assert.equal(livingForm(f).critCharges,undefined);
+  assert.equal(livingForm(f).collapseResist,undefined);
+});
+
+test('round effects can remove existing collapse, awakening, and current or queued action locks',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'상태 해제',power:'0',role:'normal',target:'self',range:'0',effects:[
+    {kind:'clearCollapse',when:'turnEnd',to:'self',amount:25},
+    {kind:'clearAwakening',when:'turnEnd',to:'self',amount:1},
+    {kind:'unblockAction',when:'turnEnd',to:'self',amount:1}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('deck',{cards:[id,'strike','strike','guard','guard','hold','hold','shot','shot','rush']});
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{mind:0,zero:'crisis',crisisRulesVersion:1,collapseRound:b.round,blockedRounds:2,nextBlockedRounds:2});
+    b.intent.reachable=false;
+  });
+  await f.act('round');
+  assert.equal(livingForm(f).mind,25);
+  assert.equal(livingForm(f).zero,null);
+  assert.equal(livingForm(f).actionLimit,1);
+  configureBattle(f,(b,self)=>{
+    self.awakening=true;
+    b.intent.reachable=false;
+  });
+  await f.act('plan',{pos:livingForm(f).pos});
+  await f.act('round');
+  assert.equal(livingForm(f).awakening,false);
+});
+
 test('unstoppable uses the modified minimum for each hit after losing a clash',async()=>{
   const f=await fixture();
   await f.act('card',{card:{name:'저지불가 시험',hitPowers:['1d+2','2d+1'],role:'normal',target:1,range:'1~4',clash:true,unstoppable:true,effects:[

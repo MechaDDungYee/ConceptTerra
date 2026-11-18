@@ -545,6 +545,7 @@ function gameStartCollapse(b,u){
 }
 function gameConceptualize(b,u){
   if(gamePreventCollapse(b,u))return;
+  gamePose(b,u,'idle');
   u.collapsed=true;
   u.awakening=false;
   u.zero=null;
@@ -554,9 +555,11 @@ function gameConceptualize(b,u){
   delete u.crisisVow;
   delete u.crisisRecoveryBonus;
   gamePose(b,u,'shift');
+  gamePose(b,u,'idle');
   gameLog(b,u.name+' · 붕괴해 개념화. 붕괴 카드의 표적을 자동 지정합니다.');
 }
 function gameAwaken(b,u,recovery){
+  gamePose(b,u,'idle');
   u.awakening=true;
   u.temptation=0;
   u.zero=null;
@@ -564,6 +567,7 @@ function gameAwaken(b,u,recovery){
   delete u.zeroRound;
   gameMental(b,u,recovery+(u.crisisRecoveryBonus||0));
   gamePose(b,u,'shift');
+  gamePose(b,u,'idle');
   delete u.crisisVow;delete u.crisisProofs;delete u.crisisRecoveryBonus;
   gameLog(b,u.name+' · 탈피해 각성 (전투 중 판정 위력 +'+awakeningPower+')');
 }
@@ -2191,6 +2195,8 @@ function gameCardReactions(b,unit,when,attacker,event){
   }
 }
 function gameClashEffects(b,left,right){
+  gamePose(b,left.actor,'clash');
+  gamePose(b,right.actor,'clash');
   for(const [ctx,opponent] of [[left,right.actor],[right,left.actor]]){
     gameTriggers(b,ctx,'clash',opponent);
     gamePassives(b,ctx.actor,'clash',opponent,ctx);

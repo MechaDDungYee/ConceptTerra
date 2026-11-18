@@ -410,6 +410,7 @@ test('unopposed effects precede power and damage and only fire if the attack has
     await f.act('plan',{card:card.id,targets:target===1?['enemy']:[],clash});
     await f.act('round');
     assert.equal(livingForm(f,'enemy').hp,54-damage,JSON.stringify(scenario));
+    assert.equal(f.state.battle.poses.filter(p=>p.pose==='clash').length,clash?2:0);
     assert.equal(livingForm(f).shield,!clash&&target===1?3:0,JSON.stringify(scenario));
   }
 });
@@ -1407,7 +1408,7 @@ test('awakening requires three consecutive rounds of the same vow and rejects fo
   assert.equal(livingForm(f).awakening,true);
   assert.equal(livingForm(f).mind,25);
   assert.equal(livingForm(f).zero,null);
-  assert.ok(f.state.battle.poses.some(p=>p.pose==='shift'));
+  assert.ok(f.state.battle.poses.some(p=>p.pose==='shift'&&p.form==='awakened'));
   configure();
   assert.equal((await attempt(collapsed.id)).status,400);
   await f.act('plan',{card:awakened.id,pos:16,targets:['enemy']});
@@ -1512,6 +1513,9 @@ test('character pose art is saved separately from the game view and requires roo
   await f.act('art',{slot,image:''});
   assert.deepEqual(f.state.profile.artSlots,[]);
   assert.equal((await read(f.host.cookie)).status,404);
+  const variants=['concept.clash','awakened.clash','concept.shift','awakened.shift'];
+  for(const slot of variants)await f.act('art',{slot,image});
+  assert.deepEqual(f.state.profile.artSlots,variants);
 });
 
 test('custom grid offsets gate targeting and hit effects use the saved power and amplification stages',async()=>{

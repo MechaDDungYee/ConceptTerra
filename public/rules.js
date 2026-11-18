@@ -365,8 +365,11 @@ export const crisisVowRules = {
   advance:'직접 2칸 이상 이동하고 공격으로 적의 체력 깎기',
   precision:'치명타로 적의 체력 깎기'
 };
-export const artForms = {normal:'기본',crisis:'붕괴 직전',awakened:'각성',concept:'개념화'};
-export const artPoses = {idle:'기본 스탠딩',ready:'공격 준비',attack:'공격',hurt:'피격',guard:'방어·원호',down:'전투 불능',shift:'변화 연출'};
+export const artForms = {normal:'기본',crisis:'붕괴 직전',concept:'붕괴',awakened:'각성'};
+export const artPoses = {idle:'스탠딩',ready:'공격 준비',attack:'공격',hurt:'피격',guard:'방어',down:'전투 불능',clash:'합',shift:'변화 연출'};
+export const artPoseLabel=(form,pose)=>pose==='shift'?
+  ({concept:'기본 → 붕괴 변화 연출',awakened:'기본 → 각성 변화 연출',normal:'기본 형태로 복귀 연출',crisis:'붕괴 직전 변화 연출'}[form]||artPoses.shift):
+  artPoses[pose];
 export function cardUsable(unit,card){
   if(!card)return false;
   if(card.trial)return unit.zero==='crisis'&&!unit.collapsed;

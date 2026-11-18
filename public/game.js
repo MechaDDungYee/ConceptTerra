@@ -2,7 +2,7 @@ import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
 import {accountPanel} from './account.js';
 import {gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridCardInRange,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
-import {basicStacks,planningTimings,cardZoneTimings,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
+import {basicStacks,planningTimings,cardZoneTimings,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
 const studio=location.pathname==='/studio';
 const code=location.pathname.split('/')[2], endpoint=studio?'/api/studio':'/api/rooms/'+code+'/game';
@@ -245,7 +245,7 @@ function artUrl(unitId,slot,version){
 function characterArt(profile){
   const locked=state.battle?.phase==='planning'&&state.battle.units.some(unit=>unit.id===state.me);
   const form=select('artForm',Object.entries(artForms),artForm);
-  const pose=select('artPose',Object.entries(artPoses),artPose);
+  const pose=select('artPose',Object.keys(artPoses).map(key=>[key,artPoseLabel(artForm,key)]),artPose);
   const file=input('artImage','','file',{accept:'image/png,image/jpeg,image/webp',disabled:locked});
   const preview=el('div',undefined,{class:'character-art-preview'});
   const registered=el('p');
@@ -256,9 +256,11 @@ function characterArt(profile){
   const remove=button('이 슬롯 삭제',()=>send('art',{slot:form.value+'.'+pose.value,image:''}));
   const update=()=>{
     artForm=form.value;artPose=pose.value;
+    for(const option of pose.options)option.textContent=artPoseLabel(artForm,option.value);
     const slot=artForm+'.'+artPose,present=profile.artSlots?.includes(slot);
-    registered.textContent=artForms[artForm]+' · '+artPoses[artPose]+(present?' 등록됨':' 미등록');
-    preview.replaceChildren(present?el('img',undefined,{src:artUrl(state.me,slot,profile.artVersion),alt:artPoses[artPose]}):note('일러스트를 등록하면 여기에 표시돼요.'));
+    const poseLabel=artPoseLabel(artForm,artPose);
+    registered.textContent=artForms[artForm]+' · '+poseLabel+(present?' 등록됨':' 미등록');
+    preview.replaceChildren(present?el('img',undefined,{src:artUrl(state.me,slot,profile.artVersion),alt:poseLabel}):note('일러스트를 등록하면 여기에 표시돼요.'));
     remove.disabled=locked||!present;
     save.disabled=locked||!file.files.length;
   };
@@ -266,7 +268,7 @@ function characterArt(profile){
   file.onchange=()=>{save.disabled=!file.files.length;};
   update();
   const actions=el('div',undefined,{class:'row'});actions.append(save,remove);
-  return section('캐릭터 일러스트',note('형태와 자세를 골라 개별 등록하세요. 비어 있는 자세는 같은 형태의 스탠딩, 그다음 기본 일러스트를 사용해요.'),
+  return section('캐릭터 일러스트',note('형태별로 자세를 등록하세요. 붕괴·각성 변화 연출은 전환되는 형태의 변화 연출 칸에 등록해요. 미등록 자세는 같은 형태의 스탠딩이나 기본 일러스트를 사용해요.'),
     field('형태',form),field('자세',pose),registered,preview,field('PNG, JPEG, WebP',file),actions,
     ...(locked?[note('일러스트는 전투가 끝난 후에 변경할 수 있어요.')]:[]));
 }
@@ -1437,7 +1439,9 @@ function battleDialog(title,content){
   return dialog;
 }
 function battleArt(unit,pose,form=unit.collapsed?'concept':unit.zero==='crisis'?'crisis':unit.awakening?'awakened':'normal'){
-  const slot=[form+'.'+pose,form+'.idle','normal.'+pose,'normal.idle'].find(key=>unit.artSlots?.includes(key));
+  const fallback=pose==='shift'?[]:pose==='clash'?[form+'.ready',form+'.idle','normal.clash','normal.ready']:
+    [form+'.idle','normal.'+pose];
+  const slot=[form+'.'+pose,...fallback,form+'.idle','normal.idle'].find(key=>unit.artSlots?.includes(key));
   const sprite=Object.hasOwn(battleSprites,unit.name)?battleSprites[unit.name]:null;
   return slot?artUrl(unit.id,slot,unit.artVersion):sprite?'/battle-art/unit-'+sprite+'.png':null;
 }
@@ -1644,8 +1648,9 @@ function battlePanel(){
       let index=0;
       const show=()=>{
         const {src,unit,event}=frames[index];
-        visual.replaceChildren(el('img',undefined,{src,alt:unit.name+' '+artPoses[event.pose]}));
-        caption.textContent=(index+1)+'/'+frames.length+' · '+unit.name+' · '+artForms[event.form]+' · '+artPoses[event.pose];
+        const label=artPoseLabel(event.form,event.pose);
+        visual.replaceChildren(el('img',undefined,{src,alt:unit.name+' '+label}));
+        caption.textContent=(index+1)+'/'+frames.length+' · '+unit.name+' · '+artForms[event.form]+' · '+label;
       };
       content.append(visual,caption,button('다음 자세',()=>{index=(index+1)%frames.length;show();}));
       const replay=battleDialog('지난 라운드 연출',content);

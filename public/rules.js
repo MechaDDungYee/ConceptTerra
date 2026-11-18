@@ -250,6 +250,17 @@ export const effectConditions = {
 };
 export const flagConditions = ['primaryTarget','secondaryTarget','cardUsed','bossTarget','bossPresent','allyHit','criticalHit','healthPaid','mindPaid','bothPaid','discardPaid','targeted','notTargeted','priorOverload','priorGuard','awakeningAtLeast','collapseCrisis','queuedStrike','foeDown','poisoned','brokeShield','hasDebt','shielded','unshielded','noMove'];
 export const maxStatusStacks = 999;
+export const basicStacks = {
+  '침식':{when:'turnEnd',damage:'physical',description:'턴 종료마다 총 중첩 위력만큼 물리 피해를 받습니다.'},
+  '심상 균열':{when:'turnEnd',damage:'mental',description:'턴 종료마다 총 중첩 위력만큼 정신 피해를 받습니다.'},
+  '골절':{when:'struck',damage:'physical',description:'적의 타격에 맞을 때마다 총 중첩 위력만큼 추가 물리 피해를 받습니다.'},
+  '신경 과민':{when:'struck',damage:'mental',description:'적의 타격에 맞을 때마다 총 중첩 위력만큼 정신 피해를 받습니다.'},
+  '잔류 손상':{when:'turnEnd',damage:'fixed',description:'턴 종료마다 총 중첩 위력만큼 보호막과 피해 경감을 무시하는 고정 체력 피해를 받습니다.'},
+  '충격 균열':{when:'struck',damage:'fixed',description:'적의 타격에 맞을 때마다 총 중첩 위력만큼 보호막과 피해 경감을 무시하는 고정 체력 피해를 받습니다.'},
+  '집중':{cap:100,description:'보유 중첩 1개당 치명타 확률이 1%p 증가합니다. 최대 100중첩.'},
+  '강타':{description:'보유 중첩 1개당 치명타 피해율이 1%p 증가합니다.'}
+};
+export const legacyCriticalStackEffects=['critStacks','critSpend','critRemove','critPerSpent'];
 export const maxStackPotency = 999;
 export function stackPotency(unit,tag){
   return unit.stackRuns?.[tag]?.reduce((total,{count,power})=>total+count*power,0)??(unit.stacks[tag]||0);

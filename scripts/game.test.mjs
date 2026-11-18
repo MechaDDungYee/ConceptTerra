@@ -334,6 +334,30 @@ test('custom stack effects follow the holder, scale by count, and grant held cri
   assert.equal(livingForm(f).shield,1);
 });
 
+test('built-in stacks cap focus, boost critical damage, and resolve fixed and mental damage',async()=>{
+  const f=await fixture();
+  const grant=(tag,amount)=>({kind:'stack',when:'use',to:'self',tag,amount});
+  await f.act('card',{card:{name:'기본 중첩 시험',power:'10',role:'normal',target:1,range:'1~4',effects:[
+    grant('집중',100),grant('집중',20),grant('강타',50),grant('충격 균열',3),
+    grant('잔류 손상',2),grant('신경 과민',4),grant('심상 균열',5)
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[id],mind:50,shield:20});
+    b.units.enemy.pos=20;
+    b.intent={...b.intent,target:self.id,reachable:true,card:{...b.intent.card,power:'1'}};
+  });
+  await f.act('plan',{card:id,targets:['enemy']});
+  await f.act('round');
+  const self=livingForm(f);
+  assert.equal(self.stacks.집중,100);
+  assert.equal(livingForm(f,'enemy').hp,34);
+  assert.equal(self.hp,35);
+  assert.equal(self.shield,19);
+  assert.equal(self.mind,41);
+});
+
 test('mental ward effects protect resolve and enemies can strip the protection and combat buffs',async()=>{
   const f=await fixture();
   await f.act('card',{card:{name:'정신 방벽',power:'0',role:'normal',target:'self',range:'0',effects:[

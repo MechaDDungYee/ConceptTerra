@@ -161,8 +161,8 @@ export const configurableRatioEffects = [
   'bossOutgoingDamage','bossIncomingDamage','stripShield','stealShield','shieldGift'
 ];
 export const stackGainLimits={
-  stackGainCount:['획득 횟수 · 1회당','count','gain'],stackTurnCount:['획득 횟수 · 턴당','count','turn'],stackBattleCount:['획득 횟수 · 전투당','count','battle'],
-  stackGainPower:['획득 위력 합계 · 1회당','power','gain'],stackTurnPower:['획득 위력 합계 · 턴당','power','turn'],stackBattlePower:['획득 위력 합계 · 전투당','power','battle']
+  stackGainPower:['획득 위력 합계 · 1회당','power','gain'],stackTurnPower:['획득 위력 합계 · 턴당','power','turn'],stackBattlePower:['획득 위력 합계 · 전투당','power','battle'],
+  stackGainCount:['획득 횟수 · 1회당','count','gain'],stackTurnCount:['획득 횟수 · 턴당','count','turn'],stackBattleCount:['획득 횟수 · 전투당','count','battle']
 };
 export const stackGainLimitMax=key=>stackGainLimits[key][1]==='count'?maxStatusStacks:maxStatusStacks*maxStackPotency;
 export function effectNumberBounds(kind,key,hitIndex=0,hitCount=8,dice=false){

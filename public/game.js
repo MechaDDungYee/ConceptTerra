@@ -127,7 +127,7 @@ function fillStackTraitSelect(control){
 }
 function stackGainFields(values={}){
   const limits=el('details',undefined,{class:'stack-gain-limits'});
-  limits.append(el('summary','중첩 획득 한도'),note('횟수와 총 위력을 따로 제한해요. 빈 칸은 제한 없음을 뜻해요.'));
+  limits.append(el('summary','중첩 획득 한도'),note('총 위력과 횟수를 따로 제한해요. 빈 칸은 제한 없음을 뜻해요.'));
   for(const [key,[label]] of Object.entries(stackGainLimits)){
     limits.append(field(label,input(key,values[key]??'','number',{min:1,max:stackGainLimitMax(key),placeholder:'제한 없음'})));
   }
@@ -164,8 +164,8 @@ function stackManager(){
     traitForm.append(
       note('‘보유 시’ 효과는 중첩이 있는 동안 적용되고, 중첩이 사라지면 해제돼요. 설정은 다음 전투부터 반영돼요.'),
       field('중첩 플레이버 텍스트',flavor),
-      field('최대 보유 횟수',holdCount),field('최대 보유 위력 합계',holdPower),
-      note('보유 중인 중첩의 횟수와 위력 합계를 제한해요. 소모하면 보유 한도에 다시 여유가 생겨요.'),
+      field('최대 보유 위력 합계',holdPower),field('최대 보유 횟수',holdCount),
+      note('보유 중인 중첩의 위력 합계와 횟수를 제한해요. 소모하면 보유 한도에 다시 여유가 생겨요.'),
       limits,workspace.node,submit('중첩 저장'));
     traitForm.onsubmit=async event=>{
       event.preventDefault();
@@ -324,7 +324,7 @@ function signed(n){return n>=0?'+'+n:String(n);}
 function stackLabels(unit){
   return Object.entries(unit.stacks).filter(([,count])=>count>0).map(([tag,count])=>{
     const power=stackPotency(unit,tag);
-    return tag+' '+count+'회 · 총 위력 '+power;
+    return tag+' · 총 위력 '+power+' · '+count+'회';
   });
 }
 function combatStatusLabels(unit){

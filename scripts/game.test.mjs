@@ -2840,3 +2840,46 @@ test('life steal filters actual card, passive and keyword damage and expires aft
   await play(attack,['enemy']);
   assert.equal(livingForm(f).hp,26);
 });
+
+test('life steal can use pre-reduction damage and count or exclude fully blocked shield damage',async()=>{
+  for(const [basis,shield,barrier,expected] of [
+    ['actual','exclude',0,4],['raw','exclude',0,10],
+    ['actual','exclude',4,0],['actual','include',4,4],
+    ['raw','exclude',4,0],['raw','include',4,10],['raw','exclude',2,8]
+  ]){
+    const f=await fixture();
+    await f.act('card',{card:{name:'흡수 기준',role:'normal',power:'0',range:'1~4',target:1,effects:[
+      {kind:'lifeSteal',when:'use',to:'self',amount:100,leechBasis:basis,leechShield:shield,leechRecovery:'mind'},
+      {kind:'damage',when:'use',to:'target',amount:10}
+    ]}});
+    const id=f.state.profile.cards[0].id;
+    await f.act('start',{solo:true,bots:0});
+    configureBattle(f,(b,self)=>{
+      Object.assign(self,{hand:[id],pos:16,mind:50});
+      Object.assign(b.units.enemy,{blockedRounds:1,pos:18,reduce:6,shield:barrier});
+    });
+    await f.act('plan',{card:id,targets:['enemy']});
+    await f.act('round');
+    assert.equal(livingForm(f).mind,50+expected,[basis,shield,barrier].join('/'));
+  }
+});
+
+test('life steal converts mental damage to health using the selected resistance basis',async()=>{
+  for(const [basis,expected] of [['actual',4],['raw',8]]){
+    const f=await fixture();
+    await f.act('card',{card:{name:'정신 피해 흡수',role:'normal',power:'0',range:'0',target:'self',effects:[
+      {kind:'lifeSteal',when:'use',to:'self',amount:100,leechResource:'mind',leechBasis:basis,leechVictim:'self'},
+      {kind:'drain',when:'use',to:'self',amount:8}
+    ]}});
+    const id=f.state.profile.cards[0].id;
+    await f.act('start',{solo:true,bots:0});
+    configureBattle(f,(b,self)=>{
+      Object.assign(self,{hand:[id],hp:20,mind:50,mindStatuses:{mindGuard:{amount:50,through:1}}});
+      b.units.enemy.blockedRounds=1;
+    });
+    await f.act('plan',{card:id,targets:[]});
+    await f.act('round');
+    assert.equal(livingForm(f).mind,46);
+    assert.equal(livingForm(f).hp,20+expected);
+  }
+});

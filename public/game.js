@@ -2,7 +2,7 @@ import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
 import {accountPanel} from './account.js';
 import {gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridCardInRange,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
-import {stackGainLimits,stackGainLimitMax,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
+import {stackGainLimits,stackGainLimitMax,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
 const studio=location.pathname==='/studio';
 const code=location.pathname.split('/')[2], endpoint=studio?'/api/studio':'/api/rooms/'+code+'/game';
@@ -391,8 +391,10 @@ function effectSentence(e,extra=[]){
     const duration=e.numberExprs?.duration?describeValue(e.numberExprs.duration):e.duration??1;
     const cap=e.numberExprs?.healCap?describeValue(e.numberExprs.healCap):e.healCap;
     return '피해를 줄 캐릭터: '+target+' · 피해를 받을 캐릭터: '+(lifeStealVictims[e.leechVictim]||lifeStealVictims.enemy)+
-      ' · '+(lifeStealDamageTypes[e.leechDamage]||lifeStealDamageTypes.any)+' · '+heal+' 체력 회복 '+number+
-      (e.amountMode==='percent'?'% (실제 피해 기준)':' (실제 피해까지만)')+' · '+duration+'라운드'+
+      ' · '+lifeStealDamageResources[e.leechResource||'hp']+' / '+(lifeStealDamageTypes[e.leechDamage]||lifeStealDamageTypes.any)+
+      ' · '+lifeStealBases[e.leechBasis||'actual']+(e.leechResource==='mind'?'':' · '+lifeStealShieldModes[e.leechShield||'exclude'])+
+      ' · '+heal+' '+lifeStealRecoveryResources[e.leechRecovery||'hp']+' 회복 '+number+
+      (e.amountMode==='percent'?'%':' (기준 피해량 한도)')+' · '+duration+'라운드'+
       (cap?' · 피해 1회당 최대 '+cap:'')+(e.limit?' · '+effectLimitPeriods[e.limit.period]+' '+e.limit.count+'회':'');
   }
   const signedAmount=value=>expression?value:signed(value);
@@ -558,12 +560,18 @@ function effectRow(row,refresh,scoped,passive,stack){
   const settings=Object.entries(effectSettings[row.kind]||{}).map(([key,[label,defaultValue,min,max]])=>
     field(label,input(key,row[key]??defaultValue,'number',{min,max,required:true})));
   const leech=row.kind==='lifeSteal';
+  const leechResource=leech?select('leechResource',Object.entries(lifeStealDamageResources),row.leechResource||'hp'):null;
+  const leechShield=leech?field('방어막에 막힌 피해',select('leechShield',Object.entries(lifeStealShieldModes),row.leechShield||'exclude')):null;
   const leechFields=leech?[
-    field('어떤 피해를 흡수할까?',select('leechDamage',Object.entries(lifeStealDamageTypes),row.leechDamage||'any')),
+    field('입힌 피해 유형',leechResource),
+    field('피해 출처',select('leechDamage',Object.entries(lifeStealDamageTypes),row.leechDamage||'any')),
+    field('흡수량을 계산할 기준',select('leechBasis',Object.entries(lifeStealBases),row.leechBasis||'actual')),
+    leechShield,
+    field('회복할 자원',select('leechRecovery',Object.entries(lifeStealRecoveryResources),row.leechRecovery||'hp')),
     field('누가 피해를 입을 때?',select('leechVictim',Object.entries(lifeStealVictims),row.leechVictim||'enemy')),
-    field('누구의 체력을 회복할까?',select('leechHeal',[...Object.entries(lifeStealHealers),
+    field('누구를 회복할까?',select('leechHeal',[...Object.entries(lifeStealHealers),
       ...Object.entries(effectRecipients).filter(([key])=>!['target','primary','secondary','self'].includes(key))],row.leechHeal||'dealer')),
-    note('효과가 발동한 뒤 실제로 깎인 체력만 계산해요. 유지 라운드에는 현재 라운드가 포함돼요.')
+    note('피해 감소 적용 후는 줄어든 체력·정신력을 기준으로 해요. 방어막에 막힌 피해를 포함하면 방어막이 흡수한 피해도 더해요. 유지 기간에는 이번 라운드가 포함돼요.')
   ]:[];
   const consuming=row.kind==='consume';
   const consumeAmount=select('consumeAmount',Object.entries(stackConsumeAmounts),row.consumeAmount||'fixed');
@@ -665,6 +673,7 @@ function effectRow(row,refresh,scoped,passive,stack){
   if(isCost){when.disabled=true;condition.disabled=true;}
   if(staged||amplify||isCost||row.kind==='replayHit'||copyEffects.includes(row.kind)||teamEffects.includes(row.kind))to.disabled=true;
   const show=()=>{
+    if(leech)leechShield.hidden=leechResource.value==='mind';
     limitCountField.hidden=limit.value==='none';
     limitCount.disabled=limitCountField.hidden;
     when.title=when.value==='unopposed'?'합 없이 공격하기 직전에 발동해요.':'';

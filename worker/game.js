@@ -1,5 +1,5 @@
 import {gridValid, gridSize, gridTileGroups, gridDistance, gridPaths, gridDisplacement, gridCardInRange, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
-import {stackGainLimits,stackGainLimitMax,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
+import {stackGainLimits,stackGainLimitMax,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
 class GameInputError extends Error {}
@@ -204,7 +204,11 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
     }
     const leech=row.kind==='lifeSteal';
     const leechDamage=row.leechDamage??'any',leechVictim=row.leechVictim??'enemy',leechHeal=row.leechHeal??'dealer';
-    if(leech&&(!Object.hasOwn(lifeStealDamageTypes,leechDamage)||!Object.hasOwn(lifeStealVictims,leechVictim)||
+    const leechResource=row.leechResource??'hp',leechBasis=row.leechBasis??'actual',
+      leechShield=row.leechShield??'exclude',leechRecovery=row.leechRecovery??'hp';
+    if(leech&&(!Object.hasOwn(lifeStealDamageResources,leechResource)||!Object.hasOwn(lifeStealBases,leechBasis)||
+      !Object.hasOwn(lifeStealShieldModes,leechShield)||!Object.hasOwn(lifeStealRecoveryResources,leechRecovery)||
+      !Object.hasOwn(lifeStealDamageTypes,leechDamage)||!Object.hasOwn(lifeStealVictims,leechVictim)||
       !Object.hasOwn(lifeStealHealers,leechHeal)&&(!Object.hasOwn(effectRecipients,leechHeal)||['target','primary','secondary','self'].includes(leechHeal))))
       gameFail('생명력 흡수의 피해 종류와 대상을 확인하세요.');
     const deferral=row.kind==='damageDebt';
@@ -309,7 +313,7 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
     return {...settings,...gainLimits,...(Object.keys(numberExprs).length?{numberExprs}:{}),...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
       ...(conditionStackTag?{conditionStackTag}:{}),...(hitIndex?{hitIndex}:{}),...(reactionRounds?{reactionRounds}:{}),
       ...(givenCardId?{givenCardId}:{}),...(conditionCardId?{conditionCardId}:{}),
-      ...(leech?{leechDamage,leechVictim,leechHeal}:{}),
+      ...(leech?{leechDamage,leechVictim,leechHeal,leechResource,leechBasis,leechShield,leechRecovery}:{}),
       ...(zone?{zoneCard,zoneOwner}:{}),...(zoneCardId?{zoneCardId}:{}),
       ...(zoneCardName?{zoneCardName}:{}),...(zoneOwnerName?{zoneOwnerName}:{}),
       ...(replace?{replacementId,...(fromCardId?{fromCardId}:{})}:{}),
@@ -695,14 +699,14 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
   const modified=hostile&&!fixedDamage;
   const outgoing=modified?gameHeldModifiers(b,actor,u):{};
   const incoming=modified?gameHeldModifiers(b,u,actor):{};
-  const fixed=modified&&amount>0?(actor.outgoingDamage||0)+(u.incomingDamage||0)+
-    (outgoing.outgoingDamage||0)+(incoming.incomingDamage||0)+
-    (bossOutgoing?(actor.bossOutgoingDamage||0):0)+(bossIncoming?(u.bossIncomingDamage||0):0):0;
-  const percent=modified?(actor.outgoingDamagePercent||0)+(u.incomingDamagePercent||0)+
-    (outgoing.outgoingDamagePercent||0)+(incoming.incomingDamagePercent||0)+
-    (bossOutgoing?(actor.bossOutgoingDamagePercent||0):0)+(bossIncoming?(u.bossIncomingDamagePercent||0):0):0;
+  const bonuses=modified&&amount>0?[actor.outgoingDamage,u.incomingDamage,outgoing.outgoingDamage,incoming.incomingDamage,
+    bossOutgoing?actor.bossOutgoingDamage:0,bossIncoming?u.bossIncomingDamage:0]:[];
+  const ratios=modified?[actor.outgoingDamagePercent,u.incomingDamagePercent,outgoing.outgoingDamagePercent,incoming.incomingDamagePercent,
+    bossOutgoing?actor.bossOutgoingDamagePercent:0,bossIncoming?u.bossIncomingDamagePercent:0]:[];
+  const sum=values=>values.reduce((total,value)=>total+(value||0),0);
+  const base=Math.floor(amount)+bonus;
   const adjusted=fixedDamage?Math.max(0,Math.floor(amount)):
-    applyPowerRatio(Math.max(0,Math.floor(amount)+bonus+fixed-u.reduce),percent);
+    applyPowerRatio(Math.max(0,base+sum(bonuses)-u.reduce),sum(ratios));
   if(!fixedDamage)u.reduce=0;
   const absorbed=piercing?0:gameRemoveShield(u,adjusted);
   let healthDamage=adjusted-absorbed;
@@ -748,7 +752,9 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
     }
   }
   if(u.hp===0)gameLog(b,u.name+' 전투 불능');
-  if(actual>0)gameTriggerLifeSteal(b,u,actual,actor,origin);
+  const raw=fixedDamage?adjusted:applyPowerRatio(Math.max(0,base+sum(bonuses.filter(value=>value>0))),
+    sum(ratios.filter(value=>value>0)));
+  if(raw||actual||absorbed)gameTriggerLifeSteal(b,u,{actual,raw,absorbed,blocked:adjusted>0&&absorbed===adjusted},actor,origin);
   if(attack&&hostile&&absorbed&&!u.shield&&u.barrierBurst){
     const burst=u.barrierBurst;
     u.barrierBurst=0;
@@ -763,10 +769,16 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
   }
   return actual;
 }
-function gameTriggerLifeSteal(b,victim,actual,actor,{kind,ongoing,sources}){
+function gameMentalDamage(b,victim,amount,actor,origin){
+  if(victim.enemy||victim.collapsed||!gameAlive(victim)||amount<=0)return 0;
+  const actual=Math.max(0,-gameMental(b,victim,-amount));
+  gameTriggerLifeSteal(b,victim,{actual,raw:amount,resource:'mind'},actor,origin);
+  return actual;
+}
+function gameTriggerLifeSteal(b,victim,{actual,raw,absorbed=0,blocked=false,resource='hp'},actor,{kind,ongoing,sources}){
   if(!sources&&!actor.lifeSteal||sources&&!sources.some(source=>(b.units[source.dealer]||actor).lifeSteal))return;
   const shares=new Map();
-  for(const entry of sources||[{dealer:actor.id,amount:actual}]){
+  for(const entry of sources||[{dealer:actor.id,amount:1}]){
     const dealer=b.units[entry.dealer]||actor;
     const type=entry.kind||kind;
     const key=dealer.id+':'+type;
@@ -777,19 +789,22 @@ function gameTriggerLifeSteal(b,victim,actual,actor,{kind,ongoing,sources}){
   const total=[...shares.values()].reduce((sum,entry)=>sum+entry.amount,0);
   if(!total)return;
   const credits=new Map();
-  let weight=0,credited=0;
+  let weight=0;
   for(const {dealer,type,amount} of shares.values()){
+    const previous=weight;
     weight+=amount;
-    const share=Math.floor(actual*weight/total)-credited;
-    credited+=share;
-    if(!share)continue;
     for(const rule of Object.values(dealer.lifeSteal||{})){
-      if(rule.through<b.round||rule.damage!=='any'&&rule.damage!==type&&
+      const input=rule.resource||'hp';
+      if(rule.through<b.round||input!=='any'&&input!==resource||rule.damage!=='any'&&rule.damage!==type&&
         !(rule.damage==='card'&&type==='strike')&&!(rule.damage==='ongoing'&&ongoing))continue;
       const hostile=dealer.enemy!==victim.enemy||dealer.collapsed&&dealer!==victim;
       if(rule.victim==='enemy'&&!hostile||rule.victim==='ally'&&(hostile||dealer===victim)||
         rule.victim==='self'&&dealer!==victim)continue;
-      credits.set(rule,(credits.get(rule)||0)+share);
+      const include=rule.shield==='include';
+      const basis=rule.basis==='raw'?Math.max(0,raw-(include?0:absorbed)):actual+(include?absorbed:0);
+      if(!basis||blocked&&!include)continue;
+      const share=Math.floor(basis*weight/total)-Math.floor(basis*previous/total);
+      if(share)credits.set(rule,(credits.get(rule)||0)+share);
     }
   }
   for(const [rule,damage] of credits){
@@ -797,7 +812,13 @@ function gameTriggerLifeSteal(b,victim,actual,actor,{kind,ongoing,sources}){
     const receivers=rule.heal==='dealer'?[dealer]:rule.heal==='victim'?[victim]:
       rule.heal==='owner'?[owner]:gameEffectRecipients(b,owner,rule.heal);
     const amount=Math.min(rule.cap||Infinity,rule.mode==='percent'?Math.floor(damage*rule.amount/100):Math.min(damage,rule.amount));
-    for(const receiver of receivers)if(gameAlive(receiver))gameHeal(b,receiver,amount);
+    for(const receiver of receivers){
+      if(!gameAlive(receiver)||!amount)continue;
+      if(rule.recovery==='mind'){
+        const restored=gameMental(b,receiver,amount);
+        if(restored>0)gameLog(b,receiver.name+' · 생명력 흡수로 정신력 '+restored+' 회복');
+      }else gameHeal(b,receiver,amount);
+    }
   }
 }
 function gameHeal(b,u,n){
@@ -1456,12 +1477,13 @@ function gameBasicStackDamage(b,unit,when){
     if(stack.when!==when||!gameAlive(unit)||!unit.stacks[name]||stack.damage==='mental'&&(unit.enemy||unit.collapsed))continue;
     const amount=stackPotency(unit,name);
     gameLog(b,unit.name+' · '+name+' '+amount+' '+labels[stack.damage]);
-    if(stack.damage==='mental')gameMental(b,unit,-amount);
+    const sources=gameStackRuns(unit,name).map(run=>({dealer:run.dealer,amount:run.count*run.power}));
+    const origin={kind:'stack',ongoing:when==='turnEnd',sources};
+    if(stack.damage==='mental')gameMentalDamage(b,unit,amount,unit,origin);
     else {
       const pierce=stack.damage==='piercing'||stack.damage==='piercingFixed';
       const fixed=stack.damage==='fixed'||stack.damage==='piercingFixed';
-      const sources=gameStackRuns(unit,name).map(run=>({dealer:run.dealer,amount:run.count*run.power}));
-      gameDamage(b,unit,amount,unit,pierce,false,fixed,{kind:'stack',ongoing:when==='turnEnd',sources});
+      gameDamage(b,unit,amount,unit,pierce,false,fixed,origin);
     }
   }
 }
@@ -1935,6 +1957,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
         const key=actor.id+':'+card.id+':'+card.effects.indexOf(sourceEffect.flowSource||sourceEffect);
         (u.lifeSteal??={})[key]={dealer:u.id,owner:actor.id,damage:effect.leechDamage,
           heal:effect.leechHeal,victim:effect.leechVictim,amount:n,mode:effect.amountMode,
+          resource:effect.leechResource,basis:effect.leechBasis,shield:effect.leechShield,recovery:effect.leechRecovery,
           cap:effect.healCap,through:b.round+effect.duration-1};
         break;
       }
@@ -1993,7 +2016,8 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
       case 'mindBurn':
         if(!u.enemy){
           const statuses=u.mindStatuses??={};
-          statuses[effect.kind]={amount:Math.min(n,100),through:b.round+effect.duration-1};
+          statuses[effect.kind]={amount:Math.min(n,100),through:b.round+effect.duration-1,
+            ...(effect.kind==='mindBurn'?{dealer:actor.id,origin}: {})};
         }
         break;
       case 'clearMindBuffs':
@@ -2296,7 +2320,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
       }
       case 'perStack': if(ctx.usedPotency)damage(ctx.usedPotency*n);break;
       case 'mind': gameMental(b,u,n);break;
-      case 'drain': gameMental(b,u,-n);break;
+      case 'drain': gameMentalDamage(b,u,n,actor,origin);break;
       case 'pierce':
       case 'recoil': damage(n,true);break;
       case 'fixedDamage':
@@ -2365,7 +2389,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
       case 'mindTransfer': {
         if(u===actor||u.enemy)break;
         const taken=Math.min(n,u.mind,100-actor.mind);
-        gameMental(b,actor,Math.max(0,-gameMental(b,u,-taken)));
+        gameMental(b,actor,gameMentalDamage(b,u,taken,actor,origin));
         break;
       }
       case 'cycle': {
@@ -3098,7 +3122,9 @@ function gameResolve(b) {
   for(const u of party){
     if(gameAlive(u)){
       gameMental(b,u,gameMindStatus(b,u,'mindRegen'));
-      gameMental(b,u,-gameMindStatus(b,u,'mindBurn'));
+      const burn=u.mindStatuses?.mindBurn;
+      if(burn?.through>=b.round)gameMentalDamage(b,u,burn.amount,b.units[burn.dealer]||u,
+        {...(burn.origin||{kind:'other'}),ongoing:true});
     }
     if(gameAlive(u)&&!u.awakening&&u.mind>0&&u.mind<=mentalCrisisThreshold&&(u.temptation||0)>=temptationLimit){
       gameMental(b,u,-temptationStrain);

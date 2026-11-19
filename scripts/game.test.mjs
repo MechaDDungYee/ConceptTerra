@@ -447,7 +447,7 @@ test('clash and card hit reactions run once per event and expire after the selec
 test('custom stack effects follow the holder, scale by count, and grant held critical chance',async()=>{
   const f=await fixture();
   await f.act('stackCreate',{name:'잔류'});
-  await f.act('stackEdit',{name:'잔류',effects:[
+  await f.act('stackEdit',{name:'잔류',flavor:'문턱에 남은 기록',effects:[
     {kind:'damage',when:'turnEnd',to:'self',amount:1,scaleStack:'count'},
     {kind:'shield',when:'struck',to:'self',amount:3},
     {kind:'critChance',when:'held',to:'self',amount:50,scaleStack:'count'},
@@ -457,6 +457,7 @@ test('custom stack effects follow the holder, scale by count, and grant held cri
     {kind:'stack',when:'use',to:'self',tag:'잔류',amount:2}
   ]}});
   assert.equal(f.state.profile.stackTraits[0].effects[0].scaleStack,'count');
+  assert.equal((await f.send(f.endpoint,undefined,f.host.cookie)).body.profile.stackTraits[0].flavor,'문턱에 남은 기록');
   const id=f.state.profile.cards[0].id;
   await f.act('start',{solo:true,bots:0});
   configureBattle(f,(b,self)=>{

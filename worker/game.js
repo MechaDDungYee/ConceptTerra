@@ -348,13 +348,15 @@ function gameStackTrait(input,owned){
     gameFail('중첩 효과를 확인하세요.');
   }
   const normalized=effects.length?gamePassive({name:input.name,effects},'stack',owned,true).effects:[];
-  return {name:input.name,effects:normalized.map((effect,index)=>({...effect,
+  const flavor=gameText(input.flavor,300);
+  return {name:input.name,...(flavor?{flavor}:{}),effects:normalized.map((effect,index)=>({...effect,
     ...(effects[index].scaleStack==='count'?{scaleStack:'count'}:{})
   }))};
 }
-function gameUpgradeStackTrait({name,effects,critical}){
-  if(!critical)return {name,effects};
-  return {name,effects:[...effects,{when:'held',kind:'critChance',amount:critical,to:'self',scaleStack:'count'}]};
+function gameUpgradeStackTrait({name,effects,critical,flavor}){
+  const entry={name,effects,...(flavor?{flavor}:{})};
+  if(!critical)return entry;
+  return {...entry,effects:[...effects,{when:'held',kind:'critChance',amount:critical,to:'self',scaleStack:'count'}]};
 }
 function gameHeldModifiers(b,unit,opponent){
   const modifiers={};

@@ -129,12 +129,14 @@ function stackManager(){
     const trait=state.profile.stackTraits?.find(item=>item.name===chosen);
     const workspace=effectWorkspace(trait?.effects||[],{passive:true,stack:true,onChange:()=>{draftDirty=true;}});
     const traitForm=el('form',undefined,{class:'stack'});
+    const flavor=area('stackFlavor',trait?.flavor||'',300);
+    flavor.oninput=()=>{draftDirty=true;};
     traitForm.append(
       note('‘보유 시’ 효과는 중첩이 있는 동안 적용되고, 중첩이 사라지면 해제돼요. 설정은 다음 전투부터 반영돼요.'),
-      workspace.node,submit('중첩 효과 저장'));
+      field('중첩 플레이버 텍스트',flavor),workspace.node,submit('중첩 저장'));
     traitForm.onsubmit=async event=>{
       event.preventDefault();
-      if(await send('stackEdit',{name:chosen,effects:workspace.rows()}))draftDirty=false;
+      if(await send('stackEdit',{name:chosen,flavor:flavor.value,effects:workspace.rows()}))draftDirty=false;
     };
     editor.append(traitForm);
   };
@@ -783,7 +785,7 @@ function cardKeywordHelp(preview){
   popup.addEventListener('toggle',()=>{
     if(!popup.matches(':popover-open'))active?.setAttribute('aria-expanded','false');
   });
-  const keyword=(name,lines,kind='effect')=>{
+  const keyword=(name,lines,kind='effect',flavor='')=>{
     const trigger=button(name,()=>{
       if(active===trigger&&popup.matches(':popover-open')){
         popup.hidePopover();
@@ -792,7 +794,7 @@ function cardKeywordHelp(preview){
       active?.setAttribute('aria-expanded','false');
       active=trigger;
       title.textContent=name;
-      description.replaceChildren(...lines.map(line=>el('p',line)));
+      description.replaceChildren(...(flavor?[flavorText(flavor)]:[]),...lines.map(line=>el('p',line)));
       description.scrollTop=0;
       if(!popup.matches(':popover-open'))popup.showPopover({source:trigger});
       trigger.setAttribute('aria-expanded','true');
@@ -857,7 +859,7 @@ function renderCardFace(preview,card){
         (effect.scaleStack==='count'?' · 보유 중첩 수를 곱함':''));
       if(Object.hasOwn(basicStacks,name))lines.unshift(basicStacks[name].description);
       lines.push(...references.map(effect=>effectTiming(effect)+' · '+effectSentence(effect)));
-      stacks.append(keyword(name,[...new Set(lines)],'stack-tag'));
+      stacks.append(keyword(name,[...new Set(lines)],'stack-tag',trait?.flavor));
     }
     description.append(stacks);
   }
@@ -1641,7 +1643,9 @@ function battlePanel(){
     if(u.coverCount)detail.append(note('원호 방어 '+u.coverCount));
     detail.append(...stackLabels(u).map(note));
     for(const [name,trait] of Object.entries(u.stackTraits||{})){
-      if(u.stacks[name]>0)for(const effect of trait.effects||[]){
+      if(!u.stacks[name])continue;
+      if(trait.flavor)detail.append(flavorText(name+' · '+trait.flavor));
+      for(const effect of trait.effects||[]){
         detail.append(note(name+' · '+effectTiming(effect)+' · '+effectSentence(effect)));
       }
     }

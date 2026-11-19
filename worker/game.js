@@ -527,7 +527,15 @@ const gameConceptPresets=[
   ],16),notes:'카드 1장을 뽑고 숙고의 말미를 부여. 이후 턴 시작마다 추가 드로우와 다음 판정 위력 보너스를 얻습니다.'},
   {...gamePreset('conceptMeteor','거슬러 오르는 별똥별 · 역행','3d+9','2~5','normal',1,[
     gameConceptStack('역행하는 별빛'),gameEffect('hit','push',1)
-  ],20),notes:'역행하는 별빛이 있는 동안 치명타 확률과 치명타 피해가 증가합니다. 적을 밀어내며 사거리를 유지합니다.'}
+  ],20),notes:'역행하는 별빛이 있는 동안 치명타 확률과 치명타 피해가 증가합니다. 적을 밀어내며 사거리를 유지합니다.'},
+  {...gamePreset('conceptPerforate','절취선 사냥개 · 점선 물어뜯기','1d+4','1~3','normal',1,[
+    {...gameConceptStack('절취선','target'),hitIndex:1},
+    {...gameConceptStack('절취선','target'),hitIndex:2}
+  ],14),hitPowers:['1d+4','1d+4'],notes:'2회 타격. 각 타격 적중 시 절취선 1 부여. 중첩당 받는 피해가 5% 증가하며 최대 6중첩까지 전투 중 지속됩니다.'},
+  {...gamePreset('conceptTearOpen','절취선 사냥개 · 접힌 상처를 펼쳐라','3d+8','1~3','normal',1,[
+    {...gameEffect('hit','consume',1,'target','절취선'),consumeAmount:'all'},
+    gameEffect('consume','perStack',4)
+  ],20),notes:'기본 공격 뒤 대상의 절취선을 전부 소모하고 총 중첩 위력당 추가 피해 4. 절취선이 없으면 기본 공격만 실행합니다. 남겨서 동료의 공격을 강화할지, 지금 소모할지 선택하세요.'}
 ].map((card,index)=>({...card,optional:true,concept:true,requiredState:'any',flavor:[
   '조우 기록 · 식탁에는 네 사람 몫의 식기가 있었다. 접시를 뒤집자 각자의 처분 번호가 새겨져 있었다. “빈 접시로 돌아가실 수는 없습니다.”',
   '“문이 닫혀도 문턱을 기억해. 네가 두고 온 한 걸음은 아직 거기 있어.”',
@@ -536,7 +544,9 @@ const gameConceptPresets=[
   '조우 기록 · 만조의 종이 울리자 빈 관이 물 위로 떠올랐다. 뚜껑 위의 명패에는 아직 살아 있는 승객의 이름이 적혀 있었다.',
   '“누가 먼저 벽을 쳤는지는 몰라. 다만 여기 남은 파편들은 전부 같은 쪽을 향하고 있어.”',
   '“십 분을 더 드리지요. 값을 치르는 건 어렵지 않습니다. 돌아가서 그 십 분을 잊지 마세요.”',
-  '조우 기록 · 창밖 별빛이 철로를 거슬러 올라왔다. 곧이어 아직 발사하지 않은 탄환이 손바닥 위로 떨어졌다.'
+  '조우 기록 · 창밖 별빛이 철로를 거슬러 올라왔다. 곧이어 아직 발사하지 않은 탄환이 손바닥 위로 떨어졌다.',
+  '조우 기록 · 금속 이빨이 두 번 닫혔다. 갑옷에는 작은 구멍들만 남았다. 팔을 들자 구멍 사이로 점선이 이어졌다.',
+  '“점선을 따라 뜯으시오.” 포장지에 적힌 문장을 읽는 동안, 사냥개는 이미 그 선의 끝을 물고 있었다.'
 ][index]}));
 const gameConceptTraits=Object.fromEntries(Object.entries(conceptStacks).map(([name,trait])=>
   [name,{...trait,name,concept:true,effects:trait.effects.map(effect=>({...gameEffect(effect.when,effect.kind,effect.amount,effect.to),...effect}))}]));

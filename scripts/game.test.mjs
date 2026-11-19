@@ -2536,17 +2536,17 @@ test('arithmetic supports extra terms in effects and comparison operands',async(
 test('concept cards are stronger catalogue choices and pay mental cost once on use',async()=>{
   const f=await fixture();
   const concepts=f.state.defaults.filter(card=>card.concept);
-  assert.equal(concepts.length,8);
-  assert.equal(f.state.profile.conceptStackTraits.length,8);
+  assert.equal(concepts.length,10);
+  assert.equal(f.state.profile.conceptStackTraits.length,9);
   const {parsePower}=await import('../public/rules.js');
-  const average=card=>{const power=parsePower(card.power);return power.bonus+power.count*(power.sides+1)/2;};
+  const average=card=>(card.hitPowers??[card.power]).reduce((sum,value)=>{const power=parsePower(value);return sum+power.bonus+power.count*(power.sides+1)/2;},0);
   const baseline=Math.max(...f.state.defaults.filter(card=>['strike','hold','shot','rush','trace'].includes(card.id)).map(average));
   for(const card of concepts){
     assert.ok(average(card)>baseline);
     assert.ok(card.cost>=14);
-    assert.ok(card.effects.some(effect=>effect.kind==='stack'));
+    assert.ok(card.effects.some(effect=>['stack','consume'].includes(effect.kind)));
   }
-  await f.act('deck',{cards:[...concepts.map(card=>card.id),'strike','guard']});
+  await f.act('deck',{cards:concepts.map(card=>card.id)});
   await f.act('start',{solo:true,bots:0});
   for(const card of concepts){
     configureBattle(f,(b,self)=>{
@@ -2558,9 +2558,12 @@ test('concept cards are stronger catalogue choices and pay mental cost once on u
     await f.act('round');
     assert.equal(livingForm(f).mind,80-card.cost,card.name);
     const grant=card.effects.find(effect=>effect.kind==='stack');
-    const holder=livingForm(f,grant.to==='self'?f.state.me:'enemy');
-    assert.equal(holder.stacks[grant.tag],grant.amount,card.name);
-    assert.equal(holder.stackTraits[grant.tag].concept,true);
+    if(grant){
+      const holder=livingForm(f,grant.to==='self'?f.state.me:'enemy');
+      const granted=card.effects.filter(effect=>effect.kind==='stack'&&effect.tag===grant.tag).reduce((sum,effect)=>sum+effect.amount,0);
+      assert.equal(holder.stacks[grant.tag],granted,card.name);
+      assert.equal(holder.stackTraits[grant.tag].concept,true);
+    }
   }
 });
 
@@ -2980,4 +2983,50 @@ test('built-in stack keywords grant next-round movement and heal from card or sh
   assert.equal(livingForm(f).hp,22);
   assert.equal(livingForm(f).stacks.흡혈,0);
   assert.equal(livingForm(f).stackTraits.흡혈,undefined);
+});
+
+test('perforation strikes build capped persistent marks and the finisher spends them after its base hit',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:['conceptPerforate'],mind:64});
+    self.library.conceptPerforate={...self.library.conceptPerforate,power:'10',hitPowers:['10','10']};
+    Object.assign(b.units.enemy,{pos:18,hp:999,maxHp:999,blockedRounds:1});b.walls=[];
+  });
+  await f.act('plan',{card:'conceptPerforate',targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f).mind,50);
+  assert.equal(livingForm(f,'enemy').stacks['절취선'],2);
+  assert.equal(livingForm(f,'enemy').hp,979);
+  // Leaving the marks for a teammate keeps the 10% vulnerability active.
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{hand:['hold'],mind:50});self.library.hold={...self.library.hold,power:'20'};
+    b.units.enemy.blockedRounds=1;
+  });
+  await f.act('plan',{card:'hold',targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').hp,957);
+  assert.equal(livingForm(f,'enemy').stacks['절취선'],2);
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{hand:['conceptTearOpen'],mind:70});
+    self.library.conceptTearOpen={...self.library.conceptTearOpen,power:'10'};
+    b.units.enemy.blockedRounds=1;
+  });
+  await f.act('plan',{card:'conceptTearOpen',targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f).mind,50);
+  assert.equal(livingForm(f,'enemy').hp,938); // Base 11, then 2 consumed marks × 4.
+  assert.equal(livingForm(f,'enemy').stacks['절취선'],0);
+  assert.equal(livingForm(f,'enemy').stackTraits['절취선'],undefined);
+  // Another finisher cannot spend marks that have already been removed.
+  configureBattle(f,(b,self)=>{self.hand=['conceptTearOpen'];self.mind=70;b.units.enemy.blockedRounds=1;});
+  await f.act('plan',{card:'conceptTearOpen',targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').hp,928);
+  for(let turn=0;turn<4;turn++){
+    configureBattle(f,(b,self)=>{self.hand=['conceptPerforate'];self.mind=64;b.units.enemy.blockedRounds=1;});
+    await f.act('plan',{card:'conceptPerforate',targets:['enemy']});
+    await f.act('round');
+  }
+  assert.equal(livingForm(f,'enemy').stacks['절취선'],6);
 });

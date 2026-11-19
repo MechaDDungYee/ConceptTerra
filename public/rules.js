@@ -415,6 +415,9 @@ export const conceptStacks = {
   '역행하는 별빛': {cap:1,description:'보유 중 치명타 확률 +20%p, 치명타 피해 배율 +35%p.',effects:[
     {when:'held',kind:'critChance',to:'self',amount:20},
     {when:'held',kind:'critMultiplier',to:'self',amount:35}
+  ]},
+  '절취선': {cap:6,description:'중첩당 받는 피해 5% 증가. 최대 6중첩. 절취선 사냥개의 마무리 카드로 전부 소모하면 중첩 총 위력당 추가 피해 4.',effects:[
+    {when:'held',kind:'incomingDamage',to:'self',amount:5,amountMode:'percent',scaleStack:'count'}
   ]}
 };
 export const passiveRoundTimings = ['battleStart','turnStart','turnEnd'];

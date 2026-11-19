@@ -3285,6 +3285,13 @@ function gameResolve(b) {
     for(const [key,rule] of Object.entries(unit.lifeSteal))if(rule.through!=null&&rule.through<=b.round)delete unit.lifeSteal[key];
     if(!Object.keys(unit.lifeSteal).length)delete unit.lifeSteal;
   }
+  for(const unit of Object.values(b.units)){
+    for(const name of Object.keys(unit.stacks)){
+      const trait=basicStacks[name];
+      if(!trait?.endDecay||trait.sub&&!unit.stackTraits?.[name]?.sub)continue;
+      gameTakeStacks(unit,name,trait.endDecay);
+    }
+  }
   b.round++;
   gameNext(b);
 }

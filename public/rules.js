@@ -297,7 +297,7 @@ export const effectConditions = {
 };
 export const flagConditions = ['primaryTarget','secondaryTarget','cardUsed','bossTarget','bossPresent','allyHit','criticalHit','healthPaid','mindPaid','bothPaid','discardPaid','targeted','notTargeted','priorOverload','priorGuard','awakeningAtLeast','collapseCrisis','queuedStrike','foeDown','poisoned','brokeShield','hasDebt','shielded','unshielded','noMove'];
 export const maxStatusStacks = 999;
-export const basicStacks = {
+const basicStackDefinitions = {
   '침식':{when:'turnEnd',damage:'physical',description:'턴 종료마다 총 중첩 위력만큼 물리 피해를 받습니다.'},
   '심상 균열':{when:'turnEnd',damage:'mental',description:'턴 종료마다 총 중첩 위력만큼 정신 피해를 받습니다.'},
   '골절':{when:'struck',damage:'physical',description:'적의 타격에 맞을 때마다 총 중첩 위력만큼 추가 물리 피해를 받습니다.'},
@@ -337,6 +337,8 @@ export const basicStacks = {
     leechVictim:kind==='shieldConversion'?'self':'enemy'
   }]}]))
 };
+export const basicStacks=Object.fromEntries(Object.entries(basicStackDefinitions).map(([name,trait])=>
+  [name,{...trait,endDecay:1}]));
 export const legacyCriticalStackEffects=['critStacks','critSpend','critRemove','critPerSpent'];
 export const maxStackPotency = 999;
 export function stackPotency(unit,tag){

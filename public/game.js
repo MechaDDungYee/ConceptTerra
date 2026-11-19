@@ -177,12 +177,10 @@ function stackManager(){
     editor.append(traitForm);
   };
   const catalogue=el('details',undefined,{class:'stack'});
-  catalogue.append(el('summary','기본 부 키워드'));
+  catalogue.append(el('summary','기본 키워드와 부 키워드'));
   for(const [name,trait] of Object.entries(basicStacks)){
-    if(!trait.sub)continue;
     const entry=el('details');
-    entry.append(el('summary',name+' · 최대 '+trait.cap+'중첩'));
-    for(const effect of trait.effects)entry.append(note(stackEffectText(effect)));
+    entry.append(el('summary',name+(trait.sub?' · 부 키워드':'')),...basicStackInfo(trait).map(note));
     catalogue.append(entry);
   }
   root.append(el('summary','중첩 관리'),form,list,picker,editor,catalogue);
@@ -381,6 +379,14 @@ const suggestedTiming={draw:'use',discard:'use',recover:'use',power:'clash',perc
 const selfEffects=new Set(['draw','discard','recover','return','exile','replay','power','move','movement','nextMove','mind','lifeSteal','shieldConversion']);
 function effectCards(extra=[]){
   return [...state.defaults,...state.profile.cards,...(state.profile.passiveCards||[]),...extra];
+}
+function basicStackInfo(trait){
+  return [
+    ...(trait.description?[trait.description]:[]),
+    ...(trait.effects||[]).map(stackEffectText),
+    ...(trait.cap&&!trait.description?.includes('최대')?['최대 '+trait.cap+'회 보유']:[]),
+    ...(trait.endDecay?['턴 종료 효과 처리 후 · 보유 횟수 '+trait.endDecay+' 감소']:[])
+  ];
 }
 function stackEffectText(effect){
   if(effect.when==='held'&&effect.kind==='shieldConversion'){
@@ -799,7 +805,7 @@ function effectRow(row,refresh,scoped,passive,stack){
     amount.setCustomValidity(canSign&&amount.value==='0'?'0이 아닌 수치를 입력하세요.':'');
     tag.hidden=tagControl.disabled=!taggedEffects.includes(e.kind);
     conditionStack.hidden=conditionStackControl.disabled=e.condition!=='stack';
-    tagHelp.textContent=basicStacks[e.tag]?.description||conceptStacks[e.tag]?.description||'';
+    tagHelp.textContent=basicStacks[e.tag]?basicStackInfo(basicStacks[e.tag]).join(" · "):conceptStacks[e.tag]?.description||'';
     threshold.style.display=e.condition&&!flagConditions.includes(e.condition)?'':'none';
     if(x.amountPart){
       x.amountPart.hidden=all;
@@ -1010,9 +1016,7 @@ function renderCardFace(preview,card){
     const stacks=el('div',undefined,{class:'row forge-keywords','aria-label':'중첩'});
     for(const name of stackNames){
       const trait=(card.concept?conceptStacks[name]:null)||state.profile?.stackTraits?.find(item=>item.name===name)||conceptStacks[name]||basicStacks[name];
-      const lines=(trait?.effects||[]).map(stackEffectText);
-      if(basicStacks[name]?.description)lines.unshift(basicStacks[name].description);
-      if(basicStacks[name]?.sub)lines.push('최대 '+trait.cap+'중첩');
+      const lines=trait===basicStacks[name]&&trait?basicStackInfo(trait):(trait?.effects||[]).map(stackEffectText);
       stacks.append(keyword(name,[...new Set(lines)],'stack-tag',trait?.flavor));
     }
     description.append(stacks);
@@ -1796,6 +1800,12 @@ function battlePanel(){
     if(u.nextPower)detail.append(note('다음 판정 '+signed(u.nextPower)));
     if(u.coverCount)detail.append(note('원호 방어 '+u.coverCount));
     detail.append(...stackLabels(u).map(note));
+    for(const [name,count] of Object.entries(u.stacks)){
+      const basic=basicStacks[name];
+      if(count>0&&basic?.endDecay&&(!basic.sub||u.stackTraits?.[name]?.sub)){
+        detail.append(note(name+' · 턴 종료 후 보유 횟수 '+basic.endDecay+' 감소'));
+      }
+    }
     for(const [name,trait] of Object.entries(u.stackTraits||{})){
       if(!u.stacks[name])continue;
       if(trait.flavor)detail.append(flavorText(name+' · '+trait.flavor));

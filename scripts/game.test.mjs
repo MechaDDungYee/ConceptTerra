@@ -489,7 +489,8 @@ test('built-in stacks cap focus, boost critical damage, and resolve fixed and me
   await f.act('plan',{card:id,targets:['enemy']});
   await f.act('round');
   const self=livingForm(f);
-  assert.equal(self.stacks.집중,100);
+  assert.equal(self.stacks.집중,99);
+  assert.equal(self.stacks['잔류 손상'],1);
   assert.equal(livingForm(f,'enemy').hp,34);
   assert.equal(self.hp,40);
   assert.equal(self.shield,14);
@@ -2683,7 +2684,7 @@ test('an effect can grant a different stack from the one checked by its conditio
   configureBattle(f,(b,self)=>{self.hand=[card.id];b.units.enemy.blockedRounds=1;});
   await f.act('plan',{card:card.id,targets:[]});
   await f.act('round');
-  assert.equal(livingForm(f).stacks.강타,3);
+  assert.equal(livingForm(f).stacks.강타,2);
 });
 
 test('stack percentages use current, missing or maximum counts and accept a calculated cap',async()=>{
@@ -2968,7 +2969,7 @@ test('built-in stack keywords grant next-round movement and heal from card or sh
   await f.act('plan',{card:get,targets:[]});
   await f.act('round');
   assert.equal(livingForm(f).move,4);
-  assert.equal(livingForm(f).stacks.흡혈,2);
+  assert.equal(livingForm(f).stacks.흡혈,1);
   configureBattle(f,(b,self)=>{
     Object.assign(self,{hand:[attack],shield:10,mind:50});
     b.intent={...b.intent,card:{...b.intent.card,power:'10',range:'1~4',effects:[]},target:self.id,reachable:true};
@@ -2976,5 +2977,7 @@ test('built-in stack keywords grant next-round movement and heal from card or sh
   });
   await f.act('plan',{card:attack,targets:['enemy']});
   await f.act('round');
-  assert.equal(livingForm(f).hp,24);
+  assert.equal(livingForm(f).hp,22);
+  assert.equal(livingForm(f).stacks.흡혈,0);
+  assert.equal(livingForm(f).stackTraits.흡혈,undefined);
 });

@@ -45,6 +45,7 @@ export const newEffects = {
   stripShield:['보호막 파괴','hit','target','보호막 {n} 제거'],
   drainLife:['추가 타격 흡혈','damage','target','추가 피해 {n}. 실제로 가한 만큼 사용자의 체력 회복'],
   lifeSteal:['생명력 흡수','use','self','조건에 맞는 피해로 체력 또는 정신력 회복'],
+  shieldConversion:['방어막 흡수량 변환','use','self','방어막이 막은 피해량을 다른 자원으로 변환'],
   healPercent:['최대 체력 비례 회복','use','self','최대 체력의 {n}% 회복'],
   healMissing:['잃은 체력 비례 회복','use','self','잃은 체력의 {n}% 회복'],
   recoil:['반동 피해','end','self','보호막을 관통하는 반동 피해 {n}'],
@@ -186,7 +187,12 @@ export const mentalCrisisThreshold = 25;
 export const awakeningPower = 2;
 export const crisisRecovery = 25;
 export const effectSettings = {
-  lifeSteal:{duration:['유지 라운드 (이번 라운드 포함)',1,1,10],healCap:['피해 1회당 최대 회복량 (0은 제한 없음)',0,0,999]},
+  ...Object.fromEntries(['lifeSteal','shieldConversion'].map(kind=>[kind,{
+    duration:['유지 라운드 (0은 전투 종료까지)',1,0,10],
+    healCap:['피해 1회당 최대 변환량 (0은 제한 없음)',0,0,999],
+    mindAmount:['정신력 변환 수치',50,1,999],
+    mindCap:['피해 1회당 정신력 상한 (0은 제한 없음)',0,0,999]
+  }])),
   healCut:{duration:['지속 라운드 (이번 라운드 포함)',2,1,10]},
   ...Object.fromEntries(['collapseImmune','mindGuard','mindRecoveryCut','mindRegen','mindBurn'].map(kind=>
     [kind,{duration:['지속 라운드 (이번 라운드 포함)',2,1,10]}])),
@@ -205,12 +211,15 @@ export const lifeStealDamageTypes={any:'모든 피해',card:'카드 피해',stri
 export const lifeStealDamageResources={hp:'물리·체력 피해',mind:'정신 피해',any:'물리·정신 피해 모두'};
 export const lifeStealBases={actual:'피해 감소 적용 후',raw:'피해 감소 적용 전'};
 export const lifeStealShieldModes={exclude:'방어막에 막힌 피해 제외',include:'방어막에 막힌 피해 포함'};
-export const lifeStealRecoveryResources={hp:'체력',mind:'정신력'};
-export const lifeStealVictims={enemy:'피해를 준 쪽의 적',ally:'피해를 준 쪽의 아군 (자신 제외)',self:'피해를 준 쪽 자신',any:'누구든'};
+export const lifeStealRecoveryResources={hp:'체력',mind:'정신력',both:'체력과 정신력'};
+export const shieldConversionOutputs={...lifeStealRecoveryResources,shield:'방어막',temporaryShield:'이번 라운드 임시 방어막'};
+export const damageConversionFormulaModes={shared:'같은 계산식',split:'체력과 정신력에 각각 다른 계산식'};
+export const damageConversionUnits={fixed:'고정값',percent:'피해량 비율 (%)'};
+export const lifeStealVictims={enemy:'피해를 준 쪽의 적',ally:'피해를 준 쪽의 아군 (자신 제외)',self:'피해를 준 쪽 자신',owner:'효과를 발동한 캐릭터',ownerParty:'효과 발동자 또는 아군',ownerEnemy:'효과 발동자의 적',selected:'발동 시 지정한 대상',named:'이름으로 지정한 캐릭터',any:'누구든'};
 export const lifeStealHealers={dealer:'피해를 준 캐릭터',victim:'피해를 입은 캐릭터',owner:'이 효과를 발동한 캐릭터'};
-export const percentageDefaults = ['doubleEdge','lastStand','lifeSteal'];
+export const percentageDefaults = ['doubleEdge','lastStand','lifeSteal','shieldConversion'];
 export const ratioEffects = {
-  lifeSteal:['흡수 비율',1],
+  lifeSteal:['흡수 비율',1],shieldConversion:['변환 비율',1],
   ...Object.fromEntries(stackRatioEffects.map(kind=>[kind,['효과 수치',1,'선택한 중첩 수']])),
   doubleEdge:['이번 라운드 입히는 피해와 받는 피해',1,'피해 판정',true],
   lastStand:['손패가 비었을 때 받는 피해',-1,'피해 판정',true],
@@ -389,7 +398,7 @@ export const passiveEffectKinds = [
   'mindGuard','mindRecoveryCut','mindRegen','mindBurn','clearMindBuffs','clearMindDebuffs','purgeDefense','purgeOffense','purgeRegen',
   'power','basePower','finalPower','focus','weaken','shield','reduce','fortify','heal','healPercent','healMissing','regen',
   'clearStatus','temporaryShield','stealShield','shieldGift','allyHeal','lethalGuard','healCut','dodge','trueStrike','stackWard',
-  'rerollLow','hitLeech','damage','bossDamage','pierce','fixedDamage','piercingFixedDamage','drainLife','lifeSteal','stack','consume','remove','doubleStack','stealStack',
+  'rerollLow','hitLeech','damage','bossDamage','pierce','fixedDamage','piercingFixedDamage','drainLife','lifeSteal','shieldConversion','stack','consume','remove','doubleStack','stealStack',
   'stackDamage','poison','mind','drain','mindTransfer','cleanseStacks','purgePoison','recoverMindFloor','focusClash',
   'bossOutgoingDamage','bossIncomingDamage','outgoingDamage','incomingDamage','damageDebt','eraseDebt','barrierBurst','thorns',
   'critChance','critCharges','critStacks','critRemove','critMultiplier','draw','recover','lateDraw','extraAction','blockAction','unblockAction','reduceActions','nextMove','nextSlow'

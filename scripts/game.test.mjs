@@ -2883,3 +2883,51 @@ test('life steal converts mental damage to health using the selected resistance 
     assert.equal(livingForm(f).hp,20+expected);
   }
 });
+
+test('battle-long life steal supports shared or split formulas with percentage caps',async()=>{
+  for(const [formula,mind] of [['shared',54],['split',53]]){
+    const f=await fixture();
+    const base={role:'normal',power:'0'};
+    await f.act('card',{card:{...base,name:'전투 흡수',range:'0',target:'self',effects:[
+      {kind:'lifeSteal',when:'use',to:'self',amount:100,leechRecovery:'both',leechFormula:formula,
+        duration:0,healCap:50,capMode:'percent',mindAmount:3,mindMode:'fixed',mindCap:50,mindCapMode:'percent'}
+    ]}});
+    await f.act('card',{card:{...base,name:'후속 공격',range:'1~4',target:1,effects:[
+      {kind:'damage',when:'use',to:'target',amount:8}
+    ]}});
+    const use=f.state.profile.cards.find(c=>c.name==='전투 흡수').id;
+    const strike=f.state.profile.cards.find(c=>c.name==='후속 공격').id;
+    await f.act('start',{solo:true,bots:0});
+    for(const [id,targets] of [[use,[]],[strike,['enemy']]]){
+      configureBattle(f,(b,self)=>{
+        Object.assign(self,{hand:[id],pos:16,hp:20,mind:50});
+        Object.assign(b.units.enemy,{blockedRounds:1,pos:18,shield:0});
+      });
+      await f.act('plan',{card:id,targets});
+      await f.act('round');
+    }
+    assert.deepEqual(livingForm(f).damageConversions,[{shield:false,through:null}]);
+    assert.equal(livingForm(f).hp,24);
+    assert.equal(livingForm(f).mind,mind);
+  }
+});
+
+test('shield conversion can replenish the selected victim using only absorbed damage without masking shield break',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'방어막 환류',role:'normal',power:'8',range:'1~4',target:1,effects:[
+    {kind:'shieldConversion',when:'use',to:'self',leechVictim:'selected',leechHeal:'victim',
+      leechDamage:'strike',leechRecovery:'shield',amount:50},
+    {kind:'shieldBreakDraw',when:'hit',to:'self',amount:1}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{hand:[id,'guard','guard','guard','guard'],deck:['strike'],pos:16,mind:50});
+    Object.assign(b.units.enemy,{blockedRounds:1,pos:18,shield:6});
+  });
+  await f.act('plan',{card:id,targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').hp,52);
+  assert.equal(livingForm(f,'enemy').shield,3);
+  assert.ok(livingForm(f).hand.some(card=>card.id==='strike'));
+});

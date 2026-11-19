@@ -1,5 +1,5 @@
 import {gridValid, gridSize, gridTileGroups, gridDistance, gridPaths, gridDisplacement, gridCardInRange, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
-import {stackGainLimits,stackGainLimitMax,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
+import {stackGainLimits,stackGainLimitMax,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
 class GameInputError extends Error {}
@@ -202,12 +202,19 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
       !Object.hasOwn(amplifyHitTargets,amplifyTarget)||amplifyTarget==='number'&&!gameInt(amplifyIndex,hitIndex+1,hitPowers.length))){
       gameFail('증폭할 타격은 이 효과를 발동하는 타격보다 뒤에 있어야 해요.');
     }
-    const leech=row.kind==='lifeSteal';
+    const shieldConversion=row.kind==='shieldConversion';
+    const leech=shieldConversion||row.kind==='lifeSteal';
+    const leechFormula=row.leechFormula??'shared',capMode=row.capMode??'fixed',
+      mindMode=row.mindMode??'percent',mindCapMode=row.mindCapMode??'fixed';
+    const victimName=gameText(row.leechVictimName,80);
+    if(leech&&(!Object.hasOwn(damageConversionFormulaModes,leechFormula)||
+      [capMode,mindMode,mindCapMode].some(mode=>!Object.hasOwn(damageConversionUnits,mode))||
+      row.leechVictim==='named'&&!victimName))gameFail('변환 계산식과 피해 대상 설정을 확인하세요.');
     const leechDamage=row.leechDamage??'any',leechVictim=row.leechVictim??'enemy',leechHeal=row.leechHeal??'dealer';
     const leechResource=row.leechResource??'hp',leechBasis=row.leechBasis??'actual',
       leechShield=row.leechShield??'exclude',leechRecovery=row.leechRecovery??'hp';
     if(leech&&(!Object.hasOwn(lifeStealDamageResources,leechResource)||!Object.hasOwn(lifeStealBases,leechBasis)||
-      !Object.hasOwn(lifeStealShieldModes,leechShield)||!Object.hasOwn(lifeStealRecoveryResources,leechRecovery)||
+      !Object.hasOwn(lifeStealShieldModes,leechShield)||!Object.hasOwn(shieldConversion?shieldConversionOutputs:lifeStealRecoveryResources,leechRecovery)||
       !Object.hasOwn(lifeStealDamageTypes,leechDamage)||!Object.hasOwn(lifeStealVictims,leechVictim)||
       !Object.hasOwn(lifeStealHealers,leechHeal)&&(!Object.hasOwn(effectRecipients,leechHeal)||['target','primary','secondary','self'].includes(leechHeal))))
       gameFail('생명력 흡수의 피해 종류와 대상을 확인하세요.');
@@ -313,7 +320,8 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
     return {...settings,...gainLimits,...(Object.keys(numberExprs).length?{numberExprs}:{}),...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
       ...(conditionStackTag?{conditionStackTag}:{}),...(hitIndex?{hitIndex}:{}),...(reactionRounds?{reactionRounds}:{}),
       ...(givenCardId?{givenCardId}:{}),...(conditionCardId?{conditionCardId}:{}),
-      ...(leech?{leechDamage,leechVictim,leechHeal,leechResource,leechBasis,leechShield,leechRecovery}:{}),
+      ...(leech?{leechDamage,leechVictim,leechHeal,leechResource,leechBasis,leechShield,leechRecovery,leechFormula,
+        capMode,mindMode,mindCapMode,...(leechVictim==='named'?{leechVictimName:victimName}:{})}:{}),
       ...(zone?{zoneCard,zoneOwner}:{}),...(zoneCardId?{zoneCardId}:{}),
       ...(zoneCardName?{zoneCardName}:{}),...(zoneOwnerName?{zoneOwnerName}:{}),
       ...(replace?{replacementId,...(fromCardId?{fromCardId}:{})}:{}),
@@ -709,6 +717,8 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
     applyPowerRatio(Math.max(0,base+sum(bonuses)-u.reduce),sum(ratios));
   if(!fixedDamage)u.reduce=0;
   const absorbed=piercing?0:gameRemoveShield(u,adjusted);
+  const shieldBroken=absorbed>0&&u.shield===0;
+  if(origin.kind==='strike')origin.shieldBroken=shieldBroken;
   let healthDamage=adjusted-absorbed;
   if(attack&&modified&&healthDamage>0&&u.afterimage){
     const blocked=Math.min(healthDamage,u.afterimage);
@@ -755,7 +765,7 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
   const raw=fixedDamage?adjusted:applyPowerRatio(Math.max(0,base+sum(bonuses.filter(value=>value>0))),
     sum(ratios.filter(value=>value>0)));
   if(raw||actual||absorbed)gameTriggerLifeSteal(b,u,{actual,raw,absorbed,blocked:adjusted>0&&absorbed===adjusted},actor,origin);
-  if(attack&&hostile&&absorbed&&!u.shield&&u.barrierBurst){
+  if(attack&&hostile&&shieldBroken&&u.barrierBurst){
     const burst=u.barrierBurst;
     u.barrierBurst=0;
     gameLog(b,u.name+' · 보호막 파열 반격');
@@ -794,15 +804,19 @@ function gameTriggerLifeSteal(b,victim,{actual,raw,absorbed=0,blocked=false,reso
     const previous=weight;
     weight+=amount;
     for(const rule of Object.values(dealer.lifeSteal||{})){
-      const input=rule.resource||'hp';
-      if(rule.through<b.round||input!=='any'&&input!==resource||rule.damage!=='any'&&rule.damage!==type&&
+      const input=rule.shieldConversion?'hp':rule.resource||'hp';
+      if(rule.through!=null&&rule.through<b.round||input!=='any'&&input!==resource||rule.damage!=='any'&&rule.damage!==type&&
         !(rule.damage==='card'&&type==='strike')&&!(rule.damage==='ongoing'&&ongoing))continue;
       const hostile=dealer.enemy!==victim.enemy||dealer.collapsed&&dealer!==victim;
+      const owner=b.units[rule.owner];
       if(rule.victim==='enemy'&&!hostile||rule.victim==='ally'&&(hostile||dealer===victim)||
-        rule.victim==='self'&&dealer!==victim)continue;
+        rule.victim==='self'&&dealer!==victim||rule.victim==='owner'&&victim!==owner||
+        rule.victim==='ownerParty'&&victim.enemy!==owner?.enemy||rule.victim==='ownerEnemy'&&victim.enemy===owner?.enemy||
+        rule.victim==='named'&&victim.name!==rule.victimName||rule.victim==='selected'&&!rule.victimIds?.includes(victim.id))continue;
       const include=rule.shield==='include';
-      const basis=rule.basis==='raw'?Math.max(0,raw-(include?0:absorbed)):actual+(include?absorbed:0);
-      if(!basis||blocked&&!include)continue;
+      const basis=rule.shieldConversion?absorbed:
+        rule.basis==='raw'?Math.max(0,raw-(include?0:absorbed)):actual+(include?absorbed:0);
+      if(!basis||!rule.shieldConversion&&blocked&&!include)continue;
       const share=Math.floor(basis*weight/total)-Math.floor(basis*previous/total);
       if(share)credits.set(rule,(credits.get(rule)||0)+share);
     }
@@ -811,14 +825,28 @@ function gameTriggerLifeSteal(b,victim,{actual,raw,absorbed=0,blocked=false,reso
     const dealer=b.units[rule.dealer],owner=b.units[rule.owner];
     const receivers=rule.heal==='dealer'?[dealer]:rule.heal==='victim'?[victim]:
       rule.heal==='owner'?[owner]:gameEffectRecipients(b,owner,rule.heal);
-    const amount=Math.min(rule.cap||Infinity,rule.mode==='percent'?Math.floor(damage*rule.amount/100):Math.min(damage,rule.amount));
-    for(const receiver of receivers){
-      if(!gameAlive(receiver)||!amount)continue;
-      if(rule.recovery==='mind'){
-        const restored=gameMental(b,receiver,amount);
-        if(restored>0)gameLog(b,receiver.name+' · 생명력 흡수로 정신력 '+restored+' 회복');
-      }else gameHeal(b,receiver,amount);
+    const outputs=rule.recovery==='both'?['hp','mind']:[rule.recovery||'hp'];
+    for(const output of outputs){
+      const separate=output==='mind'&&rule.recovery==='both'&&rule.formula==='split';
+      const value=separate?rule.mindAmount:rule.amount, mode=separate?rule.mindMode:rule.mode;
+      const cap=separate?rule.mindCap:rule.cap, capMode=separate?rule.mindCapMode:rule.capMode;
+      const ceiling=!cap?Infinity:capMode==='percent'?Math.floor(damage*cap/100):cap;
+      const amount=Math.min(ceiling,mode==='percent'?Math.floor(damage*value/100):Math.min(damage,value));
+      if(amount<=0)continue;
+      for(const receiver of receivers)if(gameAlive(receiver))gameApplyConversion(b,receiver,output,amount);
     }
+  }
+}
+function gameApplyConversion(b,receiver,output,amount){
+  if(output==='hp')gameHeal(b,receiver,amount);
+  else if(output==='mind'){
+    const restored=gameMental(b,receiver,amount);
+    if(restored>0)gameLog(b,receiver.name+' · 정신력 '+restored+' 회복');
+  }else{
+    const gained=Math.min(amount,999-receiver.shield);
+    receiver.shield+=gained;
+    if(output==='temporaryShield')receiver.temporaryShield=(receiver.temporaryShield||0)+gained;
+    if(gained)gameLog(b,receiver.name+' · '+(output==='temporaryShield'?'임시 방어막 ':'방어막 ')+gained+' 획득');
   }
 }
 function gameHeal(b,u,n){
@@ -969,6 +997,7 @@ function gameNext(b) {
     b.phase='finished';
     b.result=gameAlive(enemy)?'패배':'승리';
     for(const unit of Object.values(b.units)){
+      delete unit.lifeSteal;
       for(const [name,trait] of Object.entries(unit.stackTraits||{})){
         if(trait.concept)gameWriteStacks(unit,name,[]);
       }
@@ -1586,6 +1615,7 @@ function gameRatioAmount(ctx,effect,unit,amount){
     case 'eraseDebt': return Math.floor((unit.damageDebt||[]).reduce((total,entry)=>total+entry.amount,0)*amount/100);
     case 'rallyHeal':
     case 'lifeSteal':
+    case 'shieldConversion':
     case 'rallyShield': return amount;
     case 'mind':
     case 'drain': return amount; // The maximum is 100.
@@ -1878,7 +1908,9 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
     effect={...effect};
     for(const [key,expr] of Object.entries(effect.numberExprs)){
       const bounds=effectNumberBounds(effect.kind,key,effect.hitIndex,cardHitPowers(ctx.card).length,Object.hasOwn(diceConditions,effect.condition));
-      const value=bounded(Math.trunc(gameFlowValue(b,ctx,u,expr,effect.hitIndex)),...bounds);
+      const percentMode={healCap:effect.capMode,mindAmount:effect.mindMode,mindCap:effect.mindCapMode}[key]==='percent';
+      const evaluated=percentMode&&expr.type==='percent'?expr.value:gameFlowValue(b,ctx,u,expr,effect.hitIndex);
+      const value=bounded(Math.trunc(evaluated),...bounds);
       if(key==='limitCount'){if(effect.limit)effect.limit={...effect.limit,count:value};}
       else if(key==='scaleCostAmount'){if(effect.scaleCost)effect.scaleCost={...effect.scaleCost,amount:value};}
       else effect[key]=value;
@@ -1953,12 +1985,17 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
       {kind:card.passive?'passive':'card'};
     const damage=(amount,piercing=false,fixed=false)=>gameDamage(b,u,amount,actor,piercing,false,fixed,origin);
     switch(effect.kind) {
+      case 'shieldConversion':
       case 'lifeSteal': {
         const key=actor.id+':'+card.id+':'+card.effects.indexOf(sourceEffect.flowSource||sourceEffect);
         (u.lifeSteal??={})[key]={dealer:u.id,owner:actor.id,damage:effect.leechDamage,
           heal:effect.leechHeal,victim:effect.leechVictim,amount:n,mode:effect.amountMode,
           resource:effect.leechResource,basis:effect.leechBasis,shield:effect.leechShield,recovery:effect.leechRecovery,
-          cap:effect.healCap,through:b.round+effect.duration-1};
+          shieldConversion:effect.kind==='shieldConversion',victimName:effect.leechVictimName,
+          ...(effect.leechVictim==='selected'?{victimIds:[...new Set([...ctx.targets,target].filter(Boolean).map(unit=>unit.id))]}:{}),
+          formula:effect.leechFormula,cap:effect.healCap,capMode:effect.capMode,mindAmount:effect.mindAmount,
+          mindMode:effect.mindMode,mindCap:effect.mindCap,mindCapMode:effect.mindCapMode,
+          through:effect.duration?b.round+effect.duration-1:null};
         break;
       }
       case 'replaceCard': ctx.replaced=true; break;
@@ -2511,10 +2548,10 @@ function gameStrike(b,ctx,target,roll){
     roll=Math.floor(roll*multiplier/100);
     gameLog(b,actor.name+' · 치명타 ('+multiplier+'%) → '+target.name);
   }
-  const shield=target.shield;
-  const dealt=gameDamage(b,target,roll,actor,false,true,false,{kind:'strike'});
+  const origin={kind:'strike'};
+  const dealt=gameDamage(b,target,roll,actor,false,true,false,origin);
   if(actor.enemy!==target.enemy||actor.collapsed&&actor!==target){
-    const event={...ctx,base:dealt,brokeShield:shield>0&&target.shield===0};
+    const event={...ctx,base:dealt,brokeShield:!!origin.shieldBroken};
     gameBasicStackDamage(b,target,'struck');
     gamePassives(b,actor,'hit',target,event);
     if(dealt)gamePassives(b,actor,'damage',target,event);
@@ -2526,6 +2563,7 @@ function gameStrike(b,ctx,target,roll){
     gamePassives(b,target,'struck',actor,event);
     gameCardReactions(b,target,'struck',actor,event);
   }
+  ctx.brokeShield=!!origin.shieldBroken;
   return dealt;
 }
 function gameHitSequence(b,ctx,target,rolls,intercepted,replay,indexOnly=null){
@@ -2533,12 +2571,10 @@ function gameHitSequence(b,ctx,target,rolls,intercepted,replay,indexOnly=null){
   if(indexOnly===null)ctx.hitAmplifiers=new Map();
   const canStrike=()=>gameAlive(ctx.actor)&&gameAlive(target)&&(intercepted||gameReach(ctx.card,ctx.actor,target));
   const strike=roll=>{
-    const shield=target.shield;
     const dealt=gameStrike(b,ctx,target,roll);
     if(dealt===null)return;
     struck=true;
     ctx.base=dealt;
-    ctx.brokeShield=shield>0&&target.shield===0;
     const isCritical=ctx.critical;
     base+=dealt;
     critical||=isCritical;
@@ -2642,11 +2678,9 @@ function gameHit(b,ctx,roll,intercepted=false){
     if(sequence){
       if(!gameHitSequence(b,ctx,target,rolls,skipReach,replay))return false;
     }else{
-      const shield=target.shield;
       const dealt=gameStrike(b,ctx,target,roll);
       if(dealt===null)return false;
       ctx.base=dealt;
-      ctx.brokeShield=shield>0&&target.shield===0;
       if(!replay&&ctx.base&&target.enemy&&!ctx.actor.enemy){
         if(ctx.moved>=2)gameProof(b,ctx.actor,'advance');
         if(ctx.critical)gameProof(b,ctx.actor,'precision');
@@ -3171,7 +3205,7 @@ function gameResolve(b) {
   delete b.moved;
   delete b.exposedToAttack;
   for(const unit of Object.values(b.units))if(unit.lifeSteal){
-    for(const [key,rule] of Object.entries(unit.lifeSteal))if(rule.through<=b.round)delete unit.lifeSteal[key];
+    for(const [key,rule] of Object.entries(unit.lifeSteal))if(rule.through!=null&&rule.through<=b.round)delete unit.lifeSteal[key];
     if(!Object.keys(unit.lifeSteal).length)delete unit.lifeSteal;
   }
   b.round++;
@@ -3190,7 +3224,8 @@ function gameView(state,revision,actor,manager,members) {
       ...(damageDebt?{damageDebt:damageDebt.map(({round,amount})=>({round,amount}))}:{}),
       ...(damageOverTime?{damageOverTime:damageOverTime.map(({through,amount})=>({through,amount}))}:{}),
       ...(delayedStrike?{delayedStrike:delayedStrike.map(({round,amount,source})=>({round,amount,source}))}:{}),
-      ...(lifeSteal?{lifeStealThrough:Math.max(...Object.values(lifeSteal).map(rule=>rule.through))}:{}),
+      ...(lifeSteal?{damageConversions:Object.values(lifeSteal).map(rule=>({shield:!!rule.shieldConversion,through:rule.through})),
+        lifeStealThrough:Math.max(...Object.values(lifeSteal).map(rule=>rule.through??0))}:{}),
       passiveNames:(passives||[]).map(passive=>passive.name),actionLimit:gameActionLimit(unit),coverCount:cover?.length||0,handCount:hand.length,deckCount:deck.length,graveCount:grave.length,exileCount:exile.length,ready:!!b.plans?.[unit.id],artVersion:state.profiles[unit.id]?.artVersion||0,artSlots:Object.keys(state.profiles[unit.id]?.art||{}),...(unit.id===actor?{cardMarks,hand:[...hand.map(id=>({...library[id],requiredState:cardState(library[id].requiredState)})),...(unit.collapsed?[gameCollapseCard]:unit.zero==='crisis'?gameCrisisCards:[])],plan:b.plans?.[actor]}:{})}))
   }:null;
   return {revision,manager,me:actor,roster:members.filter(m=>m.seat>0),profile:{name:'',country:'제4국',status:'하위층 시민',wall:'',job:'',goal:'',concept:'',stats:[50,50,50,50,50,50],mind:50,cards:[],deck:[],...state.profiles[actor]},defaults:gameCatalogue,battle};

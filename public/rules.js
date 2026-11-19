@@ -167,10 +167,13 @@ export const stackGainLimits={
   stackGainCount:['획득 횟수 · 1회당','count','gain'],stackTurnCount:['획득 횟수 · 턴당','count','turn'],stackBattleCount:['획득 횟수 · 전투당','count','battle']
 };
 export const stackGainLimitMax=key=>stackGainLimits[key][1]==='count'?maxStatusStacks:maxStatusStacks*maxStackPotency;
+export const durationPolicies={default:'효과 기본 규칙',ignore:'이미 있으면 갱신 불가',refresh:'새 유지 라운드로 갱신',longest:'기존과 새 유지 시간 중 긴 쪽 적용',extend:'남은 라운드와 새 라운드 합산'};
+export const durationPolicyKinds=['lifeSteal','shieldConversion','healCut','collapseImmune','mindGuard','mindRecoveryCut','mindRegen','mindBurn','poison','blockAction'];
+export const maxDurationCap=999;
 export function effectNumberBounds(kind,key,hitIndex=0,hitCount=8,dice=false){
   const limits={threshold:[dice?1:0,dice?maxDiceTotal:100],stackCap:[1,maxStatusStacks],stackPower:[1,maxStackPotency],
     stackPowerCap:[1,maxStackPotency],dotRounds:[1,maxStatusRounds],reactionRounds:[0,maxStatusRounds],
-    deferRounds:[1,maxDeferralRounds],amplifyIndex:[hitIndex+1,hitCount],limitCount:[1,maxEffectActivations],scaleCostAmount:[1,100]};
+    durationCap:[0,maxDurationCap],deferRounds:[1,maxDeferralRounds],amplifyIndex:[hitIndex+1,hitCount],limitCount:[1,maxEffectActivations],scaleCostAmount:[1,100]};
   if(Object.hasOwn(stackGainLimits,key)&&stackGrantEffects.includes(kind))return [1,stackGainLimitMax(key)];
   const settings=effectSettings[kind];
   return Object.hasOwn(limits,key)?limits[key]:settings&&Object.hasOwn(settings,key)?settings[key].slice(2):undefined;
@@ -306,7 +309,33 @@ export const basicStacks = {
   '직격 잔류':{when:'turnEnd',damage:'piercingFixed',description:'턴 종료마다 총 중첩 위력만큼 방어막 관통 고정 피해를 받습니다.'},
   '직격 균열':{when:'struck',damage:'piercingFixed',description:'적의 타격에 맞을 때마다 총 중첩 위력만큼 방어막 관통 고정 피해를 받습니다.'},
   '집중':{cap:100,description:'보유 중첩 1개당 치명타 확률이 1%p 증가합니다. 최대 100중첩.'},
-  '강타':{description:'보유 중첩 1개당 치명타 피해율이 1%p 증가합니다.'}
+  '강타':{description:'보유 중첩 1개당 치명타 피해율이 1%p 증가합니다.'},
+  ...Object.fromEntries([
+    ['신속','turnEnd','nextMove',1,5],
+    ['둔중','turnEnd','nextSlow',1,5],
+    ['합의 기세','clash','focusClash',1,10],
+    ['예열','turnStart','focus',1,10],
+    ['무기력','turnStart','weaken',1,10],
+    ['재생','turnEnd','heal',1,10],
+    ['평정','turnEnd','mind',1,10],
+    ['완충','turnStart','temporaryShield',2,10],
+    ['전술 정비','turnStart','draw',1,3],
+    ['회피 태세','turnStart','dodge',1,3],
+    ['정밀 조준','turnStart','trueStrike',1,3],
+    ['재정렬','turnStart','rerollLow',1,3],
+    ['추진력','turnEnd','extraAction',1,2]
+  ].map(([name,when,kind,amount,cap])=>[name,{sub:true,cap,effects:[{when,kind,to:'self',amount,scaleStack:'count'}]}])),
+  ...Object.fromEntries([
+    ['흡혈','lifeSteal','card','hp',5],
+    ['정신 포식','lifeSteal','card','mind',5],
+    ['상처 포식','lifeSteal','stack','hp',10],
+    ['방벽 회생','shieldConversion','any','hp',10],
+    ['방벽 정화','shieldConversion','any','mind',10],
+    ['방벽 환류','shieldConversion','any','temporaryShield',10]
+  ].map(([name,kind,leechDamage,leechRecovery,amount])=>[name,{sub:true,cap:10,effects:[{
+    when:'held',kind,to:'self',amount,amountMode:'percent',scaleStack:'count',leechDamage,leechRecovery,
+    leechVictim:kind==='shieldConversion'?'self':'enemy'
+  }]}]))
 };
 export const legacyCriticalStackEffects=['critStacks','critSpend','critRemove','critPerSpent'];
 export const maxStackPotency = 999;

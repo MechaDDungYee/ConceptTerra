@@ -2,7 +2,7 @@ import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
 import {accountPanel} from './account.js';
 import {gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridCardInRange,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
-import {stackGainLimits,stackGainLimitMax,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
+import {stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
 const studio=location.pathname==='/studio';
 const code=location.pathname.split('/')[2], endpoint=studio?'/api/studio':'/api/rooms/'+code+'/game';
@@ -100,7 +100,7 @@ function fillStackSelect(control,value){
   const names=new Set([...Object.keys(basicStacks),...Object.keys(conceptStacks),...(state.profile.customStacks||[]),...(state.profile.stackNames||[])]);
   if(value)names.add(value);
   control.replaceChildren(el('option','중첩 선택',{value:''}),
-    ...[...names].map(name=>el('option',Object.hasOwn(basicStacks,name)?name+' · 기본':Object.hasOwn(conceptStacks,name)?name+' · 개념물':name,{value:name})));
+    ...[...names].map(name=>el('option',Object.hasOwn(basicStacks,name)?name+(basicStacks[name].sub?' · 기본 부 키워드':' · 기본'):Object.hasOwn(conceptStacks,name)?name+' · 개념물':name,{value:name})));
   control.value=value||'';
   selectSearches.get(control)?.();
 }
@@ -176,7 +176,16 @@ function stackManager(){
     };
     editor.append(traitForm);
   };
-  root.append(el('summary','중첩 관리'),form,list,picker,editor);
+  const catalogue=el('details',undefined,{class:'stack'});
+  catalogue.append(el('summary','기본 부 키워드'));
+  for(const [name,trait] of Object.entries(basicStacks)){
+    if(!trait.sub)continue;
+    const entry=el('details');
+    entry.append(el('summary',name+' · 최대 '+trait.cap+'중첩'));
+    for(const effect of trait.effects)entry.append(note(stackEffectText(effect)));
+    catalogue.append(entry);
+  }
+  root.append(el('summary','중첩 관리'),form,list,picker,editor,catalogue);
   return root;
 }
 function character(){
@@ -373,6 +382,15 @@ const selfEffects=new Set(['draw','discard','recover','return','exile','replay',
 function effectCards(extra=[]){
   return [...state.defaults,...state.profile.cards,...(state.profile.passiveCards||[]),...extra];
 }
+function stackEffectText(effect){
+  if(effect.when==='held'&&effect.kind==='shieldConversion'){
+    return '보유 시 · 자신의 방어막이 막은 피해의 중첩당 '+effect.amount+'%를 '+shieldConversionOutputs[effect.leechRecovery]+'으로 변환';
+  }
+  if(effect.when==='held'&&effect.kind==='lifeSteal'){
+    return '보유 시 · 자신이 입힌 '+lifeStealDamageTypes[effect.leechDamage]+'의 중첩당 '+effect.amount+'%만큼 '+lifeStealRecoveryResources[effect.leechRecovery]+' 회복';
+  }
+  return effectTiming(effect)+' · '+effectSentence(effect)+(effect.scaleStack==='count'?' · 보유 중첩 수를 곱함':'');
+}
 function effectSentence(e,extra=[]){
   if(e.kind==='replaceCard'){
     const cards=effectCards(extra);
@@ -489,6 +507,11 @@ function readEffect(row){
   if(all||unnumberedEffects.includes(effect.kind))effect.amount=1;
   if(!effect.ratioBasis||effect.amountMode!=='percent')delete effect.ratioBasis;
   if(!effect.dotRounds)delete effect.dotRounds;
+  if(effect.durationPolicy==='default'||row.querySelector('[name=durationPolicy]')?.closest('label')?.hidden){
+    delete effect.durationPolicy;
+    delete effect.durationCap;
+  }
+  if(!effect.durationCap)delete effect.durationCap;
   if(!cardZoneTimings.includes(effect.when)){
     delete effect.zoneCard;
     delete effect.zoneOwner;
@@ -504,8 +527,10 @@ function readEffect(row){
   return effect;
 }
 function effectTiming(effect){
+  const cap=effect.numberExprs?.durationCap?describeValue(effect.numberExprs.durationCap):effect.durationCap;
   return (effect.hitIndex?effect.hitIndex+'타 · ':'')+timings[effect.when]+
-    (effect.reactionRounds?' · 사용 라운드부터 '+effect.reactionRounds+'라운드':'');
+    (effect.reactionRounds?' · 사용 라운드부터 '+effect.reactionRounds+'라운드':'')+
+    (effect.durationPolicy?' · '+durationPolicies[effect.durationPolicy]:'')+(cap?' · 유지 상한 '+cap+'라운드':'');
 }
 function effectTimingAllowed(kind,when,scoped,passive,role){
   if(kind==='replaceCard')return when==='replace'&&!scoped;
@@ -595,6 +620,10 @@ function effectRow(row,refresh,scoped,passive,stack){
     note(shieldConversion?'방어막이 실제로 막은 피해량을 변환해요.':
       '피해 감소 적용 후는 줄어든 체력·정신력을 기준으로 해요. 상한을 비율로 지정하면 선택한 기준 피해량에 적용해요.')
   ]:[];
+  const durationPolicy=select('durationPolicy',Object.entries(durationPolicies),row.durationPolicy||'default');
+  const durationCap=input('durationCap',row.durationCap??0,'number',{min:0,max:maxDurationCap,required:true});
+  const durationPolicyField=field('재적용 시 유지 라운드',durationPolicy);
+  const durationCapField=field('최대 유지 라운드 (0은 제한 없음)',durationCap);
   const consuming=row.kind==='consume';
   const consumeAmount=select('consumeAmount',Object.entries(stackConsumeAmounts),row.consumeAmount||'fixed');
   const consumeScope=select('consumeScope',Object.entries(stackConsumeScopes),row.consumeScope||'each');
@@ -695,6 +724,8 @@ function effectRow(row,refresh,scoped,passive,stack){
   if(isCost){when.disabled=true;condition.disabled=true;}
   if(staged||amplify||isCost||row.kind==='replayHit'||copyEffects.includes(row.kind)||teamEffects.includes(row.kind))to.disabled=true;
   const show=()=>{
+    const timed=durationPolicyKinds.includes(row.kind)||!passive&&!scoped&&['struck','hurt'].includes(when.value);
+    durationPolicyField.hidden=durationCapField.hidden=!timed;
     if(leech){
       if(leechShield)leechShield.hidden=leechResource.value==='mind';
       formulaField.hidden=output.value!=='both';
@@ -807,7 +838,7 @@ function effectRow(row,refresh,scoped,passive,stack){
     zoneFields,part('대상','target',field(leech?'누가 피해를 줄 때?':replace?'조건을 확인할 대상':'누구에게?',to)),
     ...(row.kind==='stack'?[part('중첩 부여','effect',tag)]:[]),
     part('효과 옵션','effect',...replacementFields,...consumeFields,...(row.kind==='giveCard'?[giveField]:[]),
-      ...capFields,...ampFields,...leechFields,...duration,...settings,...stackScale,reactionField,...(row.kind==='stack'?[]:[tag]),fixedField),
+      ...capFields,...ampFields,...leechFields,...duration,...settings,durationPolicyField,durationCapField,...stackScale,reactionField,...(row.kind==='stack'?[]:[tag]),fixedField),
     field('효과 플레이버 텍스트',area('flavor',row.flavor||'',180),'full'),
     part('대가와 발동 제한','limit',field('발동 제한',limit),limitCountField,scaleField,scaleModeField,scaleAmountField,scaleBasisField));
   fields.append(part('효과 자체 조건','condition',field('어떤 조건에서?',condition),conditionCardField,conditionStack,threshold,diceHelp));
@@ -978,10 +1009,10 @@ function renderCardFace(preview,card){
   if(stackNames.size){
     const stacks=el('div',undefined,{class:'row forge-keywords','aria-label':'중첩'});
     for(const name of stackNames){
-      const trait=(card.concept?conceptStacks[name]:null)||state.profile?.stackTraits?.find(item=>item.name===name)||conceptStacks[name];
-      const lines=(trait?.effects||[]).map(effect=>effectTiming(effect)+' · '+effectSentence(effect)+
-        (effect.scaleStack==='count'?' · 보유 중첩 수를 곱함':''));
-      if(Object.hasOwn(basicStacks,name))lines.unshift(basicStacks[name].description);
+      const trait=(card.concept?conceptStacks[name]:null)||state.profile?.stackTraits?.find(item=>item.name===name)||conceptStacks[name]||basicStacks[name];
+      const lines=(trait?.effects||[]).map(stackEffectText);
+      if(basicStacks[name]?.description)lines.unshift(basicStacks[name].description);
+      if(basicStacks[name]?.sub)lines.push('최대 '+trait.cap+'중첩');
       stacks.append(keyword(name,[...new Set(lines)],'stack-tag',trait?.flavor));
     }
     description.append(stacks);
@@ -1769,7 +1800,7 @@ function battlePanel(){
       if(!u.stacks[name])continue;
       if(trait.flavor)detail.append(flavorText(name+' · '+trait.flavor));
       for(const effect of trait.effects||[]){
-        detail.append(note(name+' · '+effectTiming(effect)+' · '+effectSentence(effect)));
+        detail.append(note(name+' · '+stackEffectText(effect)));
       }
     }
     const old=board.querySelector('.unit-inspection');

@@ -137,7 +137,9 @@ export function blockWorkspace(config){
     const read=(body,when,flow=[])=>body.flatMap(node=>{
       if(isAction(node)){
         const row=readEffect(node.widget);
-        return [{...row,when,...(Object.keys(node.numberExprs).length?{numberExprs:node.numberExprs}:{}),...(flow.length?{flow}:{}),...(node.expr&&row.consumeAmount!=='all'?{amountExpr:node.expr}:{})}];
+        const numberExprs={...node.numberExprs};
+        if(node.widget.querySelector('[name=durationCap]')?.closest('label')?.hidden)delete numberExprs.durationCap;
+        return [{...row,when,...(Object.keys(numberExprs).length?{numberExprs}:{}),...(flow.length?{flow}:{}),...(node.expr&&row.consumeAmount!=='all'?{amountExpr:node.expr}:{})}];
       }
       if(node.kind==='repeat')return read(node.then,when,[...flow,{kind:'repeat',id:node.id,count:node.count,...(node.countExpr?{countExpr:node.countExpr}:{})}]);
       return [

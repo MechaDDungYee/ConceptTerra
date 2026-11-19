@@ -2931,3 +2931,50 @@ test('shield conversion can replenish the selected victim using only absorbed da
   assert.equal(livingForm(f,'enemy').shield,3);
   assert.ok(livingForm(f).hand.some(card=>card.id==='strike'));
 });
+
+test('timed effects can ignore, refresh or extend and respect a calculated duration cap',async()=>{
+  for(const [policy,through] of [['ignore',3],['refresh',4],['extend',5]]){
+    const f=await fixture();
+    await f.act('card',{card:{name:'지속 재적용',role:'normal',power:'0',range:'0',target:'self',effects:[
+      {kind:'mindGuard',when:'use',to:'self',amount:25,duration:3,durationPolicy:policy,
+        numberExprs:{durationCap:{type:'math',op:'add',terms:[{type:'number',value:2},{type:'number',value:2}]}}}
+    ]}});
+    const id=f.state.profile.cards[0].id;
+    await f.act('start',{solo:true,bots:0});
+    for(let round=1;round<=2;round++){
+      configureBattle(f,(b,self)=>{self.hand=[id];b.units.enemy.blockedRounds=1;});
+      await f.act('plan',{card:id,targets:[]});
+      await f.act('round');
+    }
+    assert.equal(livingForm(f).mindStatuses.mindGuard.through,through,policy);
+  }
+});
+
+test('built-in stack keywords grant next-round movement and heal from card or shield damage',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'부 키워드 얻기',role:'normal',power:'0',range:'0',target:'self',effects:
+    ['신속','흡혈','방벽 회생'].map(tag=>({kind:'stack',when:'use',tag,to:'self',amount:2}))
+  }});
+  await f.act('card',{card:{name:'피해 넣기',role:'normal',power:'0',range:'1~4',target:1,effects:[
+    {kind:'damage',when:'use',to:'target',amount:20}
+  ]}});
+  const get=f.state.profile.cards.find(c=>c.name==='부 키워드 얻기').id;
+  const attack=f.state.profile.cards.find(c=>c.name==='피해 넣기').id;
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{hand:[get],pos:16,hp:20});
+    Object.assign(b.units.enemy,{blockedRounds:1,pos:18});
+  });
+  await f.act('plan',{card:get,targets:[]});
+  await f.act('round');
+  assert.equal(livingForm(f).move,4);
+  assert.equal(livingForm(f).stacks.흡혈,2);
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{hand:[attack],shield:10,mind:50});
+    b.intent={...b.intent,card:{...b.intent.card,power:'10',range:'1~4',effects:[]},target:self.id,reachable:true};
+    b.units.enemy.blockedRounds=0;
+  });
+  await f.act('plan',{card:attack,targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f).hp,24);
+});

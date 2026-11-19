@@ -2,7 +2,7 @@ import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
 import {accountPanel} from './account.js';
 import {gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridCardInRange,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
-import {stackGainLimits,stackGainLimitMax,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
+import {stackGainLimits,stackGainLimitMax,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
 const studio=location.pathname==='/studio';
 const code=location.pathname.split('/')[2], endpoint=studio?'/api/studio':'/api/rooms/'+code+'/game';
@@ -329,6 +329,7 @@ function stackLabels(unit){
 }
 function combatStatusLabels(unit){
   const labels=[];
+  if(unit.lifeStealThrough)labels.push('생명력 흡수 · '+unit.lifeStealThrough+'라운드까지');
   if(unit.collapseResist)labels.push('붕괴 저항 '+unit.collapseResist+'회');
   for(const [kind,{amount,through}] of Object.entries(unit.mindStatuses||{})){
     const suffix=kind==='collapseImmune'?'':kind==='mindGuard'||kind==='mindRecoveryCut'?' '+amount+'%':' '+amount;
@@ -358,7 +359,7 @@ const effectFamilies = {
   '체력과 정신력 대가':['healthCost','mindCost','mind','power','allyHeal','rallyHeal','rallyShield','focusClash'],
   '특수 기믹':['delayedStrike','positionAnchor','debtShield','clashMemory','afterimage','overloadEcho','emptyHandReload','clashStreak','shareCopy','hastenStrike','preserveMove','spareShield','revealDistance','lastStand'],
   '피해 증감과 조건부 효과':['outgoingDamage','incomingDamage','doubleEdge','damageDebt','eraseDebt','barrierBurst','shieldBreakDraw'],
-  '공격과 합':['basePower','finalPower','damage','percent','fixedDamage','pierce','piercingFixedDamage','stripShield','drainLife','recoil','power','focus','weaken','expose','thorns','guardBreak','riposte','shieldPower','gravePower'],
+  '공격과 합':['basePower','finalPower','damage','percent','fixedDamage','pierce','piercingFixedDamage','stripShield','drainLife','lifeSteal','recoil','power','focus','weaken','expose','thorns','guardBreak','riposte','shieldPower','gravePower'],
   '방어와 회복':['dodge','stackWard','healCut','hitLeech','shield','reduce','fortify','heal','healPercent','healMissing','regen','clearStatus','temporaryShield','stealShield','shieldGift','allyHeal','lethalGuard','graveToShield'],
   '이동과 위치':['push','pull','move','movement','nextMove','nextSlow','retreat','swapPosition','rootNext','provoke','evadeStep'],
   '중첩과 정신력':['stack','consume','remove','perStack','doubleStack','stealStack','consumeHeal','stackDamage','poison','mind','drain','mindTransfer','cleanseStacks','shieldPerStack','recoverMindFloor','purgePoison','detonatePoison'],
@@ -366,7 +367,7 @@ const effectFamilies = {
   '카드와 덱':['draw','discard','recover','return','exile','replay','cycle','mill','recoverDeck','reclaim','topdeck','bottomdeck','shuffleDeck','buryHand','exileGrave','drawTo','lateDraw','recycleExile']
 };
 const suggestedTiming={draw:'use',discard:'use',recover:'use',power:'clash',percent:'wall',perStack:'consume',exile:'end',return:'end'};
-const selfEffects=new Set(['draw','discard','recover','return','exile','replay','power','move','movement','nextMove','mind']);
+const selfEffects=new Set(['draw','discard','recover','return','exile','replay','power','move','movement','nextMove','mind','lifeSteal']);
 function effectCards(extra=[]){
   return [...state.defaults,...state.profile.cards,...(state.profile.passiveCards||[]),...extra];
 }
@@ -385,6 +386,15 @@ function effectSentence(e,extra=[]){
   }
   const target=e.to==='target'?(cardZoneTimings.includes(e.when)?'이동한 카드의 주인':'대상'):effectRecipients[e.to];
   const number=expression||(['awakenBody','inscribeMeaning'].includes(e.kind)&&e.perStack?e.amount*e.perStack:e.amount||1);
+  if(e.kind==='lifeSteal'){
+    const heal=lifeStealHealers[e.leechHeal]||effectRecipients[e.leechHeal]||lifeStealHealers.dealer;
+    const duration=e.numberExprs?.duration?describeValue(e.numberExprs.duration):e.duration??1;
+    const cap=e.numberExprs?.healCap?describeValue(e.numberExprs.healCap):e.healCap;
+    return '피해를 줄 캐릭터: '+target+' · 피해를 받을 캐릭터: '+(lifeStealVictims[e.leechVictim]||lifeStealVictims.enemy)+
+      ' · '+(lifeStealDamageTypes[e.leechDamage]||lifeStealDamageTypes.any)+' · '+heal+' 체력 회복 '+number+
+      (e.amountMode==='percent'?'% (실제 피해 기준)':' (실제 피해까지만)')+' · '+duration+'라운드'+
+      (cap?' · 피해 1회당 최대 '+cap:'')+(e.limit?' · '+effectLimitPeriods[e.limit.period]+' '+e.limit.count+'회':'');
+  }
   const signedAmount=value=>expression?value:signed(value);
   const phrases={
     push:`${target}을 ${number}칸 밀쳐낸다`,pull:`${target}을 ${number}칸 끌어온다`,
@@ -517,7 +527,7 @@ function effectWorkspace(initial,{scoped=false,passive=false,stack=false,role,on
       const preferred=config?.[1]||suggestedTiming[kind]||'hit';
       return {kind,when:when||(legacyHitEvents.includes(preferred)?'hit':preferred),
         to:cardZoneTimings.includes(when)||['replayHit','amplifyHit',...stagedPowerEffects].includes(kind)?'self':config?.[2]||(selfEffects.has(kind)?'self':'target'),
-        amount:['amplifyHit','healCut','hitLeech'].includes(kind)?50:1,...(kind==='poison'?{dotRounds:2}:{}),
+        amount:['amplifyHit','healCut','hitLeech','lifeSteal'].includes(kind)?50:1,...(kind==='poison'?{dotRounds:2}:{}),
         ...(kind==='amplifyHit'?{amountMode:'percent'}:{})};
     },
     makeEffect:(row,when)=>effectRow({...row,when},onChange,scoped,passive,stack),onChange
@@ -547,6 +557,14 @@ function effectRow(row,refresh,scoped,passive,stack){
     :[];
   const settings=Object.entries(effectSettings[row.kind]||{}).map(([key,[label,defaultValue,min,max]])=>
     field(label,input(key,row[key]??defaultValue,'number',{min,max,required:true})));
+  const leech=row.kind==='lifeSteal';
+  const leechFields=leech?[
+    field('어떤 피해를 흡수할까?',select('leechDamage',Object.entries(lifeStealDamageTypes),row.leechDamage||'any')),
+    field('누가 피해를 입을 때?',select('leechVictim',Object.entries(lifeStealVictims),row.leechVictim||'enemy')),
+    field('누구의 체력을 회복할까?',select('leechHeal',[...Object.entries(lifeStealHealers),
+      ...Object.entries(effectRecipients).filter(([key])=>!['target','primary','secondary','self'].includes(key))],row.leechHeal||'dealer')),
+    note('효과가 발동한 뒤 실제로 깎인 체력만 계산해요. 유지 라운드에는 현재 라운드가 포함돼요.')
+  ]:[];
   const consuming=row.kind==='consume';
   const consumeAmount=select('consumeAmount',Object.entries(stackConsumeAmounts),row.consumeAmount||'fixed');
   const consumeScope=select('consumeScope',Object.entries(stackConsumeScopes),row.consumeScope||'each');
@@ -565,7 +583,7 @@ function effectRow(row,refresh,scoped,passive,stack){
       stackGainFields(row),
       note('중첩 비례 효과는 보유하거나 소모한 중첩의 위력을 합산해 계산해요.')
     ]:[];
-  const amountLabel=field(consuming?'소모 수량':row.kind==='stack'?'부여 횟수':row.kind==='blockAction'?'행동 불가 라운드 수':row.kind==='reduceActions'?'줄일 행동량':['healCut','hitLeech'].includes(row.kind)?'비율 (%)':'얼마나?',amount);
+  const amountLabel=field(leech?'회복 수치':consuming?'소모 수량':row.kind==='stack'?'부여 횟수':row.kind==='blockAction'?'행동 불가 라운드 수':row.kind==='reduceActions'?'줄일 행동량':['healCut','hitLeech'].includes(row.kind)?'비율 (%)':'얼마나?',amount);
   const modeLabel=field('수치 단위',mode);
   modeLabel.hidden=!ratio&&!amplify;
   const ampTarget=select('amplifyTarget',Object.entries(amplifyHitTargets),row.amplifyTarget||'next');
@@ -703,7 +721,7 @@ function effectRow(row,refresh,scoped,passive,stack){
     if(ratioBasis.selectedOptions[0]?.disabled)ratioBasis.value=stackRatio?'ownStackCurrent':'';
     const e=readEffect(x);
     healthField.hidden=!healthRatioEffects.includes(e.kind)||e.amountMode!=='percent'||!!e.ratioBasis;
-    basis.hidden=!ratio||e.amountMode!=='percent'||!healthField.hidden||!!e.ratioBasis;
+    basis.hidden=leech||!ratio||e.amountMode!=='percent'||!healthField.hidden||!!e.ratioBasis;
     scaleModeField.hidden=!showScale;
     scaleAmountField.hidden=!showScale||!scaleCostMode.value;
     scaleCostAmount.disabled=scaleAmountField.hidden;
@@ -748,10 +766,10 @@ function effectRow(row,refresh,scoped,passive,stack){
     x.amountPart=partNode;
   }
   fields.append(input('kind',row.kind,'hidden'),when,...(x.amountPart?[]:[amount]),
-    zoneFields,part('대상','target',field(replace?'조건을 확인할 대상':'누구에게?',to)),
+    zoneFields,part('대상','target',field(leech?'누가 피해를 줄 때?':replace?'조건을 확인할 대상':'누구에게?',to)),
     ...(row.kind==='stack'?[part('중첩 부여','effect',tag)]:[]),
     part('효과 옵션','effect',...replacementFields,...consumeFields,...(row.kind==='giveCard'?[giveField]:[]),
-      ...capFields,...ampFields,...duration,...settings,...stackScale,reactionField,...(row.kind==='stack'?[]:[tag]),fixedField),
+      ...capFields,...ampFields,...leechFields,...duration,...settings,...stackScale,reactionField,...(row.kind==='stack'?[]:[tag]),fixedField),
     field('효과 플레이버 텍스트',area('flavor',row.flavor||'',180),'full'),
     part('대가와 발동 제한','limit',field('발동 제한',limit),limitCountField,scaleField,scaleModeField,scaleAmountField,scaleBasisField));
   fields.append(part('효과 자체 조건','condition',field('어떤 조건에서?',condition),conditionCardField,conditionStack,threshold,diceHelp));

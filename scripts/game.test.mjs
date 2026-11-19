@@ -2805,3 +2805,38 @@ test('card movement filters work across combatants for cards, passives and held 
   assert.equal(livingForm(f).shield,7);
   assert.equal(livingForm(f,'ally').shield,7);
 });
+
+test('life steal filters actual card, passive and keyword damage and expires after its duration',async()=>{
+  const f=await fixture();
+  const rule={kind:'lifeSteal',when:'use',to:'self',leechHeal:'dealer',leechVictim:'enemy',duration:2};
+  await f.act('card',{card:{name:'흡혈 부여',power:'0',role:'normal',range:'0',target:'self',effects:[
+    {...rule,leechDamage:'card',amount:50,healCap:3},
+    {...rule,leechDamage:'stack',amountMode:'fixed',amount:20},
+    {...rule,leechDamage:'passive',amount:100,leechHeal:'victim'}
+  ]}});
+  await f.act('card',{card:{name:'흡혈 판정',power:'0',role:'normal',range:'1~4',target:1,effects:[
+    {kind:'damage',when:'hit',to:'target',amount:8},
+    {kind:'stack',when:'hit',to:'target',tag:'침식',amount:3}
+  ]}});
+  await f.act('passive',{passive:{name:'패시브 피해',effects:[{kind:'damage',when:'hit',to:'target',amount:5}]}});
+  const activation=f.state.profile.cards.find(c=>c.name==='흡혈 부여').id;
+  const attack=f.state.profile.cards.find(c=>c.name==='흡혈 판정').id;
+  await f.act('start',{solo:true,bots:0});
+  async function play(id,targets,setup){
+    configureBattle(f,(b,self)=>{
+      Object.assign(self,{hand:[id],pos:16,mind:50});
+      Object.assign(b.units.enemy,{blockedRounds:1,pos:18});
+      setup?.(self,b.units.enemy);
+    });
+    await f.act('plan',{card:id,targets});
+    await f.act('round');
+  }
+  await play(activation,[],self=>{self.hp=20;});
+  assert.equal(livingForm(f).lifeStealThrough,2);
+  await play(attack,['enemy'],(_self,enemy)=>{enemy.shield=2;});
+  assert.equal(livingForm(f).hp,26);
+  assert.equal(livingForm(f,'enemy').hp,43);
+  assert.equal(livingForm(f).lifeStealThrough,undefined);
+  await play(attack,['enemy']);
+  assert.equal(livingForm(f).hp,26);
+});

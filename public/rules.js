@@ -43,7 +43,8 @@ export const newEffects = {
   fixedDamage:['고정 피해','hit','target','피해 경감과 무시를 건너뛰는 피해 {n} · 보호막은 적용'],
   piercingFixedDamage:['방어막 관통 고정 피해','hit','target','피해 경감과 무시, 보호막을 모두 건너뛰는 피해 {n}'],
   stripShield:['보호막 파괴','hit','target','보호막 {n} 제거'],
-  drainLife:['생명력 흡수','damage','target','추가 피해 {n}. 실제로 가한 만큼 사용자의 체력 회복'],
+  drainLife:['추가 타격 흡혈','damage','target','추가 피해 {n}. 실제로 가한 만큼 사용자의 체력 회복'],
+  lifeSteal:['생명력 흡수','use','self','조건에 맞는 피해를 체력으로 흡수'],
   healPercent:['최대 체력 비례 회복','use','self','최대 체력의 {n}% 회복'],
   healMissing:['잃은 체력 비례 회복','use','self','잃은 체력의 {n}% 회복'],
   recoil:['반동 피해','end','self','보호막을 관통하는 반동 피해 {n}'],
@@ -185,6 +186,7 @@ export const mentalCrisisThreshold = 25;
 export const awakeningPower = 2;
 export const crisisRecovery = 25;
 export const effectSettings = {
+  lifeSteal:{duration:['유지 라운드 (이번 라운드 포함)',1,1,10],healCap:['피해 1회당 최대 회복량 (0은 제한 없음)',0,0,999]},
   healCut:{duration:['지속 라운드 (이번 라운드 포함)',2,1,10]},
   ...Object.fromEntries(['collapseImmune','mindGuard','mindRecoveryCut','mindRegen','mindBurn'].map(kind=>
     [kind,{duration:['지속 라운드 (이번 라운드 포함)',2,1,10]}])),
@@ -199,8 +201,12 @@ export const effectSettings = {
   debtShield:{conversion:['상쇄량 대비 보호막 (%)',100,1,1000]},
   spareShield:{conversion:['보호막 소모량 대비 정신력 회복 (%)',100,1,1000]}
 };
-export const percentageDefaults = ['doubleEdge','lastStand'];
+export const lifeStealDamageTypes={any:'모든 피해',card:'카드 피해',strike:'카드 기본 타격 피해',stack:'중첩·키워드 피해',passive:'패시브 피해',ongoing:'지속·지연 피해',counter:'반사·반격 효과 피해',other:'기타 피해'};
+export const lifeStealVictims={enemy:'피해를 준 쪽의 적',ally:'피해를 준 쪽의 아군 (자신 제외)',self:'피해를 준 쪽 자신',any:'누구든'};
+export const lifeStealHealers={dealer:'피해를 준 캐릭터',victim:'피해를 입은 캐릭터',owner:'이 효과를 발동한 캐릭터'};
+export const percentageDefaults = ['doubleEdge','lastStand','lifeSteal'];
 export const ratioEffects = {
+  lifeSteal:['흡수 비율',1],
   ...Object.fromEntries(stackRatioEffects.map(kind=>[kind,['효과 수치',1,'선택한 중첩 수']])),
   doubleEdge:['이번 라운드 입히는 피해와 받는 피해',1,'피해 판정',true],
   lastStand:['손패가 비었을 때 받는 피해',-1,'피해 판정',true],
@@ -379,7 +385,7 @@ export const passiveEffectKinds = [
   'mindGuard','mindRecoveryCut','mindRegen','mindBurn','clearMindBuffs','clearMindDebuffs','purgeDefense','purgeOffense','purgeRegen',
   'power','basePower','finalPower','focus','weaken','shield','reduce','fortify','heal','healPercent','healMissing','regen',
   'clearStatus','temporaryShield','stealShield','shieldGift','allyHeal','lethalGuard','healCut','dodge','trueStrike','stackWard',
-  'rerollLow','hitLeech','damage','bossDamage','pierce','fixedDamage','piercingFixedDamage','drainLife','stack','consume','remove','doubleStack','stealStack',
+  'rerollLow','hitLeech','damage','bossDamage','pierce','fixedDamage','piercingFixedDamage','drainLife','lifeSteal','stack','consume','remove','doubleStack','stealStack',
   'stackDamage','poison','mind','drain','mindTransfer','cleanseStacks','purgePoison','recoverMindFloor','focusClash',
   'bossOutgoingDamage','bossIncomingDamage','outgoingDamage','incomingDamage','damageDebt','eraseDebt','barrierBurst','thorns',
   'critChance','critCharges','critStacks','critRemove','critMultiplier','draw','recover','lateDraw','extraAction','blockAction','unblockAction','reduceActions','nextMove','nextSlow'

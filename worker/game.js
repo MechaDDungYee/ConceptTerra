@@ -1,5 +1,5 @@
 import {gridValid, gridSize, gridTileGroups, gridDistance, gridPaths, gridDisplacement, gridCardInRange, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
-import {stackGainLimits,stackGainLimitMax,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
+import {stackGainLimits,stackGainLimitMax,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
 class GameInputError extends Error {}
@@ -202,6 +202,11 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
       !Object.hasOwn(amplifyHitTargets,amplifyTarget)||amplifyTarget==='number'&&!gameInt(amplifyIndex,hitIndex+1,hitPowers.length))){
       gameFail('증폭할 타격은 이 효과를 발동하는 타격보다 뒤에 있어야 해요.');
     }
+    const leech=row.kind==='lifeSteal';
+    const leechDamage=row.leechDamage??'any',leechVictim=row.leechVictim??'enemy',leechHeal=row.leechHeal??'dealer';
+    if(leech&&(!Object.hasOwn(lifeStealDamageTypes,leechDamage)||!Object.hasOwn(lifeStealVictims,leechVictim)||
+      !Object.hasOwn(lifeStealHealers,leechHeal)&&(!Object.hasOwn(effectRecipients,leechHeal)||['target','primary','secondary','self'].includes(leechHeal))))
+      gameFail('생명력 흡수의 피해 종류와 대상을 확인하세요.');
     const deferral=row.kind==='damageDebt';
     const defaultPercent=deferral||percentageDefaults.includes(row.kind);
     const ratio=row.amountMode==='percent'||defaultPercent&&row.amountMode==null;
@@ -304,6 +309,7 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
     return {...settings,...gainLimits,...(Object.keys(numberExprs).length?{numberExprs}:{}),...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
       ...(conditionStackTag?{conditionStackTag}:{}),...(hitIndex?{hitIndex}:{}),...(reactionRounds?{reactionRounds}:{}),
       ...(givenCardId?{givenCardId}:{}),...(conditionCardId?{conditionCardId}:{}),
+      ...(leech?{leechDamage,leechVictim,leechHeal}:{}),
       ...(zone?{zoneCard,zoneOwner}:{}),...(zoneCardId?{zoneCardId}:{}),
       ...(zoneCardName?{zoneCardName}:{}),...(zoneOwnerName?{zoneOwnerName}:{}),
       ...(replace?{replacementId,...(fromCardId?{fromCardId}:{})}:{}),
@@ -594,7 +600,7 @@ const gameBuffPurges={
   clearActionBonus:['bonusActions','nextActions'],
   purgeDefense:['dodge','cover','nextShield','temporaryShield','lethalGuard','afterimage','barrierBurst','stackWard','deferrals'],
   purgeOffense:['critChance','critMultiplier','critCharges','critStacks','nextPower','nextPowerPercent','nextPowerStages',
-    'clashMemory','outgoingDamage','outgoingDamagePercent','bossOutgoingDamage','bossOutgoingDamagePercent','lowRerolls','trueStrike']
+    'clashMemory','outgoingDamage','outgoingDamagePercent','bossOutgoingDamage','bossOutgoingDamagePercent','lowRerolls','trueStrike','lifeSteal']
 };
 function gameClearCrisis(b,u){
   if(u.zero&&!b.resolving)delete b.plans?.[u.id];
@@ -677,7 +683,7 @@ function gameRemoveShield(u,n){
   return removed;
 }
 const gameBoss=unit=>!!(unit?.boss??(unit?.enemy&&unit.id==='enemy'));
-function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=false) {
+function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=false,origin={kind:'other'}) {
   if(!gameAlive(u))return 0;
   const bonus=attack&&amount>0?u.expose||0:0;
   if(bonus){
@@ -713,7 +719,7 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
       if(!delayed)continue;
       const share=Math.floor(delayed/rounds), remainder=delayed%rounds;
       for(let i=0;i<Math.min(rounds,delayed);i++){
-        (u.damageDebt??=[]).push({round:b.round+i+1,amount:share+Number(i<remainder)});
+        (u.damageDebt??=[]).push({round:b.round+i+1,amount:share+Number(i<remainder),dealer:actor.id,kind:origin.kind});
       }
       healthDamage-=delayed;
     }
@@ -742,19 +748,57 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
     }
   }
   if(u.hp===0)gameLog(b,u.name+' 전투 불능');
+  if(actual>0)gameTriggerLifeSteal(b,u,actual,actor,origin);
   if(attack&&hostile&&absorbed&&!u.shield&&u.barrierBurst){
     const burst=u.barrierBurst;
     u.barrierBurst=0;
     gameLog(b,u.name+' · 보호막 파열 반격');
-    gameDamage(b,actor,burst,u);
+    gameDamage(b,actor,burst,u,false,false,false,{kind:'counter'});
   }
   if(attack&&actual&&u.thorns&&hostile){
     const counter=u.thorns;
     u.thorns=0;
     gameLog(b,u.name+' · 반격 → '+actor.name);
-    gameDamage(b,actor,counter,u);
+    gameDamage(b,actor,counter,u,false,false,false,{kind:'counter'});
   }
   return actual;
+}
+function gameTriggerLifeSteal(b,victim,actual,actor,{kind,ongoing,sources}){
+  if(!sources&&!actor.lifeSteal||sources&&!sources.some(source=>(b.units[source.dealer]||actor).lifeSteal))return;
+  const shares=new Map();
+  for(const entry of sources||[{dealer:actor.id,amount:actual}]){
+    const dealer=b.units[entry.dealer]||actor;
+    const type=entry.kind||kind;
+    const key=dealer.id+':'+type;
+    const previous=shares.get(key);
+    if(previous)previous.amount+=entry.amount;
+    else shares.set(key,{dealer,type,amount:entry.amount});
+  }
+  const total=[...shares.values()].reduce((sum,entry)=>sum+entry.amount,0);
+  if(!total)return;
+  const credits=new Map();
+  let weight=0,credited=0;
+  for(const {dealer,type,amount} of shares.values()){
+    weight+=amount;
+    const share=Math.floor(actual*weight/total)-credited;
+    credited+=share;
+    if(!share)continue;
+    for(const rule of Object.values(dealer.lifeSteal||{})){
+      if(rule.through<b.round||rule.damage!=='any'&&rule.damage!==type&&
+        !(rule.damage==='card'&&type==='strike')&&!(rule.damage==='ongoing'&&ongoing))continue;
+      const hostile=dealer.enemy!==victim.enemy||dealer.collapsed&&dealer!==victim;
+      if(rule.victim==='enemy'&&!hostile||rule.victim==='ally'&&(hostile||dealer===victim)||
+        rule.victim==='self'&&dealer!==victim)continue;
+      credits.set(rule,(credits.get(rule)||0)+share);
+    }
+  }
+  for(const [rule,damage] of credits){
+    const dealer=b.units[rule.dealer],owner=b.units[rule.owner];
+    const receivers=rule.heal==='dealer'?[dealer]:rule.heal==='victim'?[victim]:
+      rule.heal==='owner'?[owner]:gameEffectRecipients(b,owner,rule.heal);
+    const amount=Math.min(rule.cap||Infinity,rule.mode==='percent'?Math.floor(damage*rule.amount/100):Math.min(damage,rule.amount));
+    for(const receiver of receivers)if(gameAlive(receiver))gameHeal(b,receiver,amount);
+  }
 }
 function gameHeal(b,u,n){
   if(!gameAlive(u)||n<=0)return 0;
@@ -1332,8 +1376,8 @@ function gameSplitStacks(runs,count){
   const taken=[],remaining=[];
   for(const run of runs){
     const portion=Math.min(count,run.count);
-    if(portion)taken.push({count:portion,power:run.power});
-    if(portion<run.count)remaining.push({count:run.count-portion,power:run.power});
+    if(portion)taken.push({...run,count:portion});
+    if(portion<run.count)remaining.push({...run,count:run.count-portion});
     count-=portion;
   }
   return {taken,remaining};
@@ -1341,14 +1385,14 @@ function gameSplitStacks(runs,count){
 function gameWriteStacks(unit,tag,runs){
   unit.stacks[tag]=runs.reduce((total,run)=>total+run.count,0);
   if(!unit.stacks[tag]&&unit.stackTraits)delete unit.stackTraits[tag];
-  if(runs.every(run=>run.power===1)){
+  if(!runs.length||runs.every(run=>run.power===1&&!run.dealer)){
     if(unit.stackRuns)delete unit.stackRuns[tag];
     return;
   }
   const merged=[];
   for(const run of runs){
     const previous=merged.at(-1);
-    if(previous?.power===run.power)previous.count+=run.count;
+    if(previous?.power===run.power&&previous.dealer===run.dealer)previous.count+=run.count;
     else merged.push({...run});
   }
   (unit.stackRuns??={})[tag]=merged;
@@ -1358,7 +1402,7 @@ function gameTakeStacks(unit,tag,count){
   if(taken.length)gameWriteStacks(unit,tag,remaining);
   return taken.reduce((total,run)=>total+run.count*run.power,0);
 }
-function gameGrantStacks(b,unit,effect,amount,trait,sourceRuns){
+function gameGrantStacks(b,unit,effect,amount,trait,sourceRuns,dealer){
   const tag=effect.tag;
   const definitions=[trait,unit.stackTraits?.[tag],unit.stackDefinitions?.[tag]];
   const cap=Math.min(effect.stackCap??maxStatusStacks,basicStacks[tag]?.cap??maxStatusStacks,
@@ -1382,7 +1426,7 @@ function gameGrantStacks(b,unit,effect,amount,trait,sourceRuns){
   for(const run of runs){
     const power=Math.min(effect.stackPower??run.power,effect.stackPowerCap??maxStackPotency);
     const count=Math.min(run.count,Math.floor(powerBudget/power));
-    if(count)eligible.push({count,power});
+    if(count)eligible.push({count,power,...(run.dealer||dealer?{dealer:run.dealer||dealer}:{})});
     powerBudget-=count*power;
     if(count<run.count)break;
   }
@@ -1416,7 +1460,8 @@ function gameBasicStackDamage(b,unit,when){
     else {
       const pierce=stack.damage==='piercing'||stack.damage==='piercingFixed';
       const fixed=stack.damage==='fixed'||stack.damage==='piercingFixed';
-      gameDamage(b,unit,amount,unit,pierce,false,fixed);
+      const sources=gameStackRuns(unit,name).map(run=>({dealer:run.dealer,amount:run.count*run.power}));
+      gameDamage(b,unit,amount,unit,pierce,false,fixed,{kind:'stack',ongoing:when==='turnEnd',sources});
     }
   }
 }
@@ -1426,9 +1471,22 @@ function gameHealthBase(unit,basis){
   return unit.maxHp;
 }
 const gamePoisonAmount=unit=>(unit.poison||0)+(unit.damageOverTime||[]).reduce((sum,dot)=>sum+dot.amount,0);
+function gameRemoveLegacyPoison(unit,amount){
+  const removed=Math.min(unit.poison||0,amount);
+  let remaining=removed;
+  const attributed=(unit.poisonSources||[]).reduce((sum,entry)=>sum+entry.amount,0);
+  remaining-=Math.min(remaining,(unit.poison||0)-attributed);
+  unit.poison=(unit.poison||0)-removed;
+  for(const entry of unit.poisonSources||[]){
+    const taken=Math.min(remaining,entry.amount);
+    entry.amount-=taken;
+    remaining-=taken;
+  }
+  if(unit.poisonSources)unit.poisonSources=unit.poisonSources.filter(entry=>entry.amount);
+  return removed;
+}
 function gameRemovePoison(unit,amount){
-  const legacy=Math.min(unit.poison||0,amount);
-  unit.poison=(unit.poison||0)-legacy;
+  const legacy=gameRemoveLegacyPoison(unit,amount);
   let removed=legacy;
   for(const dot of unit.damageOverTime||[]){
     const consumed=Math.min(dot.amount,amount-removed);
@@ -1505,6 +1563,7 @@ function gameRatioAmount(ctx,effect,unit,amount){
     case 'debtShield':
     case 'eraseDebt': return Math.floor((unit.damageDebt||[]).reduce((total,entry)=>total+entry.amount,0)*amount/100);
     case 'rallyHeal':
+    case 'lifeSteal':
     case 'rallyShield': return amount;
     case 'mind':
     case 'drain': return amount; // The maximum is 100.
@@ -1867,7 +1926,18 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
       ctx[key]=(ctx[key]||0)+n;
       return;
     }
+    const origin=card.stackCount?{kind:'stack',ongoing:['turnStart','turnEnd'].includes(when),
+      sources:gameStackRuns(actor,card.name).map(run=>({dealer:run.dealer,amount:run.count*run.power}))}:
+      {kind:card.passive?'passive':'card'};
+    const damage=(amount,piercing=false,fixed=false)=>gameDamage(b,u,amount,actor,piercing,false,fixed,origin);
     switch(effect.kind) {
+      case 'lifeSteal': {
+        const key=actor.id+':'+card.id+':'+card.effects.indexOf(sourceEffect.flowSource||sourceEffect);
+        (u.lifeSteal??={})[key]={dealer:u.id,owner:actor.id,damage:effect.leechDamage,
+          heal:effect.leechHeal,victim:effect.leechVictim,amount:n,mode:effect.amountMode,
+          cap:effect.healCap,through:b.round+effect.duration-1};
+        break;
+      }
       case 'replaceCard': ctx.replaced=true; break;
       case 'markCard':
       case 'clearCardMark': gameUpdateCardMark(b,ctx,u,n,effect);break;
@@ -1995,7 +2065,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
       }
       case 'critMultiplier': u.critMultiplier=bounded((u.critMultiplier||0)+n,-50,850);break;
       case 'critPerSpent':
-        if(ctx.critical&&ctx.critSpent)gameDamage(b,u,n*ctx.critSpent,actor);
+        if(ctx.critical&&ctx.critSpent)damage(n*ctx.critSpent);
         break;
       case 'healthCost':
         if(gameAlive(u)&&u.hp>n){
@@ -2081,7 +2151,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
       }
       case 'delayedStrike':
         if(u!==actor&&u.enemy!==actor.enemy&&gameAlive(u)){
-          (u.delayedStrike??=[]).push({round:b.round+(effect.delayRounds??1),amount:n,source:actor.id});
+          (u.delayedStrike??=[]).push({round:b.round+(effect.delayRounds??1),amount:n,source:actor.id,kind:origin.kind});
           gameLog(b,u.name+' · 지연 타격 '+n+' 예약');
         }
         break;
@@ -2102,7 +2172,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
         break;
       case 'barrierBurst': u.barrierBurst=Math.min(999,(u.barrierBurst||0)+n);break;
       case 'shieldBreakDraw': if(ctx.brokeShield&&!u.enemy)gameDraw(u,n,b);break;
-      case 'riposte': if(ctx.clashDifference===0&&u.enemy!==actor.enemy)gameDamage(b,u,n,actor);break;
+      case 'riposte': if(ctx.clashDifference===0&&u.enemy!==actor.enemy)damage(n);break;
       case 'shieldPower': ctx.mod+=Math.floor(u.shield*n/100);break;
       case 'gravePower': ctx.mod+=u.grave.length*n;break;
       case 'shieldGift': if(u!==actor)u.shield+=gameRemoveShield(actor,Math.min(n,999-u.shield));break;
@@ -2112,7 +2182,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
       case 'purgePoison': gameRemovePoison(u,n);break;
       case 'detonatePoison': {
         const consumed=gameRemovePoison(u,n);
-        if(consumed){gameDamage(b,u,Math.floor(consumed*(effect.conversion??200)/100),actor);}
+        if(consumed){damage(Math.floor(consumed*(effect.conversion??200)/100));}
         break;
       }
       case 'lateDraw': u.lateDraw=Math.min(12,(u.lateDraw||0)+n);break;
@@ -2176,8 +2246,8 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
         break;
       }
       case 'bossDamage':
-      case 'damage': gameDamage(b,u,n,actor); break;
-      case 'percent': gameDamage(b,u,(ctx.base||0)*n/100,actor); break;
+      case 'damage': damage(n); break;
+      case 'percent': damage((ctx.base||0)*n/100); break;
       case 'heal': gameSupportHeal(b,ctx,u,n); break;
       case 'shield': u.shield=Math.min(999,u.shield+n); break;
       case 'reduce': u.reduce=Math.min(999,u.reduce+n); break;
@@ -2204,7 +2274,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
         }
         break;
       }
-      case 'stack': gameGrantStacks(b,u,effect,n,card.concept?gameConceptTraits[tag]:actor.stackDefinitions?.[tag]??gameConceptTraits[tag]); break;
+      case 'stack': gameGrantStacks(b,u,effect,n,card.concept?gameConceptTraits[tag]:actor.stackDefinitions?.[tag]??gameConceptTraits[tag],undefined,actor.id); break;
       case 'remove': gameTakeStacks(u,tag,n); break;
       case 'consume': {
         const budget=effect.consumeAmount==='all'?Infinity:n;
@@ -2224,15 +2294,15 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
         }
         break;
       }
-      case 'perStack': if(ctx.usedPotency)gameDamage(b,u,ctx.usedPotency*n,actor);break;
+      case 'perStack': if(ctx.usedPotency)damage(ctx.usedPotency*n);break;
       case 'mind': gameMental(b,u,n);break;
       case 'drain': gameMental(b,u,-n);break;
       case 'pierce':
-      case 'recoil': gameDamage(b,u,n,actor,true);break;
+      case 'recoil': damage(n,true);break;
       case 'fixedDamage':
-      case 'piercingFixedDamage': gameDamage(b,u,n,actor,effect.kind==='piercingFixedDamage',false,true);break;
+      case 'piercingFixedDamage': damage(n,effect.kind==='piercingFixedDamage',true);break;
       case 'stripShield': gameRemoveShield(u,n);break;
-      case 'drainLife': if(u!==actor)gameHeal(b,actor,gameDamage(b,u,n,actor));break;
+      case 'drainLife': if(u!==actor)gameHeal(b,actor,damage(n));break;
       case 'healPercent': gameHeal(b,u,Math.floor(u.maxHp*n/100));break;
       case 'healMissing': gameHeal(b,u,Math.floor((u.maxHp-u.hp)*n/100));break;
       case 'fortify': u.nextShield=Math.min(999,(u.nextShield||0)+n);break;
@@ -2264,22 +2334,34 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
         break;
       }
       case 'consumeHeal': if(ctx.usedPotency)gameHeal(b,u,ctx.usedPotency*n);break;
-      case 'stackDamage': if(u.stacks[tag])gameDamage(b,u,stackPotency(u,tag)*n,actor);break;
+      case 'stackDamage': if(u.stacks[tag])damage(stackPotency(u,tag)*n);break;
       case 'poison':
         if(effect.dotRounds){
           const amount=Math.min(n,999-gamePoisonAmount(u));
           const through=b.round+effect.dotRounds-1;
           if(amount>0){
             const effects=u.damageOverTime??=[];
-            const existing=effects.find(dot=>dot.through===through);
+            const existing=effects.find(dot=>dot.through===through&&dot.dealer===actor.id&&dot.kind===origin.kind);
             if(existing)existing.amount+=amount;
-            else effects.push({amount,through});
+            else {
+              const last=effects.findLastIndex(dot=>dot.through===through);
+              effects.splice(last<0?effects.length:last+1,0,{amount,through,dealer:actor.id,kind:origin.kind});
+            }
             gameLog(b,u.name+' · 지속 피해 '+amount+' · '+effect.dotRounds+'라운드');
           }
-        }else u.poison=Math.min(999,(u.poison||0)+n);
+        }else{
+          const amount=Math.min(n,999-(u.poison||0));
+          if(amount>0){
+            u.poison=(u.poison||0)+amount;
+            const entries=u.poisonSources??=[];
+            const previous=entries.at(-1);
+            if(previous?.dealer===actor.id&&previous.kind===origin.kind)previous.amount+=amount;
+            else entries.push({amount,dealer:actor.id,kind:origin.kind});
+          }
+        }
         break;
       case 'regen': u.regen=Math.min(999,(u.regen||0)+n);break;
-      case 'clearStatus': u.poison=0;delete u.damageOverTime;u.regen=0;break;
+      case 'clearStatus': u.poison=0;delete u.poisonSources;delete u.damageOverTime;u.regen=0;break;
       case 'mindTransfer': {
         if(u===actor||u.enemy)break;
         const taken=Math.min(n,u.mind,100-actor.mind);
@@ -2406,7 +2488,7 @@ function gameStrike(b,ctx,target,roll){
     gameLog(b,actor.name+' · 치명타 ('+multiplier+'%) → '+target.name);
   }
   const shield=target.shield;
-  const dealt=gameDamage(b,target,roll,actor,false,true);
+  const dealt=gameDamage(b,target,roll,actor,false,true,false,{kind:'strike'});
   if(actor.enemy!==target.enemy||actor.collapsed&&actor!==target){
     const event={...ctx,base:dealt,brokeShield:shield>0&&target.shield===0};
     gameBasicStackDamage(b,target,'struck');
@@ -2912,7 +2994,7 @@ function gameResolve(b) {
         const victim=nearest[gameRoll(nearest.length)-1];
         b.shock={};gameLog(b,u.name+' 폭주 → '+victim.name);
         const {bonus,faces}=gameRollPower(gameRampage.power);
-        gameDamage(b,victim,Math.max(0,faces.reduce((sum,face)=>sum+face,bonus)-5),u);
+        gameDamage(b,victim,Math.max(0,faces.reduce((sum,face)=>sum+face,bonus)-5),u,false,false,false,{kind:'strike'});
       }
       u.zero='spent';
       continue;
@@ -2976,7 +3058,7 @@ function gameResolve(b) {
       if(strike.round>b.round||!gameAlive(u))continue;
       b.shock={};
       gameLog(b,u.name+' · 지연 타격 '+strike.amount+' 발동');
-      gameDamage(b,u,strike.amount,b.units[strike.source]||u);
+      gameDamage(b,u,strike.amount,b.units[strike.source]||u,false,false,false,{kind:strike.kind||'other',ongoing:true});
     }
     if(u.delayedStrike)u.delayedStrike=u.delayedStrike.filter(strike=>strike.round>b.round);
     if(!gameAlive(u))continue;
@@ -2984,12 +3066,13 @@ function gameResolve(b) {
     for(const key of ['outgoingDamage','incomingDamage','outgoingDamagePercent','incomingDamagePercent','barrierBurst','deferrals','afterimage'])delete u[key];
     for(const kind of bossDamageModifiers){delete u[kind];delete u[kind+'Percent'];}
     if(u.damageDebt?.length){
-      const amount=u.damageDebt.filter(entry=>entry.round<=b.round).reduce((total,entry)=>total+entry.amount,0);
+      const sources=u.damageDebt.filter(entry=>entry.round<=b.round);
+      const amount=sources.reduce((total,entry)=>total+entry.amount,0);
       u.damageDebt=u.damageDebt.filter(entry=>entry.round>b.round);
       if(amount){
         b.shock={};
         gameLog(b,u.name+' · 유예 피해 '+amount+' 정산');
-        gameDamage(b,u,amount,u,true,false,true);
+        gameDamage(b,u,amount,u,true,false,true,{kind:'other',ongoing:true,sources});
       }
     }
     if(u.temporaryShield)gameRemoveShield(u,u.temporaryShield);
@@ -2997,8 +3080,11 @@ function gameResolve(b) {
     if(poison){
       b.shock={};
       gameLog(b,u.name+' · 지속 피해 '+poison);
-      gameDamage(b,u,poison,u,true);
-      if(u.poison)u.poison--;
+      const legacy=u.poisonSources||[];
+      const untracked=(u.poison||0)-legacy.reduce((sum,entry)=>sum+entry.amount,0);
+      const sources=[...legacy,...(u.damageOverTime||[]),{amount:untracked}].filter(entry=>entry.amount>0);
+      gameDamage(b,u,poison,u,true,false,false,{kind:'other',ongoing:true,sources});
+      if(u.poison)gameRemoveLegacyPoison(u,1);
       if(u.damageOverTime)u.damageOverTime=u.damageOverTime.filter(dot=>dot.through>b.round);
     }
     if(u.regen&&gameAlive(u)){gameHeal(b,u,u.regen);u.regen--;}
@@ -3058,6 +3144,10 @@ function gameResolve(b) {
   delete b.proofs;
   delete b.moved;
   delete b.exposedToAttack;
+  for(const unit of Object.values(b.units))if(unit.lifeSteal){
+    for(const [key,rule] of Object.entries(unit.lifeSteal))if(rule.through<=b.round)delete unit.lifeSteal[key];
+    if(!Object.keys(unit.lifeSteal).length)delete unit.lifeSteal;
+  }
   b.round++;
   gameNext(b);
 }
@@ -3068,7 +3158,14 @@ function gameView(state,revision,actor,manager,members) {
   const b=state.battle;
   const battle=b?{round:b.round,phase:b.phase,result:b.result,intent:b.intent,log:b.log,walls:b.walls,poses:b.poses||[],
     awaiting:gameActive(b)?gameAwaiting(b,members).map(u=>u.name):[],clashActor:Object.keys(b.plans||{}).find(id=>gameHasClash(b.plans[id])),
-    units:Object.values(b.units).map(({library,hand,deck,grave,exile,cover,effectUsage,passives,cardMarks,configuredDeck,...unit})=>({...unit,passiveNames:(passives||[]).map(passive=>passive.name),actionLimit:gameActionLimit(unit),coverCount:cover?.length||0,handCount:hand.length,deckCount:deck.length,graveCount:grave.length,exileCount:exile.length,ready:!!b.plans?.[unit.id],artVersion:state.profiles[unit.id]?.artVersion||0,artSlots:Object.keys(state.profiles[unit.id]?.art||{}),...(unit.id===actor?{cardMarks,hand:[...hand.map(id=>({...library[id],requiredState:cardState(library[id].requiredState)})),...(unit.collapsed?[gameCollapseCard]:unit.zero==='crisis'?gameCrisisCards:[])],plan:b.plans?.[actor]}:{})}))
+    units:Object.values(b.units).map(({library,hand,deck,grave,exile,cover,effectUsage,passives,cardMarks,configuredDeck,lifeSteal,poisonSources,stackRuns,damageDebt,damageOverTime,delayedStrike,...unit})=>({
+      ...unit,
+      ...(stackRuns?{stackRuns:Object.fromEntries(Object.entries(stackRuns).filter(([,runs])=>runs.some(run=>run.power!==1)).map(([tag,runs])=>[tag,runs.map(({count,power})=>({count,power}))]))}:{}),
+      ...(damageDebt?{damageDebt:damageDebt.map(({round,amount})=>({round,amount}))}:{}),
+      ...(damageOverTime?{damageOverTime:damageOverTime.map(({through,amount})=>({through,amount}))}:{}),
+      ...(delayedStrike?{delayedStrike:delayedStrike.map(({round,amount,source})=>({round,amount,source}))}:{}),
+      ...(lifeSteal?{lifeStealThrough:Math.max(...Object.values(lifeSteal).map(rule=>rule.through))}:{}),
+      passiveNames:(passives||[]).map(passive=>passive.name),actionLimit:gameActionLimit(unit),coverCount:cover?.length||0,handCount:hand.length,deckCount:deck.length,graveCount:grave.length,exileCount:exile.length,ready:!!b.plans?.[unit.id],artVersion:state.profiles[unit.id]?.artVersion||0,artSlots:Object.keys(state.profiles[unit.id]?.art||{}),...(unit.id===actor?{cardMarks,hand:[...hand.map(id=>({...library[id],requiredState:cardState(library[id].requiredState)})),...(unit.collapsed?[gameCollapseCard]:unit.zero==='crisis'?gameCrisisCards:[])],plan:b.plans?.[actor]}:{})}))
   }:null;
   return {revision,manager,me:actor,roster:members.filter(m=>m.seat>0),profile:{name:'',country:'제4국',status:'하위층 시민',wall:'',job:'',goal:'',concept:'',stats:[50,50,50,50,50,50],mind:50,cards:[],deck:[],...state.profiles[actor]},defaults:gameCatalogue,battle};
 }

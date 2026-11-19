@@ -1,5 +1,5 @@
 import {gridValid, gridSize, gridTileGroups, gridDistance, gridPaths, gridDisplacement, gridCardInRange, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
-import {conceptStacks,basicStacks,planningTimings,cardZoneTimings,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
+import {stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
 class GameInputError extends Error {}
@@ -90,7 +90,7 @@ function gameFlowTest(raw,row,id,owned,depth=0,budget={left:maxGateTests}){
     const conditionCardId=condition==='cardUsed'?raw.conditionCardId:undefined;
     if(condition==='cardUsed'&&(!conditionCardId||!owned.some(card=>card.id===conditionCardId)&&conditionCardId!==id||
       passiveRoundTimings.includes(row.when)))gameFail('조건 블록에서 사용할 카드를 확인하세요.');
-    return {type,condition,subject,threshold,...(tag?{tag}:{}),...(conditionCardId?{conditionCardId}:{})};
+    return {type,condition,subject,threshold,...(!flagConditions.includes(condition)&&raw.thresholdExpr?{thresholdExpr:gameExpression(raw.thresholdExpr)}:{}),...(tag?{tag}:{}),...(conditionCardId?{conditionCardId}:{})};
   }
   gameFail('조건 블록을 확인하세요.');
 }
@@ -103,7 +103,7 @@ function gameNormalizeFlow(row,id,owned){
     seen.add(step.id);
     if(step.kind==='repeat'&&gameInt(step.count,1,maxFlowRepeat)&&row.kind!=='replaceCard'&&
       !discardCosts.includes(row.kind)&&!resourceCosts.includes(row.kind))
-      return {kind:'repeat',id:step.id,count:step.count};
+      return {kind:'repeat',id:step.id,count:step.count,...(step.countExpr?{countExpr:gameExpression(step.countExpr)}:{})};
     if(step.kind==='if'&&['then','else'].includes(step.branch)){
       return {kind:'if',id:step.id,branch:step.branch,test:gameFlowTest(step.test,row,id,owned)};
     }
@@ -117,11 +117,11 @@ function gameValidateFlow(rows){
     let path=row.when+':'+(row.hitIndex||0), iterations=1;
     for(const step of row.flow||[]){
       const key=path+'/'+step.id;
-      const shape=JSON.stringify(step.kind==='if'?[step.kind,step.test]:[step.kind,step.count]);
+      const shape=JSON.stringify(step.kind==='if'?[step.kind,step.test]:[step.kind,step.count,step.countExpr]);
       if(shapes.has(key)&&shapes.get(key)!==shape)gameFail('같은 제어 블록에 서로 다른 설정이 연결됐어요.');
       shapes.set(key,shape);
       path=key+(step.branch||'');
-      if(step.kind==='repeat')iterations*=step.count;
+      if(step.kind==='repeat')iterations*=step.countExpr?maxFlowRepeat:step.count;
     }
     activations+=iterations;
   }
@@ -186,7 +186,7 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
     }
     const amplify=row.kind==='amplifyHit';
     const amplifyTarget=row.amplifyTarget??'next';
-    const amplifyIndex=row.amplifyIndex;
+    const amplifyIndex=row.numberExprs?.amplifyIndex?hitIndex+1:row.amplifyIndex;
     if(amplify&&(row.when==='roll'||!hitIndex||hitIndex>=hitPowers.length||row.to!=='self'||row.scaleDiscard||row.scaleCost||row.scaleResource||
       !Object.hasOwn(amplifyHitTargets,amplifyTarget)||amplifyTarget==='number'&&!gameInt(amplifyIndex,hitIndex+1,hitPowers.length))){
       gameFail('증폭할 타격은 이 효과를 발동하는 타격보다 뒤에 있어야 해요.');
@@ -198,7 +198,9 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
     if(deferral&&!gameInt(deferRounds,1,maxDeferralRounds))gameFail('분할 라운드 수는 1~'+maxDeferralRounds+'로 설정하세요.');
     if(row.amountMode!=null&&!['fixed','percent'].includes(row.amountMode))gameFail('수치 단위를 확인하세요.');
     const ratioBasis=ratio&&row.ratioBasis?row.ratioBasis:undefined;
+    if(ratio&&stackRatioEffects.includes(row.kind)&&!Object.hasOwn(stackRatioBases,ratioBasis))gameFail('중첩 비율의 기준을 선택하세요.');
     if(ratioBasis&&(!configurableRatioEffects.includes(row.kind)||!Object.hasOwn(effectRatioBases,ratioBasis)||
+      Object.hasOwn(stackRatioBases,ratioBasis)!==stackRatioEffects.includes(row.kind)||
       !ratioBasisAvailable(ratioBasis,row.when)||passive&&passiveRoundTimings.includes(row.when)&&ratioBasis.startsWith('card')))
       gameFail('이 발동 시점에 사용할 수 있는 비율 기준을 선택하세요.');
     const dotRounds=row.kind==='poison'?row.dotRounds:undefined;
@@ -281,7 +283,13 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
     }
     const flow=gameNormalizeFlow(row,id,owned);
     const amountExpr=row.amountExpr!=null&&!unnumberedEffects.includes(row.kind)?gameExpression(row.amountExpr):undefined;
-    return {...settings,...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
+    const numberExprs={};
+    if(row.numberExprs!=null&&(typeof row.numberExprs!=='object'||Array.isArray(row.numberExprs)))gameFail('숫자 설정의 연산을 확인하세요.');
+    for(const [key,expr] of Object.entries(row.numberExprs||{})){
+      if(!effectNumberBounds(row.kind,key,hitIndex,hitPowers.length,diceCondition))gameFail('연산을 연결할 수 없는 숫자 설정이에요.');
+      numberExprs[key]=gameExpression(expr);
+    }
+    return {...settings,...(Object.keys(numberExprs).length?{numberExprs}:{}),...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
       ...(conditionStackTag?{conditionStackTag}:{}),...(hitIndex?{hitIndex}:{}),...(reactionRounds?{reactionRounds}:{}),
       ...(givenCardId?{givenCardId}:{}),...(conditionCardId?{conditionCardId}:{}),
       ...(replace?{replacementId,...(fromCardId?{fromCardId}:{})}:{}),
@@ -1179,7 +1187,7 @@ function gameActionGroups(b,ctx){
   return {primary,secondary};
 }
 function gameEffectCondition(b,ctx,u,e,target,when){
-  const n=e.threshold,other=u===ctx.actor?target:ctx.actor;
+  const n=e.thresholdExpr?bounded(Math.trunc(gameFlowValue(b,ctx,u,e.thresholdExpr)),0,maxDiceTotal):e.threshold,other=u===ctx.actor?target:ctx.actor;
   if(Object.hasOwn(diceConditions,e.condition)){
     const rolls=e.hitIndex?[ctx.diceRolls?.[e.hitIndex-1]]:ctx.diceRolls;
     if(!rolls?.some(Number.isInteger))return false;
@@ -1321,6 +1329,7 @@ function gameGrantStacks(b,unit,effect,amount,trait,sourceRuns){
   const added=runs.map(run=>({...run,power:Math.min(effect.stackPower??run.power,effect.stackPowerCap??maxStackPotency)}));
   if(trait&&!unit.stackTraits?.[tag])(unit.stackTraits??={})[tag]=trait;
   gameWriteStacks(unit,tag,[...gameStackRuns(unit,tag),...added]);
+  (unit.stackCaps??={})[tag]=cap;
   return count;
 }
 function gameBasicStackDamage(b,unit,when){
@@ -1356,7 +1365,15 @@ function gameRemovePoison(unit,amount){
   if(unit.damageOverTime)unit.damageOverTime=unit.damageOverTime.filter(dot=>dot.amount);
   return removed;
 }
-function gameEffectBasis(ctx,unit,basis){
+function gameEffectBasis(ctx,unit,basis,effect){
+  if(effect&&Object.hasOwn(stackRatioBases,basis)){
+    const subject=basis.startsWith('own')?ctx.actor:unit;
+    const {tag}=effect;
+    const current=subject.stacks[tag]||0;
+    const cap=Math.min(effect.stackCap??subject.stackCaps?.[tag]??maxStatusStacks,
+      basicStacks[tag]?.cap??maxStatusStacks,subject.stackTraits?.[tag]?.cap??conceptStacks[tag]?.cap??maxStatusStacks);
+    return /Current$/.test(basis)?current:/Missing$/.test(basis)?Math.max(0,cap-current):cap;
+  }
   const mind=subject=>subject.enemy?0:subject.mind??0;
   const action=ctx.actionCard||ctx.card;
   switch(basis){
@@ -1384,7 +1401,7 @@ function gameEffectBasis(ctx,unit,basis){
 }
 function gameRatioAmount(ctx,effect,unit,amount){
   if(effect.amountMode!=='percent')return amount;
-  if(effect.ratioBasis)return Math.trunc(gameEffectBasis(ctx,unit,effect.ratioBasis)*amount/100);
+  if(effect.ratioBasis)return Math.trunc(gameEffectBasis(ctx,unit,effect.ratioBasis,effect)*amount/100);
   switch(effect.kind){
     case 'outgoingDamage':
     case 'incomingDamage':
@@ -1420,8 +1437,8 @@ function gameRatioAmount(ctx,effect,unit,amount){
     default: return Math.floor(gameHealthBase(unit,effect.healthBasis)*amount/100);
   }
 }
-function gamePayScaleCost(b,ctx,effect){
-  if(ctx.scalePayments.has(effect))return ctx.scalePayments.get(effect);
+function gamePayScaleCost(b,ctx,effect,sourceEffect=effect){
+  if(ctx.scalePayments.has(sourceEffect))return ctx.scalePayments.get(sourceEffect);
   const actor=ctx.actor;
   const {amount,mode,healthBasis}=effect.scaleCost;
   const resource=effect.scaleDiscard?'discard':effect.scaleResource;
@@ -1445,7 +1462,7 @@ function gamePayScaleCost(b,ctx,effect){
   }
   const label=resource==='discard'?'손패':resource==='health'?'체력':'정신력';
   gameLog(b,actor.name+' · '+label+(paid?' '+paid+' 소비':' 대가 미지불'));
-  ctx.scalePayments.set(effect,paid);
+  ctx.scalePayments.set(sourceEffect,paid);
   return paid;
 }
 function gameConsumeGroup(b,ctx,effect,target){
@@ -1561,7 +1578,8 @@ function* gameRunBlocks(b,ctx,target,entries){
       }else if(step.kind==='if'){
         yield* run(gameFlowTestValue(b,ctx,target,step.test,effect)?node.then:node.else,iterations);
       }else{
-        for(let i=0;i<step.count;i++)yield* run(node.then,iterations+'/'+i);
+        const count=step.countExpr?bounded(Math.trunc(gameFlowValue(b,ctx,target,step.countExpr)),0,maxFlowRepeat):step.count;
+        for(let i=0;i<count;i++)yield* run(node.then,iterations+'/'+i);
       }
     }
   }
@@ -1583,7 +1601,11 @@ function gameTriggers(b,ctx,when,target,depth=0,hitIndex=0) {
   const {actor,card}=ctx;
   const entries=card.effects.filter(effect=>{
     if(effect.kind==='replaceCard'||effect.when!==when&&!(when==='use'&&effect.when==='base'))return false;
-    if(ctx.reactionRound!=null&&(!effect.reactionRounds||ctx.reactionRound+effect.reactionRounds<=b.round))return false;
+    if(ctx.reactionRound!=null){
+      const duration=effect.numberExprs?.reactionRounds?
+        bounded(Math.trunc(gameFlowValue(b,ctx,ctx.actor,effect.numberExprs.reactionRounds)),0,maxStatusRounds):effect.reactionRounds||0;
+      if(!duration||ctx.reactionRound+duration<=b.round)return false;
+    }
     if(hitIndex)return effect.hitIndex===hitIndex;
     return !effect.hitIndex||(['wall','consume'].includes(when)&&effect.hitIndex===ctx.hitIndex);
   });
@@ -1674,19 +1696,30 @@ function gameTeachCard(actor,recipient,card){
   }
 }
 function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
+  const sourceEffect=effect;
+  if(effect.numberExprs){
+    effect={...effect};
+    for(const [key,expr] of Object.entries(effect.numberExprs)){
+      const bounds=effectNumberBounds(effect.kind,key,effect.hitIndex,cardHitPowers(ctx.card).length,Object.hasOwn(diceConditions,effect.condition));
+      const value=bounded(Math.trunc(gameFlowValue(b,ctx,u,expr,effect.hitIndex)),...bounds);
+      if(key==='limitCount'){if(effect.limit)effect.limit={...effect.limit,count:value};}
+      else if(key==='scaleCostAmount'){if(effect.scaleCost)effect.scaleCost={...effect.scaleCost,amount:value};}
+      else effect[key]=value;
+    }
+  }
   const {actor,card}=ctx;
   if(effect.kind==='giveCard'&&(u.enemy||!gameAlive(u)||!actor.library[effect.givenCardId]||u.hand.length>=12))return;
-  if(stagedPowerEffects.includes(effect.kind)&&ctx.once.has(effect))return;
+  if(stagedPowerEffects.includes(effect.kind)&&ctx.once.has(sourceEffect))return;
   if(effect.kind==='consume'&&!(u.stacks[effect.tag]>0))return;
   if(effect.kind==='hitLeech'&&!ctx.base)return;
   const singleTotal=effect.ratioBasis==='totalDamage'&&effect.to==='self';
-  if(singleTotal&&ctx.totalDamageUsed?.has(effect))return;
+  if(singleTotal&&ctx.totalDamageUsed?.has(sourceEffect))return;
   if(effect.kind==='bossDamage'&&(!gameBoss(u)||u.enemy===actor.enemy))return;
   if(effect.kind==='replayHit'&&(ctx.replayingHit||ctx.hitRepeat))return;
   if(effect.kind==='amplifyHit'&&(!ctx.hitAmplifiers||ctx.replayingHit))return;
   if(!gameEffectCondition(b,ctx,u,effect,target,effect.when))return;
   const limit=effect.limit;
-  const key=limit?card.id+':'+card.effects.indexOf(effect.flowSource||effect):null;
+  const key=limit?card.id+':'+card.effects.indexOf(sourceEffect.flowSource||sourceEffect):null;
   const period=limit?.period==='turn'?b.round:0;
   const usage=key?actor.effectUsage?.[key]:null;
   const count=usage?.period===period?usage.count:0;
@@ -1695,8 +1728,8 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
   if(charge&&count>=limit.count)return;
   if((['battleStart','turnStart','turnEnd','attackEnd','unopposed','roll'].includes(when)&&effect.to==='self'&&effect.kind!=='hitLeech')||effect.to==='self'&&['extraAction','dodge','trueStrike','stackWard','rerollLow',...bossDamageModifiers].includes(effect.kind)||copyEffects.includes(effect.kind)||discardCosts.includes(effect.kind)||resourceCosts.includes(effect.kind)||teamEffects.includes(effect.kind)||
     effect.to==='self'&&['hearDemon','refuseDemon','shedShell','awakenBody','inscribeMeaning'].includes(effect.kind)||effect.kind==='critSpend'&&effect.to==='self'&&when==='use'||effect.scaleResource&&effect.to==='self'||!['amplifyHit','hitLeech'].includes(effect.kind)&&effect.to==='self'&&(['hit','damage','wall'].includes(when)||when==='consume'&&!['perStack','consumeHeal','shieldPerStack'].includes(effect.kind))){
-    if(ctx.once.has(effect))return;
-    ctx.once.add(effect);
+    if(ctx.once.has(sourceEffect))return;
+    ctx.once.add(sourceEffect);
   }
   // Only numerical effects belonging to this hit use the bonuses accumulated earlier in this sequence.
   const amplifier=effect.hitIndex===ctx.hitIndex&&ctx.hitAmplifiers?.get(ctx.hitIndex);
@@ -1709,7 +1742,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
   if(!value)return;
   const magnitude=amplifier&&amplifiable?
     Math.sign(value)*(Math.floor(Math.abs(value)*(100+amplifier.percent)/100)+amplifier.fixed):value;
-  const multiplier=effect.scaleCost?gamePayScaleCost(b,ctx,effect):effect.scaleDiscard?ctx.discarded:
+  const multiplier=effect.scaleCost?gamePayScaleCost(b,ctx,effect,sourceEffect):effect.scaleDiscard?ctx.discarded:
     effect.scaleResource==='health'?ctx.paidHealth:effect.scaleResource==='mind'?ctx.paidMind:1;
   const stackScale=effect.scaleStack==='count'?(actor.stacks[card.name]||0):1;
   const amount=magnitude*multiplier*stackScale,tag=effect.tag;
@@ -1730,9 +1763,9 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
   }
   applied?.add(u.id);
   if(!n)return;
-  if(singleTotal)(ctx.totalDamageUsed??=new Set()).add(effect);
+  if(singleTotal)(ctx.totalDamageUsed??=new Set()).add(sourceEffect);
     if(stagedPowerEffects.includes(effect.kind)){
-      ctx.once.add(effect);
+      ctx.once.add(sourceEffect);
       const key=effect.kind+(effect.amountMode==='percent'&&!effect.ratioBasis?'Percent':'');
       ctx[key]=(ctx[key]||0)+n;
       return;
@@ -2608,7 +2641,7 @@ function gamePrepareAction(b,u,plan,moved){
   const ctx=gameContext(u,card,targets,moved);
   ctx.waitingPlan=plan;
   waiting?.set(plan,ctx);
-  if(card.effects.some(effect=>effect.reactionRounds)&&(u.library[card.id]===card)){
+  if(card.effects.some(effect=>effect.reactionRounds||effect.numberExprs?.reactionRounds)&&(u.library[card.id]===card)){
     (u.cardReactions??={})[card.id]=b.round;
   }
   ctx.originId=original.id;
@@ -2840,7 +2873,7 @@ function gameResolve(b) {
     gameBasicStackDamage(b,u,'turnEnd');
     if(!gameAlive(u))continue;
     for(const [id,round] of Object.entries(u.cardReactions||{})){
-      if(!u.library[id]?.effects.some(effect=>round+(effect.reactionRounds||0)>b.round+1))delete u.cardReactions[id];
+      if(!u.library[id]?.effects.some(effect=>round+(effect.numberExprs?.reactionRounds?maxStatusRounds:effect.reactionRounds||0)>b.round+1))delete u.cardReactions[id];
     }
     for(const strike of u.delayedStrike||[]){
       if(strike.round>b.round||!gameAlive(u))continue;

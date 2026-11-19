@@ -2685,3 +2685,35 @@ test('an effect can grant a different stack from the one checked by its conditio
   await f.act('round');
   assert.equal(livingForm(f).stacks.강타,3);
 });
+
+test('stack percentages use current, missing or maximum counts and accept a calculated cap',async()=>{
+  for(const [ratioBasis,expected] of [['ownStackCurrent',6],['ownStackMissing',12],['ownStackMax',14]]){
+    const f=await fixture();
+    await f.act('card',{card:{name:'비율 계산',power:'0',role:'normal',range:'0',target:'self',effects:[
+      {kind:'stack',when:'use',to:'self',tag:'시험',amount:4},
+      {kind:'stack',when:'use',to:'self',tag:'시험',amount:50,amountMode:'percent',ratioBasis,stackCap:50,
+        numberExprs:{stackCap:{type:'math',op:'add',terms:[{type:'number',value:10},{type:'number',value:10}]}}}
+    ]}});
+    const id=f.state.profile.cards[0].id;
+    await f.act('start',{solo:true,bots:0});
+    configureBattle(f,(b,self)=>{self.hand=[id];b.units.enemy.blockedRounds=1;});
+    await f.act('plan',{card:id,targets:[]});
+    await f.act('round');
+    assert.equal(livingForm(f).stacks.시험,expected,ratioBasis);
+  }
+});
+test('repeat counts and condition thresholds can be calculated during combat',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'연산 반복',power:'0',role:'normal',range:'0',target:'self',effects:[
+    {kind:'mind',when:'use',to:'self',amount:1,flow:[
+      {kind:'repeat',id:1,count:1,countExpr:{type:'number',value:3}},
+      {kind:'if',id:2,branch:'then',test:{type:'condition',condition:'highMind',subject:'self',threshold:99,thresholdExpr:{type:'number',value:40}}}
+    ]}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{self.hand=[id];b.units.enemy.blockedRounds=1;});
+  await f.act('plan',{card:id,targets:[]});
+  await f.act('round');
+  assert.equal(livingForm(f).mind,53);
+});

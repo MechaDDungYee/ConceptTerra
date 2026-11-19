@@ -140,7 +140,13 @@ export const newEffects = {
 // A sign describes the effect's direction. Zero allows either direction.
 export const maxDeferralRounds = 10;
 export const maxStatusRounds = 10;
+export const stackRatioBases={
+  ownStackCurrent:'자신의 현재 중첩 수',ownStackMissing:'자신의 한도까지 부족한 중첩 수',ownStackMax:'자신의 최대 중첩 한도',
+  stackCurrent:'적용 대상의 현재 중첩 수',stackMissing:'적용 대상의 한도까지 부족한 중첩 수',stackMax:'적용 대상의 최대 중첩 한도'
+};
+export const stackRatioEffects=['stack','consume','remove','doubleStack','stealStack','stackWard','stackDamage'];
 export const effectRatioBases = {
+  ...stackRatioBases,
   hpMax:'적용 대상의 최대 체력',hpCurrent:'적용 대상의 현재 체력',hpLost:'적용 대상의 잃은 체력',
   ownHpMax:'사용자의 최대 체력',ownHpCurrent:'사용자의 현재 체력',ownHpLost:'사용자의 잃은 체력',
   mindCurrent:'적용 대상의 현재 정신력',mindMax:'적용 대상의 최대 정신력',mindLost:'적용 대상의 잃은 정신력',
@@ -149,10 +155,18 @@ export const effectRatioBases = {
   damageDealt:'이번 타격·대상에 실제 입힌 체력 피해',totalDamage:'카드로 모든 대상에게 입힌 총 체력 피해'
 };
 export const configurableRatioEffects = [
+  ...stackRatioEffects,
   'damage','pierce','heal','allyHeal','shield','temporaryShield','fortify','mind','drain','bossDamage','poison',
   'afterimage','delayedStrike','power','basePower','finalPower','focus','weaken','outgoingDamage','incomingDamage',
   'bossOutgoingDamage','bossIncomingDamage','stripShield','stealShield','shieldGift'
 ];
+export function effectNumberBounds(kind,key,hitIndex=0,hitCount=8,dice=false){
+  const limits={threshold:[dice?1:0,dice?maxDiceTotal:100],stackCap:[1,maxStatusStacks],stackPower:[1,maxStackPotency],
+    stackPowerCap:[1,maxStackPotency],dotRounds:[1,maxStatusRounds],reactionRounds:[0,maxStatusRounds],
+    deferRounds:[1,maxDeferralRounds],amplifyIndex:[hitIndex+1,hitCount],limitCount:[1,maxEffectActivations],scaleCostAmount:[1,100]};
+  const settings=effectSettings[kind];
+  return Object.hasOwn(limits,key)?limits[key]:settings&&Object.hasOwn(settings,key)?settings[key].slice(2):undefined;
+}
 export const ratioBasisAvailable = (basis,when) =>
   basis==='totalDamage'?when==='attackEnd':
   basis==='damageDealt'?['hit','damage','critical','noncritical','attackEnd','struck','hurt'].includes(when):
@@ -181,6 +195,7 @@ export const effectSettings = {
 };
 export const percentageDefaults = ['doubleEdge','lastStand'];
 export const ratioEffects = {
+  ...Object.fromEntries(stackRatioEffects.map(kind=>[kind,['효과 수치',1,'선택한 중첩 수']])),
   doubleEdge:['이번 라운드 입히는 피해와 받는 피해',1,'피해 판정',true],
   lastStand:['손패가 비었을 때 받는 피해',-1,'피해 판정',true],
   critSpend:['치명타 중첩 소모',1,'현재 치명타 중첩'],

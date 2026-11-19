@@ -2,7 +2,7 @@ import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
 import {accountPanel} from './account.js';
 import {gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridCardInRange,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
-import {conceptStacks,basicStacks,planningTimings,cardZoneTimings,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
+import {stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
 const studio=location.pathname==='/studio';
 const code=location.pathname.split('/')[2], endpoint=studio?'/api/studio':'/api/rooms/'+code+'/game';
@@ -398,7 +398,8 @@ function effectSentence(e,extra=[]){
   const amplifyText=e.kind==='amplifyHit'
     ?(e.amplifyTarget==='number'?e.amplifyIndex+'타':amplifyHitTargets[e.amplifyTarget||'next'])+'의 효과 수치 +'+number+(e.amountMode==='percent'?'%':'')
     :null;
-  const consumed=e.consumeAmount==='all'?'전부':'최대 '+number;
+  const consumed=e.consumeAmount==='all'?'전부':e.amountMode==='percent'&&e.ratioBasis?
+    effectRatioBases[e.ratioBasis]+'의 '+number+'%':'최대 '+number;
   const consumeText=e.kind==='consume'
     ?target+(e.to==='allEnemies'?(e.consumeScope==='total'?'에게서 합산':' 각각에게서'):'에게서')+
       ' '+(e.tag||'지정 중첩')+' '+consumed+' 소모'+
@@ -540,7 +541,9 @@ function effectRow(row,refresh,scoped,passive,stack){
   const healthBasis=select('healthBasis',Object.entries(healthBases),row.healthBasis||'max');
   const healthField=field('체력 기준',healthBasis);
   const customizable=configurableRatioEffects.includes(row.kind);
-  const ratioBasis=select('ratioBasis',[['','기본 계산 방식'],...Object.entries(effectRatioBases)],row.ratioBasis||'');
+  const stackRatio=stackRatioEffects.includes(row.kind);
+  const bases=Object.entries(effectRatioBases).filter(([key])=>Object.hasOwn(stackRatioBases,key)===stackRatio);
+  const ratioBasis=select('ratioBasis',[...(stackRatio?[]:[['','기본 계산 방식']]),...bases],row.ratioBasis||(stackRatio?'ownStackCurrent':''));
   const ratioBasisField=field('비율 계산 기준',ratioBasis);
   const basis=el('small','',{class:'minor'});
   basis.hidden=true;
@@ -641,7 +644,7 @@ function effectRow(row,refresh,scoped,passive,stack){
         beforeUse&&option.value.startsWith('card')||
         passive&&passiveRoundTimings.includes(when.value)&&option.value.startsWith('card'));
     }
-    if(ratioBasis.selectedOptions[0]?.disabled)ratioBasis.value='';
+    if(ratioBasis.selectedOptions[0]?.disabled)ratioBasis.value=stackRatio?'ownStackCurrent':'';
     const e=readEffect(x);
     healthField.hidden=!healthRatioEffects.includes(e.kind)||e.amountMode!=='percent'||!!e.ratioBasis;
     basis.hidden=!ratio||e.amountMode!=='percent'||!healthField.hidden||!!e.ratioBasis;
@@ -1238,7 +1241,7 @@ function cards(){
     for(const effect of effects){
       if(effect.kind!=='amplifyHit')continue;
       if(effect.hitIndex>=hitPowers.length||effect.amplifyTarget==='number'&&
-        (effect.amplifyIndex<=effect.hitIndex||effect.amplifyIndex>hitPowers.length)){
+        !effect.numberExprs?.amplifyIndex&&(effect.amplifyIndex<=effect.hitIndex||effect.amplifyIndex>hitPowers.length)){
         throw new Error(effect.hitIndex+'타: 증폭할 타격은 이 타격보다 뒤에 있어야 해요.');
       }
     }

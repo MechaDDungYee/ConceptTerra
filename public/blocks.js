@@ -115,7 +115,7 @@ export function blockWorkspace(config){
     }
   }
   function leaf(row,when){
-    return {kind:'action',widget:makeEffect(row,when),expr:row.amountExpr?structuredClone(row.amountExpr):null};
+    return {kind:'action',widget:makeEffect(row,when),expr:row.amountExpr?structuredClone(row.amountExpr):null,numberExprs:structuredClone(row.numberExprs||{})};
   }
   const buildControl=kind=>kind==='if'?{kind,id:++serial,test:compare(),then:[],else:[]}:
     {kind,id:++serial,count:2,then:[]};
@@ -135,9 +135,9 @@ export function blockWorkspace(config){
     const read=(body,when,flow=[])=>body.flatMap(node=>{
       if(isAction(node)){
         const row=readEffect(node.widget);
-        return [{...row,when,...(flow.length?{flow}:{}),...(node.expr&&row.consumeAmount!=='all'?{amountExpr:node.expr}:{})}];
+        return [{...row,when,...(Object.keys(node.numberExprs).length?{numberExprs:node.numberExprs}:{}),...(flow.length?{flow}:{}),...(node.expr&&row.consumeAmount!=='all'?{amountExpr:node.expr}:{})}];
       }
-      if(node.kind==='repeat')return read(node.then,when,[...flow,{kind:'repeat',id:node.id,count:node.count}]);
+      if(node.kind==='repeat')return read(node.then,when,[...flow,{kind:'repeat',id:node.id,count:node.count,...(node.countExpr?{countExpr:node.countExpr}:{})}]);
       return [
         ...read(node.then,when,[...flow,{kind:'if',id:node.id,branch:'then',test:node.test}]),
         ...read(node.else,when,[...flow,{kind:'if',id:node.id,branch:'else',test:node.test}])
@@ -327,6 +327,19 @@ export function blockWorkspace(config){
       replace(newValue(payload.kind));
     });
   }
+  function numberSocket(control,expression,assign){
+    const box=create('div',null,'block-number-socket');
+    const set=value=>{assign(value);expression=value;};
+    const render=()=>box.replaceChildren(...(expression?
+      [valueEditor(expression,set),action('연산 해제',()=>{set(null);render();onChange();},'block-text-button')]:
+      [action('연산 연결',()=>{attach(literal(control.value===''?Number(control.min||1):Number(control.value)));},'block-text-button')]));
+    const attach=value=>{
+      if(control.value==='')control.value=control.min||'1';
+      set(value);render();onChange();
+    };
+    render();
+    return dropZone(box,['value'],payload=>attach(newValue(payload.kind)));
+  }
   function testEditor(node,update,when,depth=0){
     const field=create('div',null,'block-test');
     const replace=value=>{update(value);field.replaceWith(testEditor(value,update,when,depth));onChange();};
@@ -348,7 +361,8 @@ export function blockWorkspace(config){
         field.append(choose('조건을 검사할 대상',{self:'자신',target:'카드 대상'},node.subject,subject=>{node.subject=subject;onChange();}));
         if(!flagConditions.includes(node.condition)){
           const dice=Object.hasOwn(diceConditions,node.condition);
-          field.append(number('조건 기준값',node.threshold,dice?1:0,dice?maxDiceTotal:100,value=>{node.threshold=value;onChange();}));
+          const threshold=number('조건 기준값',node.threshold,dice?1:0,dice?maxDiceTotal:100,value=>{node.threshold=value;onChange();});
+          field.append(threshold,numberSocket(threshold,node.thresholdExpr,expr=>{node.thresholdExpr=expr;}));
         }
         if(node.condition==='stack')field.append(stackSelect(node.tag,tag=>{node.tag=tag;onChange();}));
         if(node.condition==='cardUsed'){
@@ -403,6 +417,15 @@ export function blockWorkspace(config){
       card.append(header);
       if(isAction(node)){
         card.append(node.widget);
+        for(const control of node.widget.querySelectorAll('input[type=number][name]:not([name=amount])')){
+          const label=control.closest('label');
+          if(!label)continue;
+          label.nextElementSibling?.classList.contains('block-number-socket')&&label.nextElementSibling.remove();
+          const socket=numberSocket(control,node.numberExprs[control.name],expr=>{
+            if(expr)node.numberExprs[control.name]=expr;else delete node.numberExprs[control.name];
+          });
+          label.after(socket);
+        }
         if(node.widget.amountPart){
           const part=node.widget.amountPart,socket=part.expressionSlot;
           const update=nodeValue=>{node.expr=nodeValue;part.setExpression(!!nodeValue);};
@@ -424,7 +447,8 @@ export function blockWorkspace(config){
           create('div','참일 때','block-branch-label'),stack(hat,node.then,depth+1),
           create('div','아니면','block-branch-label'),stack(hat,node.else,depth+1));
       }else{
-        card.append(number('반복 횟수',node.count,1,maxFlowRepeat,value=>{node.count=value;onChange();}),
+        const count=number('반복 횟수',node.count,1,maxFlowRepeat,value=>{node.count=value;onChange();});
+        card.append(count,numberSocket(count,node.countExpr,expr=>{node.countExpr=expr;}),
           create('div','반복할 블록','block-branch-label'),stack(hat,node.then,depth+1));
       }
       column.append(card);

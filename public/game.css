@@ -329,3 +329,5 @@ body:has(.battle-dummy) > main > :is(#error,#feedback):not(:empty){
 .flavor-text{white-space:pre-wrap;overflow-wrap:anywhere;color:#d5c5a1;font-style:italic;border-inline-start:2px solid #9b8252;padding-inline-start:8px;font-size:.84rem}
 
 .searchable-effect-select input,.searchable-effect-select select{width:100%;min-width:0}
+
+.block-number-socket{display:grid;gap:4px}.effect label[hidden]+.block-number-socket,.effect label[style*="display: none"]+.block-number-socket{display:none}

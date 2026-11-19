@@ -1,0 +1,139 @@
+diff --git a/public/rules.js b/public/rules.js
+index ef99324..ad2f33d 100644
+--- a/public/rules.js
++++ b/public/rules.js
+@@ -415,6 +415,9 @@ export const conceptStacks = {
+   '역행하는 별빛': {cap:1,description:'보유 중 치명타 확률 +20%p, 치명타 피해 배율 +35%p.',effects:[
+     {when:'held',kind:'critChance',to:'self',amount:20},
+     {when:'held',kind:'critMultiplier',to:'self',amount:35}
++  ]},
++  '절취선': {cap:6,description:'중첩당 받는 피해 5% 증가. 최대 6중첩. 절취선 사냥개의 마무리 카드로 전부 소모하면 중첩 총 위력당 추가 피해 4.',effects:[
++    {when:'held',kind:'incomingDamage',to:'self',amount:5,amountMode:'percent',scaleStack:'count'}
+   ]}
+ };
+ export const passiveRoundTimings = ['battleStart','turnStart','turnEnd'];
+diff --git a/scripts/game.test.mjs b/scripts/game.test.mjs
+index ed3e20e..dd7117b 100644
+--- a/scripts/game.test.mjs
++++ b/scripts/game.test.mjs
+@@ -2536,17 +2536,17 @@ test('arithmetic supports extra terms in effects and comparison operands',async(
+ test('concept cards are stronger catalogue choices and pay mental cost once on use',async()=>{
+   const f=await fixture();
+   const concepts=f.state.defaults.filter(card=>card.concept);
+-  assert.equal(concepts.length,8);
+-  assert.equal(f.state.profile.conceptStackTraits.length,8);
++  assert.equal(concepts.length,10);
++  assert.equal(f.state.profile.conceptStackTraits.length,9);
+   const {parsePower}=await import('../public/rules.js');
+-  const average=card=>{const power=parsePower(card.power);return power.bonus+power.count*(power.sides+1)/2;};
++  const average=card=>(card.hitPowers??[card.power]).reduce((sum,value)=>{const power=parsePower(value);return sum+power.bonus+power.count*(power.sides+1)/2;},0);
+   const baseline=Math.max(...f.state.defaults.filter(card=>['strike','hold','shot','rush','trace'].includes(card.id)).map(average));
+   for(const card of concepts){
+     assert.ok(average(card)>baseline);
+     assert.ok(card.cost>=14);
+-    assert.ok(card.effects.some(effect=>effect.kind==='stack'));
++    assert.ok(card.effects.some(effect=>['stack','consume'].includes(effect.kind)));
+   }
+-  await f.act('deck',{cards:[...concepts.map(card=>card.id),'strike','guard']});
++  await f.act('deck',{cards:concepts.map(card=>card.id)});
+   await f.act('start',{solo:true,bots:0});
+   for(const card of concepts){
+     configureBattle(f,(b,self)=>{
+@@ -2558,9 +2558,12 @@ test('concept cards are stronger catalogue choices and pay mental cost once on u
+     await f.act('round');
+     assert.equal(livingForm(f).mind,80-card.cost,card.name);
+     const grant=card.effects.find(effect=>effect.kind==='stack');
+-    const holder=livingForm(f,grant.to==='self'?f.state.me:'enemy');
+-    assert.equal(holder.stacks[grant.tag],grant.amount,card.name);
+-    assert.equal(holder.stackTraits[grant.tag].concept,true);
++    if(grant){
++      const holder=livingForm(f,grant.to==='self'?f.state.me:'enemy');
++      const granted=card.effects.filter(effect=>effect.kind==='stack'&&effect.tag===grant.tag).reduce((sum,effect)=>sum+effect.amount,0);
++      assert.equal(holder.stacks[grant.tag],granted,card.name);
++      assert.equal(holder.stackTraits[grant.tag].concept,true);
++    }
+   }
+ });
+ 
+@@ -2981,3 +2984,49 @@ test('built-in stack keywords grant next-round movement and heal from card or sh
+   assert.equal(livingForm(f).stacks.흡혈,0);
+   assert.equal(livingForm(f).stackTraits.흡혈,undefined);
+ });
++
++test('perforation strikes build capped persistent marks and the finisher spends them after its base hit',async()=>{
++  const f=await fixture();
++  await f.act('start',{solo:true,bots:0});
++  configureBattle(f,(b,self)=>{
++    Object.assign(self,{pos:16,hand:['conceptPerforate'],mind:64});
++    self.library.conceptPerforate={...self.library.conceptPerforate,power:'10',hitPowers:['10','10']};
++    Object.assign(b.units.enemy,{pos:18,hp:999,maxHp:999,blockedRounds:1});b.walls=[];
++  });
++  await f.act('plan',{card:'conceptPerforate',targets:['enemy']});
++  await f.act('round');
++  assert.equal(livingForm(f).mind,50);
++  assert.equal(livingForm(f,'enemy').stacks['절취선'],2);
++  assert.equal(livingForm(f,'enemy').hp,979);
++  // Leaving the marks for a teammate keeps the 10% vulnerability active.
++  configureBattle(f,(b,self)=>{
++    Object.assign(self,{hand:['hold'],mind:50});self.library.hold={...self.library.hold,power:'20'};
++    b.units.enemy.blockedRounds=1;
++  });
++  await f.act('plan',{card:'hold',targets:['enemy']});
++  await f.act('round');
++  assert.equal(livingForm(f,'enemy').hp,957);
++  assert.equal(livingForm(f,'enemy').stacks['절취선'],2);
++  configureBattle(f,(b,self)=>{
++    Object.assign(self,{hand:['conceptTearOpen'],mind:70});
++    self.library.conceptTearOpen={...self.library.conceptTearOpen,power:'10'};
++    b.units.enemy.blockedRounds=1;
++  });
++  await f.act('plan',{card:'conceptTearOpen',targets:['enemy']});
++  await f.act('round');
++  assert.equal(livingForm(f).mind,50);
++  assert.equal(livingForm(f,'enemy').hp,938); // Base 11, then 2 consumed marks × 4.
++  assert.equal(livingForm(f,'enemy').stacks['절취선'],0);
++  assert.equal(livingForm(f,'enemy').stackTraits['절취선'],undefined);
++  // Another finisher cannot spend marks that have already been removed.
++  configureBattle(f,(b,self)=>{self.hand=['conceptTearOpen'];self.mind=70;b.units.enemy.blockedRounds=1;});
++  await f.act('plan',{card:'conceptTearOpen',targets:['enemy']});
++  await f.act('round');
++  assert.equal(livingForm(f,'enemy').hp,928);
++  for(let turn=0;turn<4;turn++){
++    configureBattle(f,(b,self)=>{self.hand=['conceptPerforate'];self.mind=64;b.units.enemy.blockedRounds=1;});
++    await f.act('plan',{card:'conceptPerforate',targets:['enemy']});
++    await f.act('round');
++  }
++  assert.equal(livingForm(f,'enemy').stacks['절취선'],6);
++});
+diff --git a/worker/game.js b/worker/game.js
+index 3710f47..1d49809 100644
+--- a/worker/game.js
++++ b/worker/game.js
+@@ -527,7 +527,15 @@ const gameConceptPresets=[
+   ],16),notes:'카드 1장을 뽑고 숙고의 말미를 부여. 이후 턴 시작마다 추가 드로우와 다음 판정 위력 보너스를 얻습니다.'},
+   {...gamePreset('conceptMeteor','거슬러 오르는 별똥별 · 역행','3d+9','2~5','normal',1,[
+     gameConceptStack('역행하는 별빛'),gameEffect('hit','push',1)
+-  ],20),notes:'역행하는 별빛이 있는 동안 치명타 확률과 치명타 피해가 증가합니다. 적을 밀어내며 사거리를 유지합니다.'}
++  ],20),notes:'역행하는 별빛이 있는 동안 치명타 확률과 치명타 피해가 증가합니다. 적을 밀어내며 사거리를 유지합니다.'},
++  {...gamePreset('conceptPerforate','절취선 사냥개 · 점선 물어뜯기','1d+4','1~3','normal',1,[
++    {...gameConceptStack('절취선','target'),hitIndex:1},
++    {...gameConceptStack('절취선','target'),hitIndex:2}
++  ],14),hitPowers:['1d+4','1d+4'],notes:'2회 타격. 각 타격 적중 시 절취선 1 부여. 중첩당 받는 피해가 5% 증가하며 최대 6중첩까지 전투 중 지속됩니다.'},
++  {...gamePreset('conceptTearOpen','절취선 사냥개 · 접힌 상처를 펼쳐라','3d+8','1~3','normal',1,[
++    {...gameEffect('hit','consume',1,'target','절취선'),consumeAmount:'all'},
++    gameEffect('consume','perStack',4)
++  ],20),notes:'기본 공격 뒤 대상의 절취선을 전부 소모하고 총 중첩 위력당 추가 피해 4. 절취선이 없으면 기본 공격만 실행합니다. 남겨서 동료의 공격을 강화할지, 지금 소모할지 선택하세요.'}
+ ].map((card,index)=>({...card,optional:true,concept:true,requiredState:'any',flavor:[
+   '조우 기록 · 식탁에는 네 사람 몫의 식기가 있었다. 접시를 뒤집자 각자의 처분 번호가 새겨져 있었다. “빈 접시로 돌아가실 수는 없습니다.”',
+   '“문이 닫혀도 문턱을 기억해. 네가 두고 온 한 걸음은 아직 거기 있어.”',
+@@ -536,7 +544,9 @@ const gameConceptPresets=[
+   '조우 기록 · 만조의 종이 울리자 빈 관이 물 위로 떠올랐다. 뚜껑 위의 명패에는 아직 살아 있는 승객의 이름이 적혀 있었다.',
+   '“누가 먼저 벽을 쳤는지는 몰라. 다만 여기 남은 파편들은 전부 같은 쪽을 향하고 있어.”',
+   '“십 분을 더 드리지요. 값을 치르는 건 어렵지 않습니다. 돌아가서 그 십 분을 잊지 마세요.”',
+-  '조우 기록 · 창밖 별빛이 철로를 거슬러 올라왔다. 곧이어 아직 발사하지 않은 탄환이 손바닥 위로 떨어졌다.'
++  '조우 기록 · 창밖 별빛이 철로를 거슬러 올라왔다. 곧이어 아직 발사하지 않은 탄환이 손바닥 위로 떨어졌다.',
++  '조우 기록 · 금속 이빨이 두 번 닫혔다. 갑옷에는 작은 구멍들만 남았다. 팔을 들자 구멍 사이로 점선이 이어졌다.',
++  '“점선을 따라 뜯으시오.” 포장지에 적힌 문장을 읽는 동안, 사냥개는 이미 그 선의 끝을 물고 있었다.'
+ ][index]}));
+ const gameConceptTraits=Object.fromEntries(Object.entries(conceptStacks).map(([name,trait])=>
+   [name,{...trait,name,concept:true,effects:trait.effects.map(effect=>({...gameEffect(effect.when,effect.kind,effect.amount,effect.to),...effect}))}]));

@@ -2638,3 +2638,18 @@ test('removing a concept debuff immediately removes its held damage modifier and
   assert.equal(enemy.stacks['인양의 명패'],undefined);
   assert.equal(enemy.stackTraits['인양의 명패'],undefined);
 });
+
+test('card, strike, effect and passive flavor text survive save and passive export',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'목격 기록',power:'0',target:'self',range:'0',role:'normal',
+    flavor:'객차의 기록',hitFlavors:['첫 타의 기록'],effects:[{kind:'mind',when:'use',to:'self',amount:1,flavor:'효과 기록'}]}});
+  const card=f.state.profile.cards[0];
+  assert.equal(card.flavor,'객차의 기록');
+  assert.deepEqual(card.hitFlavors,['첫 타의 기록']);
+  assert.equal(card.effects[0].flavor,'효과 기록');
+  assert.ok(f.state.defaults.filter(item=>item.concept).every(item=>item.flavor));
+  await f.act('passive',{passive:{name:'기록자',flavor:'패시브 기록',effects:[{kind:'shield',when:'turnStart',to:'self',amount:1,flavor:'방벽 기록'}]}});
+  const file=(await f.send(f.endpoint,{action:'passiveExport'},f.host.cookie)).body;
+  assert.equal(file.passives[0].flavor,'패시브 기록');
+  assert.equal(file.passives[0].effects[0].flavor,'방벽 기록');
+});

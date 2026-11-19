@@ -29,6 +29,7 @@ function el(tag,value,attrs={}){
 }
 function group(...children){const x=el('div',undefined,{class:'grid'});x.append(...children);return x;}
 function section(title,...items){const x=el('section',undefined,{class:'card stack'});x.append(el('h2',title),...items);return x;}
+const flavorText=t=>el('p',t,{class:'flavor-text'});
 const note=t=>el('p',t,{class:'notice minor'});
 const button=(text,action,primary=false)=>{const x=el('button',text,{type:'button',class:primary?'primary':''});x.onclick=action;return x;};
 function input(name,value='',type='text',attrs={}){return el('input',undefined,{name,value,type,...attrs});}
@@ -186,7 +187,11 @@ function characterPassives(profile){
     title.append(el('strong',passive.name),el('span',passive.enabled?'장착 중':'해제됨',{class:'tag'}));
     card.append(title);
     if(passive.notes)card.append(note(passive.notes));
-    for(const effect of passive.effects)card.append(note(effectConditionText(effect)+effectTiming(effect)+' · '+effectSentence(effect)));
+    if(passive.flavor)card.append(flavorText(passive.flavor));
+    for(const effect of passive.effects){
+      card.append(note(effectConditionText(effect)+effectTiming(effect)+' · '+effectSentence(effect)));
+      if(effect.flavor)card.append(flavorText(effect.flavor));
+    }
     const actions=el('div',undefined,{class:'row'});
     actions.append(button('편집',()=>open(passive.id)),button(passive.enabled?'해제':'장착',()=>send('passiveToggle',{id:passive.id})),
       button('복제',()=>send('passiveClone',{id:passive.id})),
@@ -208,9 +213,11 @@ function characterPassives(profile){
     const item=el('article',undefined,{class:'passive-entry stack'});
     item.append(el('strong',entry.passive.name),note(entry.author+' 공유'));
     if(entry.passive.notes)item.append(note(entry.passive.notes));
+    if(entry.passive.flavor)item.append(flavorText(entry.passive.flavor));
     if(entry.included.length)item.append(note('참조 카드 · '+entry.included.map(card=>card.name).join(', ')));
     for(const effect of entry.passive.effects){
       item.append(note(effectConditionText(effect,entry.included)+effectTiming(effect)+' · '+effectSentence(effect,entry.included)));
+      if(effect.flavor)item.append(flavorText(effect.flavor));
     }
     const imported=list.some(passive=>passive.sharedFrom===entry.id);
     const action=entry.owner===state.me
@@ -228,12 +235,13 @@ function characterPassives(profile){
     draftDirty=true;
   }});
   const form=formFor('passive',(_,data)=>({passive:{
-    id:existing?.id,name:data.get('name'),notes:data.get('notes'),enabled:data.has('enabled'),effects:workspace.rows()
+    id:existing?.id,name:data.get('name'),notes:data.get('notes'),flavor:data.get('flavor'),enabled:data.has('enabled'),effects:workspace.rows()
   }}));
   form.append(el('h3',existing?'패시브 편집':'새 패시브',{class:'full'}),
     field('패시브 이름',input('name',existing?.name||'','text',{required:true,maxlength:36})),
     field('전투에 장착',input('enabled','1','checkbox',{checked:existing?.enabled??true}),'inline'),
     field('패시브 설명',area('notes',existing?.notes||'',300),'full'),
+    field('패시브 플레이버 텍스트',area('flavor',existing?.flavor||'',300),'full'),
     note('이벤트 아래에 실행할 블록을 연결하세요. 모바일에서는 연결 칸을 먼저 누른 뒤 도구함에서 블록을 누르면 돼요.'),workspace.node,save);
   if(existing)form.append(button('편집 취소',()=>open(null)));
   save.disabled=!workspace.rows().length;
@@ -661,6 +669,7 @@ function effectRow(row,refresh,scoped,passive,stack){
     ...(row.kind==='stack'?[part('중첩 부여','effect',tag)]:[]),
     part('효과 옵션','effect',...replacementFields,...consumeFields,...(row.kind==='giveCard'?[giveField]:[]),
       ...capFields,...ampFields,...duration,...settings,...stackScale,reactionField,...(row.kind==='stack'?[]:[tag]),fixedField),
+    field('효과 플레이버 텍스트',area('flavor',row.flavor||'',180),'full'),
     part('대가와 발동 제한','limit',field('발동 제한',limit),limitCountField,scaleField,scaleModeField,scaleAmountField,scaleBasisField));
   if(row.condition||passive){
     fields.append(part('효과 자체 조건','condition',field('어떤 조건에서?',condition),conditionCardField,threshold,diceHelp));
@@ -846,7 +855,6 @@ function renderCardFace(preview,card){
       const trait=(card.concept?conceptStacks[name]:null)||state.profile?.stackTraits?.find(item=>item.name===name)||conceptStacks[name];
       const lines=(trait?.effects||[]).map(effect=>effectTiming(effect)+' · '+effectSentence(effect)+
         (effect.scaleStack==='count'?' · 보유 중첩 수를 곱함':''));
-      if(trait?.description)lines.unshift(trait.description+' 전투 종료 또는 중첩 제거 시 해제됩니다.');
       if(Object.hasOwn(basicStacks,name))lines.unshift(basicStacks[name].description);
       lines.push(...references.map(effect=>effectTiming(effect)+' · '+effectSentence(effect)));
       stacks.append(keyword(name,[...new Set(lines)],'stack-tag'));
@@ -859,7 +867,12 @@ function renderCardFace(preview,card){
     const name=effects[effect.kind]||effect.kind;
     const text=effectSentence(effect);
     line.append(el('b',phase),keyword(name,[phase+' · '+text]),el('span',text));
+    if(effect.flavor)line.append(flavorText(effect.flavor));
     description.append(line);
+  }
+  if(card.flavor)description.prepend(flavorText(card.flavor));
+  for(const [index,text] of (card.hitFlavors||[]).entries()){
+    if(text)description.append(flavorText((index+1)+'타 · '+text));
   }
   if(notes)description.append(el('p',notes,{class:'notice minor forge-notes'}));
   if(description.childElementCount)body.append(description);
@@ -1008,7 +1021,7 @@ function cardLibraryFilter(entries){
     const stacks=new Set(rows.flatMap(effectStackNames));
     const kinds=new Set(rows.map(effect=>effect.kind));
     return {line,card,powers,range:powers.every(Boolean)?powerBounds(card):null,stacks,kinds,
-      text:[card.name,card.notes,card.concept?'개념물 개념구':'',...stacks,...[...kinds].map(kind=>effects[kind])].join(' ').normalize('NFKC').toLocaleLowerCase()};
+      text:[card.name,card.notes,card.flavor,...(card.hitFlavors||[]),...rows.map(effect=>effect.flavor),card.concept?'개념물 개념구':'',...stacks,...[...kinds].map(kind=>effects[kind])].join(' ').normalize('NFKC').toLocaleLowerCase()};
   });
   const controls=[];
   const search=input(undefined,values.search||'','search',{placeholder:'카드 이름, 설명, 중첩, 효과 검색'});
@@ -1126,7 +1139,7 @@ function cards(){
     });
     addHit.disabled=hits.length>=maxCardHits;
   };
-  function addHitRow(formula,effects=[],targetMode=''){
+  function addHitRow(formula,effects=[],targetMode='',text=''){
     const id='hit-power-'+(++nextHitId);
     const node=el('fieldset',undefined,{class:'hit-editor stack'});
     const legend=el('legend');
@@ -1175,9 +1188,10 @@ function cards(){
       hits[Math.min(index,hits.length-1)].power.focus();
       changed();
     });
-    const hit={node,legend,label,power,targetModeControl,targetModeField,up,down,remove,workspace};
+    const flavor=area(undefined,text,180);
+    const hit={node,legend,label,power,flavor,targetModeControl,targetModeField,up,down,remove,workspace};
     actions.append(up,down,remove);
-    node.append(legend,actions,label,targetModeField,effectRows);
+    node.append(legend,actions,label,targetModeField,field('타격 플레이버 텍스트',flavor),effectRows);
     hits.push(hit);
     hitList.append(node);
     return hit;
@@ -1189,7 +1203,7 @@ function cards(){
     hit.power.focus();
     changed();
   });
-  cardHitPowers(c).forEach((formula,index)=>addHitRow(formula??'2d+5',(c.effects||[]).filter(effect=>effect.hitIndex===index+1),c.hitTargets?.[index]));
+  cardHitPowers(c).forEach((formula,index)=>addHitRow(formula??'2d+5',(c.effects||[]).filter(effect=>effect.hitIndex===index+1),c.hitTargets?.[index],c.hitFlavors?.[index]));
   syncHits();
   const rangeForm=rangeEditor(c,changed,{label:'기본 사거리'});
   const splashForm=rangeEditor(c.splash||{range:'1'},changed,{
@@ -1213,7 +1227,7 @@ function cards(){
     }
     const image=await imageData(data.get('image'));
     const splash=['splash','tile'].includes(chosen)?{range:splashForm.range.value,rangeShape:splashForm.value()}:undefined;
-    return {card:{id:c.id,name:data.get('name'),hitPowers,hitTargets,target:['guard','counter'].includes(role.value)?'self':/^\d$/.test(chosen)?Number(chosen):chosen,range:rangeForm.range.value,rangeShape:rangeForm.value(),splash,clash:data.has('clash'),unstoppable:data.has('unstoppable'),role:data.get('role'),requiredState:data.get('requiredState'),cost:Number(data.get('cost')),notes:data.get('notes'),effects,image:image||(!data.has('clearImage')?c.image:'')}};
+    return {card:{id:c.id,name:data.get('name'),hitPowers,hitTargets,hitFlavors:hits.map(hit=>hit.flavor.value),flavor:data.get('flavor'),target:['guard','counter'].includes(role.value)?'self':/^\d$/.test(chosen)?Number(chosen):chosen,range:rangeForm.range.value,rangeShape:rangeForm.value(),splash,clash:data.has('clash'),unstoppable:data.has('unstoppable'),role:data.get('role'),requiredState:data.get('requiredState'),cost:Number(data.get('cost')),notes:data.get('notes'),effects,image:image||(!data.has('clearImage')?c.image:'')}};
   });
   const cost=field('혹사 정신력 소모',select('cost',[[10,'10'],[20,'20'],[30,'30']],c.cost||20));
   const sync=()=>{
@@ -1239,7 +1253,7 @@ function cards(){
     field('저지불가',input('unstoppable','1','checkbox',{checked:!!c.unstoppable,'aria-describedby':'unstoppable-guide'}),'inline'),
     el('p','합에서 패배해도 전투를 계속할 수 있으면 최소 위력으로 공격해요.',{id:'unstoppable-guide',class:'notice minor full'}),
     field('카드 이미지',input('image','','file',{accept:'image/png,image/jpeg,image/webp'})),
-    field('GM 판정 메모',area('notes',c.notes||'',300),'full'));
+    field('카드 플레이버 텍스트',area('flavor',c.flavor||'',300),'full'),field('GM 판정 메모',area('notes',c.notes||'',300),'full'));
   makeCard.elements.target.addEventListener('change',sync);
   makeCard.elements.clash.addEventListener('change',sync);
   sync();
@@ -1256,7 +1270,7 @@ function cards(){
     const modes=hits.map(hit=>hit.targetModeControl.disabled?'':hit.targetModeControl.value);
     renderCardFace(live,{
       name:form.name.value,role:form.role.value,target:form.target.value,
-      range:range.value,rangeShape,hitPowers:powers(),hitTargets:modes,
+      range:range.value,rangeShape,hitPowers:powers(),hitTargets:modes,hitFlavors:hits.map(hit=>hit.flavor.value),flavor:form.flavor.value,
       splash:splashSettings.hidden?undefined:{range:splashForm.range.value,rangeShape:splashForm.value()},
       clash:!form.clash.disabled&&form.clash.checked,unstoppable:!form.unstoppable.disabled&&form.unstoppable.checked,
       requiredState:form.requiredState.value,cost:form.cost.value,
@@ -1588,11 +1602,7 @@ function battlePanel(){
     if(u.shield)tags.push('보호막 '+u.shield);
     if(u.collapsed||u.zero)tags.push(u.collapsed?'붕괴 · 개념화':u.zero==='crisis'?'붕괴 직전 · '+u.collapseRound+'라운드 종료':'폭주 위기');
     tags.push(...stackLabels(u));
-    chips.append(...tags.map(t=>{
-      const name=Object.keys(u.stackTraits||{}).find(name=>t.startsWith(name+' '));
-      const trait=name&&u.stackTraits[name];
-      return el('span',t,trait?.concept?{title:trait.description+' · 전투 종료 또는 중첩 제거 시 해제'}:{});
-    }));
+    chips.append(...tags.map(t=>el('span',t)));
     unitStats.append(el('strong',u.name+(u.bot&&!u.enemy?' · 봇':'')),chips);
   }
   const log=el('ol',undefined,{class:'log'});
@@ -1631,7 +1641,9 @@ function battlePanel(){
     if(u.coverCount)detail.append(note('원호 방어 '+u.coverCount));
     detail.append(...stackLabels(u).map(note));
     for(const [name,trait] of Object.entries(u.stackTraits||{})){
-      if(trait.concept&&u.stacks[name]>0)detail.append(note(name+' · '+trait.description+' 전투 종료 또는 중첩 제거 시 해제됩니다.'));
+      if(u.stacks[name]>0)for(const effect of trait.effects||[]){
+        detail.append(note(name+' · '+effectTiming(effect)+' · '+effectSentence(effect)));
+      }
     }
     const old=board.querySelector('.unit-inspection');
     old?.remove();

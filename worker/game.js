@@ -281,7 +281,7 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
     }
     const flow=gameNormalizeFlow(row,id,owned);
     const amountExpr=row.amountExpr!=null&&!unnumberedEffects.includes(row.kind)?gameExpression(row.amountExpr):undefined;
-    return {...settings,...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
+    return {...settings,...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
       ...(hitIndex?{hitIndex}:{}),...(reactionRounds?{reactionRounds}:{}),
       ...(givenCardId?{givenCardId}:{}),...(conditionCardId?{conditionCardId}:{}),
       ...(replace?{replacementId,...(fromCardId?{fromCardId}:{})}:{}),
@@ -297,7 +297,9 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
       ...(scaleCost?{scaleCost:{amount:scaleCost.amount,mode:scaleCost.mode,healthBasis:scaleCost.healthBasis||'max'}}:{}),...(deferral?{deferRounds}:{}),...(copyId?{copyId}:{}),...(scaleResource?{scaleResource}:{}),...(row.scaleDiscard===true?{scaleDiscard:true}:{})};
   });
   gameValidateFlow(entries);
-  return {id,name,power:hitPowers[0],...(hitPowers.length>1?{hitPowers}:{}),...(hitTargets?{hitTargets}:{}),range,...(rangeShape?{rangeShape}:{}),target,...(splash?{splash}:{}),requiredState,clash:!counter&&target!=='tile'&&input.clash===true,unstoppable:!counter&&target!=='tile'&&input.unstoppable===true&&input.clash===true&&!['guard','assist'].includes(input.role)&&target!=='self',role:input.role,cost:input.role==='overload'?bounded(Number(input.cost)||20,10,30):0,notes:gameText(input.notes,300),effects:entries,image};
+  const hitFlavors=Array.isArray(input.hitFlavors)?hitPowers.map((_,index)=>gameText(input.hitFlavors[index],180)):[];
+  const flavor=gameText(input.flavor,300);
+  return {id,name,power:hitPowers[0],...(flavor?{flavor}:{}),...(hitFlavors.some(Boolean)?{hitFlavors}:{}),...(hitPowers.length>1?{hitPowers}:{}),...(hitTargets?{hitTargets}:{}),range,...(rangeShape?{rangeShape}:{}),target,...(splash?{splash}:{}),requiredState,clash:!counter&&target!=='tile'&&input.clash===true,unstoppable:!counter&&target!=='tile'&&input.unstoppable===true&&input.clash===true&&!['guard','assist'].includes(input.role)&&target!=='self',role:input.role,cost:input.role==='overload'?bounded(Number(input.cost)||20,10,30):0,notes:gameText(input.notes,300),effects:entries,image};
 }
 function gamePassive(input,id=gameId(),owned=[],stack=false){
   const limit=maxPassiveEffects+Number(stack);
@@ -314,7 +316,7 @@ function gamePassive(input,id=gameId(),owned=[],stack=false){
     }
   }
   const card=gameCard({name:input.name,role:'normal',target:'self',range:'0',power:'0',effects:input.effects},'passive:'+id,owned,true,stack);
-  return {id,name:card.name,notes:gameText(input.notes,300),enabled:input.enabled!==false,effects:card.effects};
+  return {id,name:card.name,notes:gameText(input.notes,300),...(gameText(input.flavor,300)?{flavor:gameText(input.flavor,300)}:{}),enabled:input.enabled!==false,effects:card.effects};
 }
 const gamePassiveSource=passive=>({id:'passive:'+passive.id,name:passive.name,effects:passive.effects,passive:true});
 function gamePassives(b,actor,when,target,source){
@@ -460,7 +462,16 @@ const gameConceptPresets=[
   {...gamePreset('conceptMeteor','거슬러 오르는 별똥별 · 역행','3d+9','2~5','normal',1,[
     gameConceptStack('역행하는 별빛'),gameEffect('hit','push',1)
   ],20),notes:'역행하는 별빛이 있는 동안 치명타 확률과 치명타 피해가 증가합니다. 적을 밀어내며 사거리를 유지합니다.'}
-].map(card=>({...card,optional:true,concept:true,requiredState:'any'}));
+].map((card,index)=>({...card,optional:true,concept:true,requiredState:'any',flavor:[
+  '조우 기록 · 식탁에는 네 사람 몫의 식기가 있었다. 접시를 뒤집자 각자의 처분 번호가 새겨져 있었다. “빈 접시로 돌아가실 수는 없습니다.”',
+  '“문이 닫혀도 문턱을 기억해. 네가 두고 온 한 걸음은 아직 거기 있어.”',
+  '조우 기록 · 봉합공은 찢어진 방벽을 꿰매고 있었다. 백색 실은 바늘귀를 지나 대원의 소매 안으로 이어졌다.',
+  '“정각입니다. 발을 떼지 마세요. 이 방은 세입자가 움직이는 동안만 무너집니다.”',
+  '조우 기록 · 만조의 종이 울리자 빈 관이 물 위로 떠올랐다. 뚜껑 위의 명패에는 아직 살아 있는 승객의 이름이 적혀 있었다.',
+  '“누가 먼저 벽을 쳤는지는 몰라. 다만 여기 남은 파편들은 전부 같은 쪽을 향하고 있어.”',
+  '“십 분을 더 드리지요. 값을 치르는 건 어렵지 않습니다. 돌아가서 그 십 분을 잊지 마세요.”',
+  '조우 기록 · 창밖 별빛이 철로를 거슬러 올라왔다. 곧이어 아직 발사하지 않은 탄환이 손바닥 위로 떨어졌다.'
+][index]}));
 const gameConceptTraits=Object.fromEntries(Object.entries(conceptStacks).map(([name,trait])=>
   [name,{...trait,name,concept:true,effects:trait.effects.map(effect=>({...gameEffect(effect.when,effect.kind,effect.amount,effect.to),...effect}))}]));
 const gameCatalogue=[...gameDefaults,gameCounterPreset,gameCopyPreset,...gameResourcePresets,...gameAwakeningPresets,...gameConceptPresets];

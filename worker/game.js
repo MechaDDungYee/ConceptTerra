@@ -368,12 +368,19 @@ function gameStackTrait(input,owned){
   }
   const normalized=effects.length?gamePassive({name:input.name,effects},'stack',owned,true).effects:[];
   const flavor=gameText(input.flavor,300);
-  return {name:input.name,...(flavor?{flavor}:{}),gainLimits:gameStackGainLimits(input.gainLimits),effects:normalized.map((effect,index)=>({...effect,
+  const holdLimits={};
+  for(const [key,max] of [['holdCount',maxStatusStacks],['holdPower',maxStatusStacks*maxStackPotency]]){
+    if(input[key]==null)continue;
+    if(!gameInt(input[key],1,max))gameFail('중첩 보유 한도를 확인하세요.');
+    holdLimits[key]=input[key];
+  }
+  return {name:input.name,...(flavor?{flavor}:{}),...holdLimits,gainLimits:gameStackGainLimits(input.gainLimits),effects:normalized.map((effect,index)=>({...effect,
     ...(effects[index].scaleStack==='count'?{scaleStack:'count'}:{})
   }))};
 }
-function gameUpgradeStackTrait({name,effects,critical,flavor,gainLimits}){
-  const entry={name,effects,...(flavor?{flavor}:{}),...(gainLimits?{gainLimits}:{})};
+function gameUpgradeStackTrait({name,effects,critical,flavor,gainLimits,holdCount,holdPower}){
+  const entry={name,effects,...(flavor?{flavor}:{}),...(gainLimits?{gainLimits}:{}),
+    ...(holdCount?{holdCount}:{}),...(holdPower?{holdPower}:{})};
   if(!critical)return entry;
   return {...entry,effects:[...effects,{when:'held',kind:'critChance',amount:critical,to:'self',scaleStack:'count'}]};
 }
@@ -1324,13 +1331,16 @@ function gameTakeStacks(unit,tag,count){
 }
 function gameGrantStacks(b,unit,effect,amount,trait,sourceRuns){
   const tag=effect.tag;
-  const cap=Math.min(effect.stackCap??maxStatusStacks,basicStacks[tag]?.cap??maxStatusStacks,trait?.cap??maxStatusStacks);
+  const definitions=[trait,unit.stackTraits?.[tag],unit.stackDefinitions?.[tag]];
+  const cap=Math.min(effect.stackCap??maxStatusStacks,basicStacks[tag]?.cap??maxStatusStacks,
+    ...definitions.map(entry=>Math.min(entry?.cap??maxStatusStacks,entry?.holdCount??maxStatusStacks)));
+  const holdPower=Math.min(...definitions.map(entry=>entry?.holdPower??Infinity));
   const room=Math.max(0,cap-(unit.stacks[tag]||0));
   const ledger=unit.stackAcquisitions?.[tag];
   const usage=ledger?.round===b.round?ledger:{round:b.round,turnCount:0,turnPower:0,
     battleCount:ledger?.battleCount||0,battlePower:ledger?.battlePower||0};
-  const policies=[effect,trait?.gainLimits,unit.stackTraits?.[tag]?.gainLimits,unit.stackDefinitions?.[tag]?.gainLimits];
-  let countBudget=Math.min(amount,room),powerBudget=Infinity;
+  const policies=[effect,...definitions.map(entry=>entry?.gainLimits)];
+  let countBudget=Math.min(amount,room),powerBudget=holdPower-stackPotency(unit,tag);
   for(const [key,[,metric,period]] of Object.entries(stackGainLimits)){
     const bound=Math.min(...policies.map(policy=>policy?.[key]??Infinity));
     const used=period==='gain'?0:usage[period+(metric==='count'?'Count':'Power')];
@@ -1405,7 +1415,8 @@ function gameEffectBasis(ctx,unit,basis,effect){
     const {tag}=effect;
     const current=subject.stacks[tag]||0;
     const cap=Math.min(effect.stackCap??subject.stackCaps?.[tag]??maxStatusStacks,
-      basicStacks[tag]?.cap??maxStatusStacks,subject.stackTraits?.[tag]?.cap??conceptStacks[tag]?.cap??maxStatusStacks);
+      basicStacks[tag]?.cap??maxStatusStacks,subject.stackTraits?.[tag]?.cap??conceptStacks[tag]?.cap??maxStatusStacks,
+      subject.stackTraits?.[tag]?.holdCount??maxStatusStacks,subject.stackDefinitions?.[tag]?.holdCount??maxStatusStacks);
     return /Current$/.test(basis)?current:/Missing$/.test(basis)?Math.max(0,cap-current):cap;
   }
   const mind=subject=>subject.enemy?0:subject.mind??0;

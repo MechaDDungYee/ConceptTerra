@@ -157,14 +157,21 @@ function stackManager(){
     const workspace=effectWorkspace(trait?.effects||[],{passive:true,stack:true,onChange:()=>{draftDirty=true;}});
     const traitForm=el('form',undefined,{class:'stack'});
     const limits=stackGainFields(trait?.gainLimits);
+    const holdCount=input('holdCount',trait?.holdCount??'','number',{min:1,max:maxStatusStacks,placeholder:'기본 한도'});
+    const holdPower=input('holdPower',trait?.holdPower??'','number',{min:1,max:maxStatusStacks*maxStackPotency,placeholder:'제한 없음'});
     const flavor=area('stackFlavor',trait?.flavor||'',300);
     flavor.oninput=()=>{draftDirty=true;};
     traitForm.append(
       note('‘보유 시’ 효과는 중첩이 있는 동안 적용되고, 중첩이 사라지면 해제돼요. 설정은 다음 전투부터 반영돼요.'),
-      field('중첩 플레이버 텍스트',flavor),limits,workspace.node,submit('중첩 저장'));
+      field('중첩 플레이버 텍스트',flavor),
+      field('최대 보유 횟수',holdCount),field('최대 보유 위력 합계',holdPower),
+      note('보유 중인 중첩의 횟수와 위력 합계를 제한해요. 소모하면 보유 한도에 다시 여유가 생겨요.'),
+      limits,workspace.node,submit('중첩 저장'));
     traitForm.onsubmit=async event=>{
       event.preventDefault();
-      if(await send('stackEdit',{name:chosen,flavor:flavor.value,gainLimits:Object.fromEntries(
+      if(await send('stackEdit',{name:chosen,flavor:flavor.value,
+        holdCount:holdCount.value===''?null:Number(holdCount.value),holdPower:holdPower.value===''?null:Number(holdPower.value),
+        gainLimits:Object.fromEntries(
         [...limits.querySelectorAll('input')].filter(control=>control.value!=='').map(control=>[control.name,Number(control.value)])),effects:workspace.rows()}))draftDirty=false;
     };
     editor.append(traitForm);

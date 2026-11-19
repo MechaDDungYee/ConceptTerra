@@ -2745,3 +2745,26 @@ test('stack acquisition limits are shared across effects, reset per turn and per
     assert.equal(livingForm(f).stacks['회수 한도'],expected);
   }
 });
+
+test('stack holdings obey count and total power caps and can be replenished',async()=>{
+  const f=await fixture();
+  await f.act('stackCreate',{name:'보유 횟수'});
+  await f.act('stackEdit',{name:'보유 횟수',holdCount:2,holdPower:20,effects:[]});
+  await f.act('stackCreate',{name:'보유 위력'});
+  await f.act('stackEdit',{name:'보유 위력',holdCount:8,holdPower:7,effects:[]});
+  const tags=['보유 횟수','보유 위력'];
+  const use={when:'use',to:'self'};
+  const grants=tags.map(tag=>({...use,kind:'stack',tag,amount:5,stackPower:3}));
+  await f.act('card',{card:{name:'보유 제한',power:'0',role:'normal',range:'0',target:'self',effects:grants}});
+  const grantId=f.state.profile.cards.find(card=>card.name==='보유 제한').id;
+  const consumes=tags.map(tag=>({...use,kind:'consume',tag,amount:1}));
+  await f.act('card',{card:{name:'보유 소모',power:'0',role:'normal',range:'0',target:'self',effects:consumes}});
+  const consumeId=f.state.profile.cards.find(card=>card.name==='보유 소모').id;
+  await f.act('start',{solo:true,bots:0});
+  for(const [id,expected] of [[grantId,2],[grantId,2],[consumeId,1],[grantId,2]]){
+    configureBattle(f,(b,self)=>{self.hand=[id];b.units.enemy.blockedRounds=1;});
+    await f.act('plan',{card:id,targets:[]});
+    await f.act('round');
+    for(const tag of tags)assert.equal(livingForm(f).stacks[tag],expected);
+  }
+});

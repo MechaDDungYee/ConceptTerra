@@ -41,6 +41,7 @@ const isControl=node=>node.kind==='if'||node.kind==='repeat';
 
 export function describeValue(node){
   if(node.type==='number')return String(node.value);
+  if(node.type==='percent')return node.value+'%';
   if(node.type==='stat')return flowStats[node.stat];
   const terms=flowMathTerms(node).map(describeValue);
   const op=flowArithmetic[node.op];
@@ -65,7 +66,8 @@ export function describeFlow(flow=[]){
     '['+(step.branch==='then'?'만약 ':'아니면 · ')+describeTest(step.test)+'] ').join('');
 }
 
-const valueTypes={number:'숫자',stat:'전투 값',math:'연산'};
+const valueTypes={number:'고정값',percent:'비율값 (%)',stat:'전투 값',math:'연산'};
+const unitValue=(unit,current)=>({type:unit==='percent'?'percent':'number',value:['number','percent'].includes(current?.type)?current.value:unit==='percent'?50:1});
 const testTypes={compare:'두 값 비교',condition:'전투 조건',gate:'논리 게이트',not:'NOT · 조건 뒤집기'};
 const newGate=(gate='and',first=compare())=>({type:'gate',gate,inputs:[first,compare()]});
 function upgradeTest(node){
@@ -74,7 +76,7 @@ function upgradeTest(node){
   if(node.type==='not')return {...node,test:upgradeTest(node.test)};
   return structuredClone(node);
 }
-const newValue=(type,current)=>type==='math'?math(current?.type==='math'?flowMathTerms(current)[0]:current):type==='stat'?stat('selfHp'):literal(1);
+const newValue=(type,current)=>type==='math'?math(current?.type==='math'?flowMathTerms(current)[0]:current):type==='stat'?stat('selfHp'):unitValue(type,current);
 function newTest(type,current){
   switch(type){
     case 'compare': return compare();
@@ -291,9 +293,10 @@ export function blockWorkspace(config){
       onChange();
       return next;
     };
-    field.append(choose('수치 블록 종류',depth<maxExpressionDepth?valueTypes:{number:'숫자',stat:'전투 값'},node.type,type=>replace(newValue(type,node))));
-    if(node.type==='number'){
-      field.append(number('숫자 블록 값',node.value,-10000,10000,value=>{node.value=value;onChange();}));
+    field.append(choose('수치 블록 종류',depth<maxExpressionDepth?valueTypes:{number:'고정값',percent:'비율값 (%)',stat:'전투 값'},node.type,type=>replace(newValue(type,node))));
+    if(node.type==='number'||node.type==='percent'){
+      field.append(number(node.type==='percent'?'비율값 (%)':'숫자 블록 값',node.value,-10000,10000,value=>{node.value=value;onChange();}));
+      if(node.type==='percent')field.append(create('small','연산식에서 50%는 0.5로 계산해요.'));
     }else if(node.type==='stat'){
       field.append(choose('읽어올 전투 값',flowStats,node.stat,value=>{node.stat=value;onChange();}));
     }else{
@@ -322,7 +325,8 @@ export function blockWorkspace(config){
       const op=choose('계산 연산자',flowArithmetic,node.op,value=>{node.op=value;onChange();});
       field.append(op,list,add);
     }
-    return dropZone(field,['value'],payload=>{
+    return dropZone(field,['value','unit'],payload=>{
+      if(payload.type==='unit'){replace(unitValue(payload.unit,node));return;}
       if(payload.kind==='math'&&depth>=maxExpressionDepth)return;
       replace(newValue(payload.kind));
     });
@@ -338,7 +342,8 @@ export function blockWorkspace(config){
       set(value);render();onChange();
     };
     render();
-    return dropZone(box,['value'],payload=>attach(newValue(payload.kind)));
+    return dropZone(box,['value','unit'],payload=>attach(payload.type==='unit'?
+      unitValue(payload.unit,expression):newValue(payload.kind)));
   }
   function testEditor(node,update,when,depth=0){
     const field=create('div',null,'block-test');

@@ -2717,3 +2717,31 @@ test('repeat counts and condition thresholds can be calculated during combat',as
   await f.act('round');
   assert.equal(livingForm(f).mind,53);
 });
+
+test('percent parts act as fractions when nested in arithmetic',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'비율 파츠',power:'0',role:'normal',range:'0',target:'self',effects:[
+    {kind:'shield',when:'use',to:'self',amount:1,amountExpr:{type:'math',op:'multiply',terms:[{type:'number',value:10},{type:'percent',value:50}]}}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{self.hand=[id];b.units.enemy.blockedRounds=1;});
+  await f.act('plan',{card:id,targets:[]});
+  await f.act('round');
+  assert.equal(livingForm(f).shield,5);
+});
+test('stack acquisition limits are shared across effects, reset per turn and persist per battle',async()=>{
+  const f=await fixture();
+  await f.act('stackCreate',{name:'회수 한도'});
+  await f.act('stackEdit',{name:'회수 한도',gainLimits:{stackTurnCount:3,stackTurnPower:6,stackBattleCount:5,stackBattlePower:8},effects:[]});
+  const effect={kind:'stack',when:'use',to:'self',tag:'회수 한도',amount:5,stackPower:2,stackGainCount:2,stackGainPower:4};
+  await f.act('card',{card:{name:'획득 제한',power:'0',role:'normal',range:'0',target:'self',effects:[effect,effect]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  for(const expected of [3,4,4]){
+    configureBattle(f,(b,self)=>{self.hand=[id];b.units.enemy.blockedRounds=1;});
+    await f.act('plan',{card:id,targets:[]});
+    await f.act('round');
+    assert.equal(livingForm(f).stacks['회수 한도'],expected);
+  }
+});

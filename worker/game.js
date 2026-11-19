@@ -1,5 +1,5 @@
 import {gridValid, gridSize, gridTileGroups, gridDistance, gridPaths, gridDisplacement, gridCardInRange, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
-import {stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
+import {stackGainLimits,stackGainLimitMax,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
 class GameInputError extends Error {}
@@ -46,7 +46,7 @@ function gameExpression(raw,depth=0,budget={left:maxMathParts}){
   if(--budget.left<0)gameFail('수식 하나에 연결하는 파츠는 최대 '+maxMathParts+'개예요.');
   if(!raw||depth>maxExpressionDepth)gameFail('수치 블록의 연결이 너무 깊거나 비어 있어요.');
   const {type}=raw;
-  if(type==='number'&&gameInt(raw.value,-10000,10000))return {type,value:raw.value};
+  if(['number','percent'].includes(type)&&gameInt(raw.value,-10000,10000))return {type,value:raw.value};
   if(type==='stat'&&Object.hasOwn(flowStats,raw.stat))return {type,stat:raw.stat};
   if(type==='math'&&Object.hasOwn(flowArithmetic,raw.op)){
     if(raw.terms!==undefined){
@@ -225,6 +225,7 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
     const stackCap=grantsStacks?row.stackCap:undefined;
     const stackPower=grantsStacks?row.stackPower:undefined;
     const stackPowerCap=grantsStacks?row.stackPowerCap:undefined;
+    const gainLimits=grantsStacks?gameStackGainLimits(row):{};
     if(stackCap!=null&&!gameInt(stackCap,1,maxStatusStacks))gameFail('중첩 최대 횟수를 확인하세요.');
     if([stackPower,stackPowerCap].some(power=>power!=null&&!gameInt(power,1,maxStackPotency))){
       gameFail('중첩 위력과 위력 한도를 확인하세요.');
@@ -289,7 +290,7 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
       if(!effectNumberBounds(row.kind,key,hitIndex,hitPowers.length,diceCondition))gameFail('연산을 연결할 수 없는 숫자 설정이에요.');
       numberExprs[key]=gameExpression(expr);
     }
-    return {...settings,...(Object.keys(numberExprs).length?{numberExprs}:{}),...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
+    return {...settings,...gainLimits,...(Object.keys(numberExprs).length?{numberExprs}:{}),...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
       ...(conditionStackTag?{conditionStackTag}:{}),...(hitIndex?{hitIndex}:{}),...(reactionRounds?{reactionRounds}:{}),
       ...(givenCardId?{givenCardId}:{}),...(conditionCardId?{conditionCardId}:{}),
       ...(replace?{replacementId,...(fromCardId?{fromCardId}:{})}:{}),
@@ -349,6 +350,16 @@ function gameHeldStackSources(unit){
     id:'stack:'+name,name,effects:trait.effects,passive:true,stackCount:unit.stacks[name]
   }));
 }
+function gameStackGainLimits(input){
+  const result={};
+  for(const key of Object.keys(stackGainLimits)){
+    const value=input?.[key];
+    if(value==null||value==='')continue;
+    if(!gameInt(value,1,stackGainLimitMax(key)))gameFail('중첩 획득 한도를 확인하세요.');
+    result[key]=value;
+  }
+  return result;
+}
 function gameStackTrait(input,owned){
   const effects=input.effects??[];
   if(!Array.isArray(effects)||effects.length>maxPassiveEffects+1||
@@ -357,12 +368,12 @@ function gameStackTrait(input,owned){
   }
   const normalized=effects.length?gamePassive({name:input.name,effects},'stack',owned,true).effects:[];
   const flavor=gameText(input.flavor,300);
-  return {name:input.name,...(flavor?{flavor}:{}),effects:normalized.map((effect,index)=>({...effect,
+  return {name:input.name,...(flavor?{flavor}:{}),gainLimits:gameStackGainLimits(input.gainLimits),effects:normalized.map((effect,index)=>({...effect,
     ...(effects[index].scaleStack==='count'?{scaleStack:'count'}:{})
   }))};
 }
-function gameUpgradeStackTrait({name,effects,critical,flavor}){
-  const entry={name,effects,...(flavor?{flavor}:{})};
+function gameUpgradeStackTrait({name,effects,critical,flavor,gainLimits}){
+  const entry={name,effects,...(flavor?{flavor}:{}),...(gainLimits?{gainLimits}:{})};
   if(!critical)return entry;
   return {...entry,effects:[...effects,{when:'held',kind:'critChance',amount:critical,to:'self',scaleStack:'count'}]};
 }
@@ -376,7 +387,7 @@ function gameHeldModifiers(b,unit,opponent){
     const ctx=gameContext(unit,{name,effects:entries},opponent?[opponent]:[]);
     for(const effect of gameRunBlocks(b,ctx,opponent,entries)){
       if(!gameEffectCondition(b,ctx,unit,effect,opponent,'held'))continue;
-      const raw=effect.amountExpr?Math.trunc(gameFlowValue(b,ctx,unit,effect.amountExpr)):effect.amount;
+      const raw=effect.amountExpr?Math.trunc(effect.amountMode==='percent'&&effect.amountExpr.type==='percent'?effect.amountExpr.value:gameFlowValue(b,ctx,unit,effect.amountExpr)):effect.amount;
       const signed=signedEffects.includes(effect.kind)||ratioEffects[effect.kind]?.[1]===0;
       const amount=bounded(raw,signed?-999:0,999)*(effect.scaleStack==='count'?count:1);
       const key=effect.kind+(effect.amountMode==='percent'?'Percent':'');
@@ -1315,8 +1326,29 @@ function gameGrantStacks(b,unit,effect,amount,trait,sourceRuns){
   const tag=effect.tag;
   const cap=Math.min(effect.stackCap??maxStatusStacks,basicStacks[tag]?.cap??maxStatusStacks,trait?.cap??maxStatusStacks);
   const room=Math.max(0,cap-(unit.stacks[tag]||0));
-  const gained=Math.min(amount,room);
-  if(gained<=0)return 0;
+  const ledger=unit.stackAcquisitions?.[tag];
+  const usage=ledger?.round===b.round?ledger:{round:b.round,turnCount:0,turnPower:0,
+    battleCount:ledger?.battleCount||0,battlePower:ledger?.battlePower||0};
+  const policies=[effect,trait?.gainLimits,unit.stackTraits?.[tag]?.gainLimits,unit.stackDefinitions?.[tag]?.gainLimits];
+  let countBudget=Math.min(amount,room),powerBudget=Infinity;
+  for(const [key,[,metric,period]] of Object.entries(stackGainLimits)){
+    const bound=Math.min(...policies.map(policy=>policy?.[key]??Infinity));
+    const used=period==='gain'?0:usage[period+(metric==='count'?'Count':'Power')];
+    if(metric==='count')countBudget=Math.min(countBudget,bound-used);
+    else powerBudget=Math.min(powerBudget,bound-used);
+  }
+  if(countBudget<=0||powerBudget<=0)return 0;
+  const runs=sourceRuns?gameSplitStacks(sourceRuns,countBudget).taken:[{count:countBudget,power:1}];
+  const eligible=[];
+  for(const run of runs){
+    const power=Math.min(effect.stackPower??run.power,effect.stackPowerCap??maxStackPotency);
+    const count=Math.min(run.count,Math.floor(powerBudget/power));
+    if(count)eligible.push({count,power});
+    powerBudget-=count*power;
+    if(count<run.count)break;
+  }
+  const gained=eligible.reduce((sum,run)=>sum+run.count,0);
+  if(!gained)return 0;
   const blocked=Math.min(unit.stackWard?.[tag]||0,gained);
   if(blocked){
     unit.stackWard[tag]-=blocked;
@@ -1325,8 +1357,10 @@ function gameGrantStacks(b,unit,effect,amount,trait,sourceRuns){
   }
   const count=gained-blocked;
   if(!count)return 0;
-  const runs=sourceRuns?gameSplitStacks(sourceRuns,count).taken:[{count,power:1}];
-  const added=runs.map(run=>({...run,power:Math.min(effect.stackPower??run.power,effect.stackPowerCap??maxStackPotency)}));
+  const added=gameSplitStacks(eligible,count).taken;
+  const power=added.reduce((sum,run)=>sum+run.count*run.power,0);
+  (unit.stackAcquisitions??={})[tag]={round:b.round,turnCount:usage.turnCount+count,turnPower:usage.turnPower+power,
+    battleCount:usage.battleCount+count,battlePower:usage.battlePower+power};
   if(trait&&!unit.stackTraits?.[tag])(unit.stackTraits??={})[tag]=trait;
   gameWriteStacks(unit,tag,[...gameStackRuns(unit,tag),...added]);
   (unit.stackCaps??={})[tag]=cap;
@@ -1476,6 +1510,7 @@ function gameConsumeGroup(b,ctx,effect,target){
 }
 function gameFlowValue(b,ctx,unit,node,hitIndex=ctx.hitIndex||0){
   if(node.type==='number')return node.value;
+  if(node.type==='percent')return node.value/100;
   if(node.type==='stat'){
     const actor=ctx.actor;
     switch(node.stat){
@@ -1734,7 +1769,8 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
   // Only numerical effects belonging to this hit use the bonuses accumulated earlier in this sequence.
   const amplifier=effect.hitIndex===ctx.hitIndex&&ctx.hitAmplifiers?.get(ctx.hitIndex);
   const amplifiable=effect.kind!=='amplifyHit'&&!unnumberedEffects.includes(effect.kind);
-  const raw=effect.amountExpr?Math.trunc(gameFlowValue(b,ctx,u,effect.amountExpr,effect.hitIndex)):effect.amount;
+  const raw=effect.amountExpr?Math.trunc(effect.amountMode==='percent'&&effect.amountExpr.type==='percent'?
+    effect.amountExpr.value:gameFlowValue(b,ctx,u,effect.amountExpr,effect.hitIndex)):effect.amount;
   const signed=signedEffects.includes(effect.kind)||ratioEffects[effect.kind]?.[1]===0;
   const maximum=effect.kind==='blockAction'?maxStatusRounds:effect.kind==='reduceActions'?maxActions:
     effect.kind==='consume'?maxCollectiveStackConsume:effect.kind==='amplifyHit'?300:effect.amountExpr?999:Infinity;

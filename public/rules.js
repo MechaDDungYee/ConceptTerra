@@ -160,10 +160,16 @@ export const configurableRatioEffects = [
   'afterimage','delayedStrike','power','basePower','finalPower','focus','weaken','outgoingDamage','incomingDamage',
   'bossOutgoingDamage','bossIncomingDamage','stripShield','stealShield','shieldGift'
 ];
+export const stackGainLimits={
+  stackGainCount:['획득 횟수 · 1회당','count','gain'],stackTurnCount:['획득 횟수 · 턴당','count','turn'],stackBattleCount:['획득 횟수 · 전투당','count','battle'],
+  stackGainPower:['획득 위력 합계 · 1회당','power','gain'],stackTurnPower:['획득 위력 합계 · 턴당','power','turn'],stackBattlePower:['획득 위력 합계 · 전투당','power','battle']
+};
+export const stackGainLimitMax=key=>stackGainLimits[key][1]==='count'?maxStatusStacks:maxStatusStacks*maxStackPotency;
 export function effectNumberBounds(kind,key,hitIndex=0,hitCount=8,dice=false){
   const limits={threshold:[dice?1:0,dice?maxDiceTotal:100],stackCap:[1,maxStatusStacks],stackPower:[1,maxStackPotency],
     stackPowerCap:[1,maxStackPotency],dotRounds:[1,maxStatusRounds],reactionRounds:[0,maxStatusRounds],
     deferRounds:[1,maxDeferralRounds],amplifyIndex:[hitIndex+1,hitCount],limitCount:[1,maxEffectActivations],scaleCostAmount:[1,100]};
+  if(Object.hasOwn(stackGainLimits,key)&&stackGrantEffects.includes(kind))return [1,stackGainLimitMax(key)];
   const settings=effectSettings[kind];
   return Object.hasOwn(limits,key)?limits[key]:settings&&Object.hasOwn(settings,key)?settings[key].slice(2):undefined;
 }

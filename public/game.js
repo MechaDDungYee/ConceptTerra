@@ -2,7 +2,7 @@ import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
 import {accountPanel} from './account.js';
 import {gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridCardInRange,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
-import {stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
+import {stackGainLimits,stackGainLimitMax,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
 const studio=location.pathname==='/studio';
 const code=location.pathname.split('/')[2], endpoint=studio?'/api/studio':'/api/rooms/'+code+'/game';
@@ -125,6 +125,14 @@ function fillStackTraitSelect(control){
     ...(state.profile.customStacks||[]).map(name=>el('option',name,{value:name})));
   control.value=value;
 }
+function stackGainFields(values={}){
+  const limits=el('details',undefined,{class:'stack-gain-limits'});
+  limits.append(el('summary','중첩 획득 한도'),note('횟수와 총 위력을 따로 제한해요. 빈 칸은 제한 없음을 뜻해요.'));
+  for(const [key,[label]] of Object.entries(stackGainLimits)){
+    limits.append(field(label,input(key,values[key]??'','number',{min:1,max:stackGainLimitMax(key),placeholder:'제한 없음'})));
+  }
+  return limits;
+}
 function stackManager(){
   const root=el('details',undefined,{class:'stack-manager'});
   const form=el('form',undefined,{class:'stack'});
@@ -148,14 +156,16 @@ function stackManager(){
     const trait=state.profile.stackTraits?.find(item=>item.name===chosen);
     const workspace=effectWorkspace(trait?.effects||[],{passive:true,stack:true,onChange:()=>{draftDirty=true;}});
     const traitForm=el('form',undefined,{class:'stack'});
+    const limits=stackGainFields(trait?.gainLimits);
     const flavor=area('stackFlavor',trait?.flavor||'',300);
     flavor.oninput=()=>{draftDirty=true;};
     traitForm.append(
       note('‘보유 시’ 효과는 중첩이 있는 동안 적용되고, 중첩이 사라지면 해제돼요. 설정은 다음 전투부터 반영돼요.'),
-      field('중첩 플레이버 텍스트',flavor),workspace.node,submit('중첩 저장'));
+      field('중첩 플레이버 텍스트',flavor),limits,workspace.node,submit('중첩 저장'));
     traitForm.onsubmit=async event=>{
       event.preventDefault();
-      if(await send('stackEdit',{name:chosen,flavor:flavor.value,effects:workspace.rows()}))draftDirty=false;
+      if(await send('stackEdit',{name:chosen,flavor:flavor.value,gainLimits:Object.fromEntries(
+        [...limits.querySelectorAll('input')].filter(control=>control.value!=='').map(control=>[control.name,Number(control.value)])),effects:workspace.rows()}))draftDirty=false;
     };
     editor.append(traitForm);
   };
@@ -417,6 +427,10 @@ function effectSentence(e,extra=[]){
     if(e.stackPower||e.kind==='stack')summary+=' · 1회당 위력 '+(e.stackPower||1);
     if(e.stackPowerCap)summary+=' · 1회당 위력 최대 '+e.stackPowerCap;
     if(e.stackCap)summary+=' · 최대 '+e.stackCap+'회';
+    for(const [key,[label]] of Object.entries(stackGainLimits)){
+      const value=e.numberExprs?.[key]?describeValue(e.numberExprs[key]):e[key];
+      if(value!=null)summary+=' · '+label+' '+value;
+    }
   }
   if(e.kind==='hearDemon')summary+=' · 종료 시 정신력 '+mentalCrisisThreshold+' 이하이고 유혹 '+temptationLimit+' 이상이면 정신력 −'+temptationStrain;
   return summary+(e.limit?' · '+effectLimitPeriods[e.limit.period]+' '+e.limit.count+'회':'');
@@ -440,7 +454,7 @@ function readEffect(row){
   if(all||unnumberedEffects.includes(effect.kind))effect.amount=1;
   if(!effect.ratioBasis||effect.amountMode!=='percent')delete effect.ratioBasis;
   if(!effect.dotRounds)delete effect.dotRounds;
-  for(const key of ['stackCap','stackPower','stackPowerCap'])if(!effect[key])delete effect[key];
+  for(const key of ['stackCap','stackPower','stackPowerCap',...Object.keys(stackGainLimits)])if(!effect[key])delete effect[key];
   if(!all&&scaleBy==='discard')effect.scaleDiscard=true;
   else if(!all&&scaleBy)effect.scaleResource=scaleBy;
   if(!all&&scaleBy&&scaleCostMode)effect.scaleCost={mode:scaleCostMode,amount:scaleCostAmount,healthBasis:scaleHealthBasis};
@@ -528,6 +542,7 @@ function effectRow(row,refresh,scoped,passive,stack){
       })),
       field('중첩 위력 한도 (1회당)',input('stackPowerCap',row.stackPowerCap??'','number',{min:1,max:maxStackPotency,placeholder:'기본 '+maxStackPotency})),
       field('중첩 횟수 한도',input('stackCap',row.stackCap??'','number',{min:1,max:maxStatusStacks,placeholder:'기본 '+maxStatusStacks})),
+      stackGainFields(row),
       note('중첩 비례 효과는 보유하거나 소모한 중첩의 위력을 합산해 계산해요.')
     ]:[];
   const amountLabel=field(consuming?'소모 수량':row.kind==='stack'?'부여 횟수':row.kind==='blockAction'?'행동 불가 라운드 수':row.kind==='reduceActions'?'줄일 행동량':['healCut','hitLeech'].includes(row.kind)?'비율 (%)':'얼마나?',amount);

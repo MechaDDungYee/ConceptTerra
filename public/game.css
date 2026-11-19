@@ -331,3 +331,5 @@ body:has(.battle-dummy) > main > :is(#error,#feedback):not(:empty){
 .searchable-effect-select input,.searchable-effect-select select{width:100%;min-width:0}
 
 .block-number-socket{display:grid;gap:4px}.effect label[hidden]+.block-number-socket,.effect label[style*="display: none"]+.block-number-socket{display:none}
+
+.stack-gain-limits{display:grid;gap:6px}.stack-gain-limits>label{margin-top:6px}

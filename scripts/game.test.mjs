@@ -2654,3 +2654,19 @@ test('card, strike, effect and passive flavor text survive save and passive expo
   assert.equal(file.passives[0].flavor,'패시브 기록');
   assert.equal(file.passives[0].effects[0].flavor,'방벽 기록');
 });
+
+test('ordinary effects can resolve before replacement and costs can run at card decision',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'행동 순서 시험',power:'0',role:'normal',target:'self',range:'0',effects:[
+    {kind:'healthCost',when:'decide',to:'self',amount:3},
+    {kind:'shield',when:'replace',to:'self',amount:4}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('passive',{passive:{name:'마무리 자세',effects:[{kind:'shield',when:'end',to:'self',amount:2}]}});
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{self.hand=[id];b.units.enemy.blockedRounds=1;});
+  await f.act('plan',{card:id,targets:[]});
+  await f.act('round');
+  assert.equal(livingForm(f).hp,37);
+  assert.equal(livingForm(f).shield,6);
+});

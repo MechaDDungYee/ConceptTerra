@@ -349,7 +349,7 @@ export const conceptStacks = {
 export const passiveRoundTimings = ['battleStart','turnStart','turnEnd'];
 export const planningTimings=['decide','confirm'];
 export const cardZoneTimings=['cardDrawn','toGrave','toDeck','toExile','toHand'];
-export const passiveTimings = [...passiveRoundTimings,...planningTimings,...cardZoneTimings,'use','clash','win','lose','tie','hit','damage','critical','noncritical','attackEnd','struck','hurt'];
+export const passiveTimings = [...passiveRoundTimings,...planningTimings,...cardZoneTimings,'replace','use','unopposed','counter','end','clash','win','lose','tie','hit','damage','critical','noncritical','attackEnd','struck','hurt'];
 export const passiveEffectKinds = [
   'replaceCard','giveCard','markCard','clearCardMark',
   'clearActionPenalty','clearActionBonus','clearRoot','collapseResist','collapseImmune','clearCollapse','clearAwakening','clearTemptation',
@@ -364,7 +364,6 @@ export const passiveEffectKinds = [
 export function passiveTimingsFor(kind){
   if(kind==='replaceCard')return ['replace'];
   if(['power',...stagedPowerEffects].includes(kind))return passiveRoundTimings;
-  if(kind==='hitLeech')return ['hit','damage','attackEnd'];
   return passiveTimings;
 }
 export const legacyHitEvents=['critical','noncritical','wall','damage'];

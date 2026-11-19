@@ -432,12 +432,11 @@ function effectTiming(effect){
     (effect.reactionRounds?' · 사용 라운드부터 '+effect.reactionRounds+'라운드':'');
 }
 function effectTimingAllowed(kind,when,scoped,passive,role){
-  if(kind==='replaceCard'||when==='replace')return kind==='replaceCard'&&when==='replace'&&!scoped;
+  if(kind==='replaceCard')return when==='replace'&&!scoped;
   if(kind==='power'&&(planningTimings.includes(when)||cardZoneTimings.includes(when)))return false;
   if(passive)return passiveEffectKinds.includes(kind)&&passiveTimingsFor(kind).includes(when);
   if(when==='counter'&&role!=='counter')return false;
-  if(discardCosts.includes(kind)||resourceCosts.includes(kind))return !scoped&&when==='use';
-  if(kind==='hitLeech')return ['hit','damage'].includes(when)||!scoped&&when==='attackEnd';
+  if(discardCosts.includes(kind)||resourceCosts.includes(kind))return !scoped;
   if(scoped)return hitEffectTimings.includes(when)&&!stagedPowerEffects.includes(kind)&&kind!=='replay'&&
     (when!=='roll'||!['amplifyHit','replayHit'].includes(kind));
   return !['amplifyHit','replayHit'].includes(kind)&&(!stagedPowerEffects.includes(kind)||stagedPowerTimings.includes(when));
@@ -446,7 +445,7 @@ function effectWorkspace(initial,{scoped=false,passive=false,stack=false,role,on
   const kinds=stack?passiveEffectKinds.filter(kind=>!['replaceCard','giveCard'].includes(kind)):passiveEffectKinds;
   const allows=(kind,when)=>when==='held'?stack&&heldStackEffectKinds.includes(kind):
     (!stack||kinds.includes(kind))&&effectTimingAllowed(kind,when,scoped,passive,role?.value);
-  const events=Object.fromEntries(Object.entries(timings).filter(([when])=>!legacyHitEvents.includes(when)&&(passive?
+  const events=Object.fromEntries(Object.entries(timings).filter(([when])=>(passive?
     kinds.some(kind=>allows(kind,when)):
     when!=='held'&&(!scoped||hitEffectTimings.includes(when)))));
   const families={...effectFamilies};

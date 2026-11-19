@@ -181,7 +181,7 @@ export function blockWorkspace(config){
     const choices=Object.keys(events).filter(when=>available(payload.kind,when));
     const preferred=defaultEffect(payload.kind).when;
     const next=[preferred,...choices].find(when=>choices.includes(when)&&compatibleTiming(hat,when));
-    status.textContent=hat.when==='replace'?'카드 교체 판정 시에는 카드 교체 효과만 연결할 수 있어요.':
+    status.textContent=
       '‘'+(events[hat.when]||timings[hat.when])+'’에는 ‘'+effects[payload.kind]+'’ 효과를 연결할 수 없어요.';
     if(next)status.append(' ',action('‘'+events[next]+'’로 바꿔 연결',()=>{
       if(changeTiming(hat,next))place(payload,slot);

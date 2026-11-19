@@ -180,7 +180,6 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
     if(!gameInt(hitIndex,0,hitPowers.length)||hitIndex&&!hitEffectTimings.includes(row.when)){
       gameFail('타격 번호와 효과의 발동 시점을 확인하세요.');
     }
-    if(row.kind==='hitLeech'&&!['hit','damage','attackEnd'].includes(row.when))gameFail('피해 비례 회복의 발동 시점을 확인하세요.');
     if(row.kind==='replayHit'&&(row.when==='roll'||!hitIndex||row.to!=='self'||row.scaleDiscard||row.scaleCost||row.scaleResource))gameFail('이 타격 재사용은 타격 효과에서만 설정해 주세요.');
     if(stagedPowerEffects.includes(row.kind)&&(hitIndex||row.to!=='self'||!stagedPowerTimings.includes(row.when))){
       gameFail('위력 증가는 판정 전에 자신에게 적용되는 카드 효과로 설정하세요.');
@@ -251,7 +250,7 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
         gameFail('발동할 다른 카드를 지정하세요.');
       }
       if(fromCardId&&(!owned.some(card=>card.id===fromCardId)||fromCardId===replacementId))gameFail('교체할 원래 카드를 확인하세요.');
-    }else if(row.when==='replace')gameFail('카드 발동 시점에는 다른 카드로 발동 효과를 사용하세요.');
+    }
     const diceCondition=Object.hasOwn(diceConditions,condition);
     if(diceCondition&&(!diceConditionTimings.includes(row.when)||!gameInt(row.threshold,1,maxDiceTotal))){
       gameFail('주사위 조건은 판정 시점 이후에 설정하고 눈의 합을 1~'+maxDiceTotal+' 사이로 입력하세요.');
@@ -262,7 +261,7 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
     if(scaleResource&&(!Object.hasOwn(resourceScales,scaleResource)||row.scaleDiscard===true))gameFail('수치 배율은 한 가지 대가를 선택하세요.');
     if(teamEffects.includes(row.kind)&&row.to!=='self')gameFail('동료 전원 효과의 기준은 자신이에요.');
     if(copyEffects.includes(row.kind)&&row.to!=='self')gameFail('사본은 자신의 손패에 추가돼요.');
-    if(isCost&&(condition||scaleResource||row.scaleDiscard===true||row.when!=='use'||row.to!=='self'))gameFail('대가는 사용 시 자신의 자원에 적용돼요.');
+    if(isCost&&(scaleResource||row.scaleDiscard===true||row.to!=='self'||hitIndex))gameFail('대가는 카드 전체의 자신의 자원에 적용돼요.');
     const limit=row.limit;
     if(limit!=null&&(!Object.hasOwn(effectLimitPeriods,limit.period)||limit.period==='none'||!gameInt(limit.count,1,maxEffectActivations))){
       gameFail('발동 제한의 기간과 횟수를 확인하세요.');
@@ -1582,7 +1581,7 @@ function gameTriggers(b,ctx,when,target,depth=0,hitIndex=0) {
   if(depth>3)return;
   const {actor,card}=ctx;
   const entries=card.effects.filter(effect=>{
-    if(effect.when!==when&&!(when==='use'&&effect.when==='base'))return false;
+    if(effect.kind==='replaceCard'||effect.when!==when&&!(when==='use'&&effect.when==='base'))return false;
     if(ctx.reactionRound!=null&&(!effect.reactionRounds||ctx.reactionRound+effect.reactionRounds<=b.round))return false;
     if(hitIndex)return effect.hitIndex===hitIndex;
     return !effect.hitIndex||(['wall','consume'].includes(when)&&effect.hitIndex===ctx.hitIndex);
@@ -2215,6 +2214,7 @@ function gameEnemyAction(b,actor,target){
 }
 function gameFinishCard(b,ctx){
   gameTriggers(b,ctx,'end',ctx.targets[0]||ctx.actor);
+  gamePassives(b,ctx.actor,'end',ctx.targets[0]||ctx.actor,ctx);
   const u=ctx.actor,id=ctx.originId||ctx.card.id;
   if(u.enemy||ctx.temporary)return;
   if(ctx.destination==='hand'&&u.hand.length<12)gamePlaceCards(b,u,'hand',[id]);
@@ -2467,6 +2467,7 @@ function gameHit(b,ctx,roll,intercepted=false){
     reaction.targets=[ctx.actor];
     gameLog(b,defender.name+' · 반격 → '+ctx.actor.name+' ('+reaction.card.name+')');
     gameTriggers(b,reaction,'counter',ctx.actor);
+    gamePassives(b,defender,'counter',ctx.actor,reaction);
     gameUnopposedAttack(b,reaction);
   }
 }
@@ -2485,7 +2486,10 @@ function gameUnopposedAttack(b,ctx){
     const {actor,card}=ctx;
     const targets=ctx.targets.filter(target=>gameAlive(target)&&target!==actor&&
       (actor.collapsed||target.enemy!==actor.enemy)&&(tile||gameReach(card,actor,target)));
-    for(const target of tile&&!targets.length?[null]:targets)gameTriggers(b,ctx,'unopposed',target);
+    for(const target of tile&&!targets.length?[null]:targets){
+      gameTriggers(b,ctx,'unopposed',target);
+      gamePassives(b,ctx.actor,'unopposed',target,ctx);
+    }
   }
   gameHit(b,ctx,gameActionPower(b,ctx));
 }
@@ -2533,6 +2537,11 @@ function gameCover(b,attacker,target){
   return true;
 }
 function gameReplacement(b,u,original,plan,moved,originalTargets){
+  const before=gameContext(u,original,originalTargets,moved);
+  before.targetTile=plan.targetTile;
+  for(const target of originalTargets.length?originalTargets:[null])gameTriggers(b,before,'replace',target);
+  gamePassives(b,u,'replace',originalTargets[0]||null,before);
+  if(!gameAlive(u))return;
   const sources=[original,...(u.passives||[]).map(gamePassiveSource)];
   for(const source of sources){
     const rules=source.effects.filter(effect=>effect.kind==='replaceCard'&&(!effect.fromCardId||gameCardMatches(original,effect.fromCardId)));
@@ -2583,6 +2592,10 @@ function gamePrepareAction(b,u,plan,moved){
   const replacement=gameReplacement(b,u,original,plan,moved,originalTargets);
   const card=replacement?.card||original;
   const targets=replacement?.targets||originalTargets;
+  if(!gameAlive(u)){
+    if(!temporary)gamePlaceCards(b,u,'grave',[original.id]);
+    return;
+  }
   if(card.role!=='assist'){
     gameTriggerCardMark(b,u,card);
     if(!gameAlive(u)){

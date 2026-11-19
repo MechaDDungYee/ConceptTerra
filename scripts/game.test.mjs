@@ -2670,3 +2670,18 @@ test('ordinary effects can resolve before replacement and costs can run at card 
   assert.equal(livingForm(f).hp,37);
   assert.equal(livingForm(f).shield,6);
 });
+
+test('an effect can grant a different stack from the one checked by its condition',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'중첩 교차 조건',power:'0',role:'normal',target:'self',range:'0',effects:[
+    {kind:'stack',when:'use',to:'self',tag:'집중',amount:2},
+    {kind:'stack',when:'use',to:'self',tag:'강타',condition:'stack',conditionStackTag:'집중',threshold:2,amount:3}
+  ]}});
+  const card=f.state.profile.cards[0];
+  assert.equal(card.effects[1].conditionStackTag,'집중');
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{self.hand=[card.id];b.units.enemy.blockedRounds=1;});
+  await f.act('plan',{card:card.id,targets:[]});
+  await f.act('round');
+  assert.equal(livingForm(f).stacks.강타,3);
+});

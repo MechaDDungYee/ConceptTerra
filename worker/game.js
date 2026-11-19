@@ -255,7 +255,8 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
     if(diceCondition&&(!diceConditionTimings.includes(row.when)||!gameInt(row.threshold,1,maxDiceTotal))){
       gameFail('주사위 조건은 판정 시점 이후에 설정하고 눈의 합을 1~'+maxDiceTotal+' 사이로 입력하세요.');
     }
-    if(condition==='stack'&&!tag) gameFail('중첩 조건에 이름을 입력하세요.');
+    const conditionStackTag=condition==='stack'?gameText(row.conditionStackTag,maxStackNameLength)||tag:'';
+    if(condition==='stack'&&(!conditionStackTag||Object.hasOwn(Object.prototype,conditionStackTag)))gameFail('중첩 조건에 이름을 입력하세요.');
     const isCost=discardCosts.includes(row.kind)||resourceCosts.includes(row.kind);
     const scaleResource=row.scaleResource||'';
     if(scaleResource&&(!Object.hasOwn(resourceScales,scaleResource)||row.scaleDiscard===true))gameFail('수치 배율은 한 가지 대가를 선택하세요.');
@@ -281,7 +282,7 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
     const flow=gameNormalizeFlow(row,id,owned);
     const amountExpr=row.amountExpr!=null&&!unnumberedEffects.includes(row.kind)?gameExpression(row.amountExpr):undefined;
     return {...settings,...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
-      ...(hitIndex?{hitIndex}:{}),...(reactionRounds?{reactionRounds}:{}),
+      ...(conditionStackTag?{conditionStackTag}:{}),...(hitIndex?{hitIndex}:{}),...(reactionRounds?{reactionRounds}:{}),
       ...(givenCardId?{givenCardId}:{}),...(conditionCardId?{conditionCardId}:{}),
       ...(replace?{replacementId,...(fromCardId?{fromCardId}:{})}:{}),
       ...(consumeAll?{consumeAmount}:{}),
@@ -1212,7 +1213,7 @@ function gameEffectCondition(b,ctx,u,e,target,when){
     case 'notTargeted': return b.intent.target!==u.id;
     case 'clashMargin': return ctx.clashDifference>=n;
     case 'clashDeficit': return ctx.clashDifference<=-n;
-    case 'stack': return (u.stacks[e.tag]||0)>=n;
+    case 'stack': return (u.stacks[e.conditionStackTag||e.tag]||0)>=n;
     case 'lowHp': return u.hp*100<=u.maxHp*n;
     case 'highHp': return u.hp*100>=u.maxHp*n;
     case 'lowMind': return u.mind<=n;

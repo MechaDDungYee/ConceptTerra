@@ -78,12 +78,31 @@ async function send(action,payload={}){
     if(err.status===409){state=await request().catch(()=>state);if(action==='stackCreate'||action==='stackEdit')updateStackControls();else if(!draftDirty||tab==='battle')render();}
   }finally{busy=false;}
 }
+const selectSearches=new WeakMap();
+function searchableSelect(label,control){
+  const box=el('div',undefined,{class:'stack searchable-effect-select'});
+  const search=input(undefined,'','search',{placeholder:label+' 검색','aria-label':label+' 검색'});
+  const key=text=>text.normalize('NFKC').toLocaleLowerCase().replace(/\s/g,'');
+  let options=[...control.options];
+  const filter=()=>{
+    const selected=control.value;
+    const query=key(search.value);
+    control.replaceChildren(...options.filter(option=>!option.value||option.value===selected||key(option.textContent).includes(query)));
+    control.value=selected;
+  };
+  search.addEventListener('input',event=>{event.stopPropagation();filter();});
+  search.onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();control.focus();}};
+  selectSearches.set(control,()=>{options=[...control.options];filter();});
+  box.append(search,field(label,control));
+  return box;
+}
 function fillStackSelect(control,value){
-  const names=new Set([...Object.keys(basicStacks),...(state.profile.stackNames||[])]);
+  const names=new Set([...Object.keys(basicStacks),...Object.keys(conceptStacks),...(state.profile.customStacks||[]),...(state.profile.stackNames||[])]);
   if(value)names.add(value);
   control.replaceChildren(el('option','중첩 선택',{value:''}),
     ...[...names].map(name=>el('option',Object.hasOwn(basicStacks,name)?name+' · 기본':Object.hasOwn(conceptStacks,name)?name+' · 개념물':name,{value:name})));
   control.value=value||'';
+  selectSearches.get(control)?.();
 }
 function stackSelect(value,onChange,name){
   const control=el('select',undefined,{name,'data-stack-selector':true,'aria-label':'중첩 이름'});
@@ -409,7 +428,7 @@ function effectConditionText(e,extra=[]){
     return flow+'[「'+(card?.name||'지정 카드')+'」 사용 시] ';
   }
   if(Object.hasOwn(diceConditions,e.condition))return flow+'[주사위 눈의 합 '+e.threshold+' '+diceConditions[e.condition]+'] ';
-  const condition=e.condition==='stack'?(e.tag||'중첩')+' '+e.threshold+' 이상':effectConditions[e.condition];
+  const condition=e.condition==='stack'?(e.conditionStackTag||e.tag||'중첩')+' '+e.threshold+' 이상':effectConditions[e.condition];
   const threshold=e.condition==='stack'||flagConditions.includes(e.condition)?'':' '+e.threshold;
   return flow+'['+condition+threshold+'] ';
 }
@@ -455,7 +474,8 @@ function effectWorkspace(initial,{scoped=false,passive=false,stack=false,role,on
     (!Object.hasOwn(diceConditions,row?.condition)||diceConditionTimings.includes(when))&&
     (row?.condition!=='cardUsed'||when!=='held'&&!passiveRoundTimings.includes(when));
   return blockWorkspace({
-    events,effects,families,initial,available,readEffect,stackSelect,
+    events,effects,families,initial,available,readEffect,
+    stackSelect:(value,onChange)=>searchableSelect('조건 중첩',stackSelect(value,onChange)),
     cardChoices:Object.fromEntries((passive?effectCards():[...state.defaults,...state.profile.cards]).map(card=>[card.id,card.name])),
     defaultEffect(kind,when){
       const config=newEffects[kind];
@@ -525,7 +545,9 @@ function effectRow(row,refresh,scoped,passive,stack){
   const basis=el('small','',{class:'minor'});
   basis.hidden=true;
   const tagControl=stackSelect(row.tag,undefined,'tag');
-  const tag=field(row.kind==='stack'?'부여할 중첩':'중첩 이름',tagControl);
+  const tag=searchableSelect(row.kind==='stack'?'부여할 중첩':'효과에 사용할 중첩',tagControl);
+  const conditionStackControl=stackSelect(row.conditionStackTag||(row.condition==='stack'?row.tag:''),undefined,'conditionStackTag');
+  const conditionStack=searchableSelect('조건에서 확인할 중첩',conditionStackControl);
   const tagHelp=el('small','',{class:'minor'});
   tag.append(tagHelp);
   const toOptions=replace?[['self','자신'],['target','원래 대상']]:
@@ -552,15 +574,15 @@ function effectRow(row,refresh,scoped,passive,stack){
   const give=select('givenCardId',cardOptions,row.givenCardId||'');
   const conditionCard=select('conditionCardId',cardOptions,row.conditionCardId||'');
   give.required=row.kind==='giveCard';
-  const giveField=field('손패에 지급할 카드',give);
-  const conditionCardField=field('사용 조건 카드',conditionCard);
+  const giveField=searchableSelect('손패에 지급할 카드',give);
+  const conditionCardField=searchableSelect('사용 조건 카드',conditionCard);
   const original=select('fromCardId',[['','모든 카드'],...availableCards.map(card=>[card.id,card.name])],row.fromCardId||'');
   replacement.required=replace;
   const replacementFields=replace?[
-    ...(passive?[field('교체할 원래 카드',original)]:[]),field('대신 발동할 카드',replacement),
+    ...(passive?[searchableSelect('교체할 원래 카드',original)]:[]),searchableSelect('대신 발동할 카드',replacement),
     note('조건은 위력 판정 전에 확인해요. 원래 대상이 사거리 안에 있으면 우선하고, 필요하면 가장 가까운 대상을 골라요.')
   ]:[];
-  const fixedField=field('복제할 카드',fixed);
+  const fixedField=searchableSelect('복제할 카드',fixed);
   fixedField.hidden=row.kind!=='copyFixed';
   const scale=select('scaleBy',[['','없음'],['discard','대가로 버린 카드 수'],...Object.entries(resourceScales)],row.scaleResource||(row.scaleDiscard?'discard':''));
   const scaleField=field('수치에 곱할 대가',scale);
@@ -629,7 +651,8 @@ function effectRow(row,refresh,scoped,passive,stack){
     scaleBasisField.hidden=!showScale||scale.value!=='health'||scaleCostMode.value!=='percent';
     basis.textContent=e.kind==='basePower'?'주사위 합과 카드 고정값 기준':e.kind==='finalPower'?'정신력과 다른 위력 보정을 적용한 결과 기준':ratio?.[3]?'고정 피해 보정을 적용한 뒤, 보호막 적용 전 피해 기준':ratio?.[2] ? ratio[2]+' 기준' :'주사위와 고정 보정을 합친 판정 위력 기준';
     amount.setCustomValidity(canSign&&amount.value==='0'?'0이 아닌 수치를 입력하세요.':'');
-    tag.hidden=tagControl.disabled=!(taggedEffects.includes(e.kind)||e.condition==='stack');
+    tag.hidden=tagControl.disabled=!taggedEffects.includes(e.kind);
+    conditionStack.hidden=conditionStackControl.disabled=e.condition!=='stack';
     tagHelp.textContent=basicStacks[e.tag]?.description||conceptStacks[e.tag]?.description||'';
     threshold.style.display=e.condition&&!flagConditions.includes(e.condition)?'':'none';
     if(x.amountPart){
@@ -672,14 +695,7 @@ function effectRow(row,refresh,scoped,passive,stack){
       ...capFields,...ampFields,...duration,...settings,...stackScale,reactionField,...(row.kind==='stack'?[]:[tag]),fixedField),
     field('효과 플레이버 텍스트',area('flavor',row.flavor||'',180),'full'),
     part('대가와 발동 제한','limit',field('발동 제한',limit),limitCountField,scaleField,scaleModeField,scaleAmountField,scaleBasisField));
-  if(row.condition||passive){
-    fields.append(part('효과 자체 조건','condition',field('어떤 조건에서?',condition),conditionCardField,threshold,diceHelp));
-  }else fields.append(condition,thresholdValue,conditionCard);
-  if(!row.condition&&!passive){
-    condition.hidden=true;
-    thresholdValue.hidden=true;
-    conditionCard.hidden=true;
-  }
+  fields.append(part('효과 자체 조건','condition',field('어떤 조건에서?',condition),conditionCardField,conditionStack,threshold,diceHelp));
   x.append(title,fields);
   x.addEventListener('input',show);
   x.addEventListener('change',show);

@@ -473,7 +473,7 @@ export function effectCardReferences(effect){
 }
 
 export function effectStackNames(effect){
-  const names=new Set(effect.tag?[effect.tag]:[]);
+  const names=new Set([effect.tag,effect.conditionStackTag].filter(Boolean));
   const read=test=>{
     if(test.type==='condition'&&test.condition==='stack'&&test.tag)names.add(test.tag);
     else if(test.type==='gate')test.inputs.forEach(read);

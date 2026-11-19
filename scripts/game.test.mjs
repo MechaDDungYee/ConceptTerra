@@ -2768,3 +2768,40 @@ test('stack holdings obey count and total power caps and can be replenished',asy
     for(const tag of tags)assert.equal(livingForm(f).stacks[tag],expected);
   }
 });
+
+test('card movement filters work across combatants for cards, passives and held stacks',async()=>{
+  const f=await fixture();
+  const source={power:'0',role:'normal',range:'0',target:'self'};
+  const allyDraw={kind:'shield',when:'cardDrawn',zoneOwner:'ally',to:'self'};
+  await f.act('card',{card:{...source,name:'이동 감시',effects:[
+    {...allyDraw,zoneCard:'other',amount:2},
+    {...allyDraw,zoneCard:'same',amount:20},
+    {...allyDraw,zoneCard:'specific',zoneCardId:'guard',amount:20}
+  ]}});
+  const watcher=f.state.profile.cards[0].id;
+  await f.act('stackCreate',{name:'이동 감지'});
+  await f.act('stackEdit',{name:'이동 감지',effects:[
+    {...allyDraw,when:'handEntered',zoneOwner:'named',zoneOwnerName:'감시 대상',zoneCard:'any',amount:5}
+  ]});
+  await f.act('passive',{passive:{name:'지정 카드 감지',effects:[
+    {...allyDraw,zoneCard:'specific',zoneCardId:'strike',to:'target',amount:7},
+    {...allyDraw,when:'zoneEntered',zoneOwner:'enemy',zoneCard:'any',amount:20}
+  ]}});
+  await f.act('card',{card:{...source,name:'아군에게 뽑기',effects:[
+    {kind:'stack',when:'use',to:'self',tag:'이동 감지',amount:1},
+    {kind:'draw',when:'use',to:'allAllies',amount:1}
+  ]}});
+  const trigger=f.state.profile.cards.find(card=>card.name==='아군에게 뽑기').id;
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    b.units.enemy.blockedRounds=1;
+    b.units.ally={...structuredClone(self),id:'ally',name:'감시 대상',bot:true,pos:1,zero:'spent',
+      passives:[],stackTraits:{},stackDefinitions:{},startingCards:['strike'],hand:['guard','guard','guard','guard'],
+      deck:['strike'],grave:[],exile:[]};
+    Object.assign(self,{startingCards:[watcher,trigger],hand:[trigger,'guard','guard','guard','guard'],shield:0});
+  });
+  await f.act('plan',{card:trigger,targets:[]});
+  await f.act('round');
+  assert.equal(livingForm(f).shield,7);
+  assert.equal(livingForm(f,'ally').shield,7);
+});

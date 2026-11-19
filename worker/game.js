@@ -1,5 +1,5 @@
 import {gridValid, gridSize, gridTileGroups, gridDistance, gridPaths, gridDisplacement, gridCardInRange, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
-import {stackGainLimits,stackGainLimitMax,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
+import {stackGainLimits,stackGainLimitMax,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
 class GameInputError extends Error {}
@@ -170,12 +170,23 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
       row.limit||row.ratioBasis||row.condition==='cardUsed'))gameFail('보유 시 효과는 중첩 보유자에게 지속되는 보정만 설정할 수 있어요.');
     if((planningTimings.includes(row?.when)||cardZoneTimings.includes(row?.when))&&(row.kind==='power'||row.scaleDiscard||row.scaleResource||row.scaleCost||
       typeof row.ratioBasis==='string'&&row.ratioBasis.startsWith('card')))gameFail('이 이벤트에서는 사용 대가와 판정 위력을 참조할 수 없어요.');
-    if(cardZoneTimings.includes(row?.when)&&['target','primary','secondary'].includes(row.to))
-      gameFail('카드 이동 이벤트에는 자신이나 자동 대상을 선택하세요.');
+    if(cardZoneTimings.includes(row?.when)&&['primary','secondary'].includes(row.to))
+      gameFail('카드 이동 이벤트의 효과 대상을 확인하세요.');
     const reactionRounds=!passive&&['struck','hurt'].includes(row?.when)?row.reactionRounds??0:0;
     if(!gameInt(reactionRounds,0,maxStatusRounds))gameFail('피격 효과의 지속 라운드를 확인하세요.');
     if(row?.when==='counter'&&!counter)gameFail('반격 발동 시 효과는 반격 카드에만 사용할 수 있어요.');
     if (!row || !Object.hasOwn(effects,row.kind) || !Object.hasOwn(timings,row.when) || !Object.hasOwn(effectRecipients,row.to)) gameFail('효과 항목을 확인하세요.');
+    const zone=cardZoneTimings.includes(row.when);
+    const zoneCard=zone?(row.zoneCard||(passive?'any':'same')):undefined;
+    const zoneOwner=zone?(row.zoneOwner||'self'):undefined;
+    if(zone&&(!Object.hasOwn(zoneCardFilters,zoneCard)||!Object.hasOwn(zoneOwnerFilters,zoneOwner)||
+      passive&&['same','other'].includes(zoneCard)))gameFail('카드 이동 조건을 확인하세요.');
+    const zoneCardId=zoneCard==='specific'?row.zoneCardId:undefined;
+    if(zoneCard==='specific'&&(!zoneCardId||zoneCardId!==id&&!owned.some(card=>card.id===zoneCardId)))
+      gameFail('이동을 감지할 카드를 지정하세요.');
+    const zoneCardName=zoneCard==='named'?gameText(row.zoneCardName,80):'';
+    const zoneOwnerName=zoneOwner==='named'?gameText(row.zoneOwnerName,80):'';
+    if(zoneCard==='named'&&!zoneCardName||zoneOwner==='named'&&!zoneOwnerName)gameFail('카드 또는 캐릭터 이름을 입력하세요.');
     const hitIndex=row.hitIndex??0;
     if(!gameInt(hitIndex,0,hitPowers.length)||hitIndex&&!hitEffectTimings.includes(row.when)){
       gameFail('타격 번호와 효과의 발동 시점을 확인하세요.');
@@ -293,6 +304,8 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
     return {...settings,...gainLimits,...(Object.keys(numberExprs).length?{numberExprs}:{}),...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
       ...(conditionStackTag?{conditionStackTag}:{}),...(hitIndex?{hitIndex}:{}),...(reactionRounds?{reactionRounds}:{}),
       ...(givenCardId?{givenCardId}:{}),...(conditionCardId?{conditionCardId}:{}),
+      ...(zone?{zoneCard,zoneOwner}:{}),...(zoneCardId?{zoneCardId}:{}),
+      ...(zoneCardName?{zoneCardName}:{}),...(zoneOwnerName?{zoneOwnerName}:{}),
       ...(replace?{replacementId,...(fromCardId?{fromCardId}:{})}:{}),
       ...(consumeAll?{consumeAmount}:{}),
       ...(consuming&&consumeScope==='total'?{consumeScope,consumePriority}:{}),
@@ -338,7 +351,7 @@ function gamePassives(b,actor,when,target,source){
     const ctx=gameContext(actor,card,[target],source.moved);
     Object.assign(ctx,{base:source.base,critical:source.critical,anyCritical:source.anyCritical,
       brokeShield:source.brokeShield,diceRolls:source.diceRolls,clashDifference:source.clashDifference,
-      actionCard:source.card,hitIndex:source.hitIndex,hitRolls:source.hitRolls,rawHitRolls:source.rawHitRolls,totalDamage:source.totalDamage,
+      actionCard:source.actionCard||source.card,zoneEvent:source.zoneEvent,hitIndex:source.hitIndex,hitRolls:source.hitRolls,rawHitRolls:source.rawHitRolls,totalDamage:source.totalDamage,
       paidHealth:source.paidHealth,paidMind:source.paidMind,discarded:source.discarded,
       totalDamageUsed:(source.totalDamageUsed??=new Set()),actionGroups:source.actionGroups||gameActionGroups(b,source)});
     if(when==='hit')gameTriggerHit(b,ctx,target);
@@ -522,10 +535,26 @@ function gameCardZoneEvents(b,unit,ids,when){
   try{
     for(let index=0;index<queue.length&&index<128;index++){
       const {unit,card,when}=queue[index];
-      if(!card||!gameAlive(unit))continue;
-      const ctx=gameContext(unit,card,[]);
-      gameTriggers(b,ctx,when,null);
-      gamePassives(b,unit,when,null,ctx);
+      if(!card)continue;
+      const timings=[when,...(['cardDrawn','toHand'].includes(when)?['handEntered']:[]),'zoneEntered'];
+      for(const actor of [unit,...Object.values(b.units).filter(actor=>actor!==unit)]){
+        if(!gameAlive(actor))continue;
+        const ids=new Set([...(actor===unit?[card.id]:[]),...(actor.startingCards||[]),
+          ...actor.hand,...actor.deck,...actor.grave,...actor.exile]);
+        const sources=[...ids].map(id=>actor===unit&&id===card.id?card:actor.library[id])
+          .filter(source=>source?.effects.some(effect=>timings.includes(effect.when)));
+        const zoneEvent={unit,card};
+        for(const timing of timings){
+          if(!gameAlive(actor))break;
+          for(const source of sources){
+            if(!gameAlive(actor))break;
+            const ctx=Object.assign(gameContext(actor,source,[unit]),{zoneEvent,actionCard:card});
+            gameTriggers(b,ctx,timing,unit);
+          }
+          const ctx=Object.assign(gameContext(actor,card,[unit]),{zoneEvent});
+          gamePassives(b,actor,timing,unit,ctx);
+        }
+      }
     }
     if(queue.length>128)gameLog(b,'카드 이동 효과의 연쇄를 128회에서 멈췄습니다.');
   }finally{delete b.zoneEvents;}
@@ -1642,11 +1671,30 @@ function gameTriggerHit(b,ctx,target,hitIndex=0,landed=true){
     ctx.hitResult=previous;
   }
 }
+function gameZoneMatches(ctx,effect){
+  const {unit,card}=ctx.zoneEvent;
+  const {actor,card:source}=ctx;
+  const owner=effect.zoneOwner||'self';
+  if(owner==='named'&&unit.name!==effect.zoneOwnerName||
+    owner==='self'&&unit!==actor||
+    owner==='other'&&unit===actor||
+    owner==='ally'&&(unit===actor||unit.enemy!==actor.enemy)||
+    owner==='party'&&unit.enemy!==actor.enemy||
+    owner==='enemy'&&unit.enemy===actor.enemy)return false;
+  const match=effect.zoneCard||(source.passive?'any':'same');
+  const same=card.id===source.id;
+  if(match==='same')return same;
+  if(match==='other')return !same;
+  if(match==='specific')return gameCardMatches(card,effect.zoneCardId);
+  if(match==='named')return card.name===effect.zoneCardName;
+  return true;
+}
 function gameTriggers(b,ctx,when,target,depth=0,hitIndex=0) {
   if(depth>3)return;
   const {actor,card}=ctx;
   const entries=card.effects.filter(effect=>{
     if(effect.kind==='replaceCard'||effect.when!==when&&!(when==='use'&&effect.when==='base'))return false;
+    if(ctx.zoneEvent&&cardZoneTimings.includes(when)&&!gameZoneMatches(ctx,effect))return false;
     if(ctx.reactionRound!=null){
       const duration=effect.numberExprs?.reactionRounds?
         bounded(Math.trunc(gameFlowValue(b,ctx,ctx.actor,effect.numberExprs.reactionRounds)),0,maxStatusRounds):effect.reactionRounds||0;
@@ -1708,7 +1756,9 @@ function gameUpdateCardMark(b,ctx,unit,amount,effect){
   if(units.has(unit.id))return;
   applied.set(key,units);
   units.add(unit.id);
-  const selected=unit===ctx.actor&&(ctx.actionCard||ctx.card)?.id;
+  const selected=ctx.zoneEvent
+    ?unit===ctx.zoneEvent.unit&&ctx.zoneEvent.card.id
+    :unit===ctx.actor&&(ctx.actionCard||ctx.card)?.id;
   const ids=selected?[selected]:unit.enemy?[b.intent.card.id]:gamePlannedCards(b.plans[unit.id]).map(plan=>plan.card);
   for(const id of new Set(ids.filter(Boolean))){
     const card=unit.library[id]||(unit.enemy&&b.intent.card.id===id?b.intent.card:null);

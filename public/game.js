@@ -2,7 +2,7 @@ import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
 import {accountPanel} from './account.js';
 import {gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridCardInRange,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
-import {stackGainLimits,stackGainLimitMax,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
+import {stackGainLimits,stackGainLimitMax,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
 const studio=location.pathname==='/studio';
 const code=location.pathname.split('/')[2], endpoint=studio?'/api/studio':'/api/rooms/'+code+'/game';
@@ -383,7 +383,7 @@ function effectSentence(e,extra=[]){
     const card=effectCards(extra).find(card=>card.id===e.givenCardId);
     return (effectRecipients[e.to]||'자신')+'에게 「'+(card?.name||'지정 카드')+'」 '+(expression||e.amount)+'장 지급'+(e.limit?' · '+effectLimitPeriods[e.limit.period]+' '+e.limit.count+'회':'');
   }
-  const target=e.to==='target'?'대상':effectRecipients[e.to];
+  const target=e.to==='target'?(cardZoneTimings.includes(e.when)?'이동한 카드의 주인':'대상'):effectRecipients[e.to];
   const number=expression||(['awakenBody','inscribeMeaning'].includes(e.kind)&&e.perStack?e.amount*e.perStack:e.amount||1);
   const signedAmount=value=>expression?value:signed(value);
   const phrases={
@@ -443,7 +443,13 @@ function effectSentence(e,extra=[]){
   return summary+(e.limit?' · '+effectLimitPeriods[e.limit.period]+' '+e.limit.count+'회':'');
 }
 function effectConditionText(e,extra=[]){
-  const flow=describeFlow(e.flow);
+  let flow=describeFlow(e.flow);
+  if(cardZoneTimings.includes(e.when)){
+    const card=e.zoneCard==='specific'?effectCards(extra).find(item=>item.id===e.zoneCardId)?.name||'지정 카드':
+      e.zoneCard==='named'?e.zoneCardName:zoneCardFilters[e.zoneCard];
+    const owner=e.zoneOwner==='named'?e.zoneOwnerName:zoneOwnerFilters[e.zoneOwner];
+    if(card&&owner)flow+='['+owner+' · '+card+'] ';
+  }
   if(!e.condition)return flow;
   if(e.condition==='cardUsed'){
     const card=effectCards(extra).find(card=>card.id===e.conditionCardId);
@@ -461,6 +467,13 @@ function readEffect(row){
   if(all||unnumberedEffects.includes(effect.kind))effect.amount=1;
   if(!effect.ratioBasis||effect.amountMode!=='percent')delete effect.ratioBasis;
   if(!effect.dotRounds)delete effect.dotRounds;
+  if(!cardZoneTimings.includes(effect.when)){
+    delete effect.zoneCard;
+    delete effect.zoneOwner;
+  }
+  if(effect.zoneCard!=='specific')delete effect.zoneCardId;
+  if(effect.zoneCard!=='named')delete effect.zoneCardName;
+  if(effect.zoneOwner!=='named')delete effect.zoneOwnerName;
   for(const key of ['stackCap','stackPower','stackPowerCap',...Object.keys(stackGainLimits)])if(!effect[key])delete effect[key];
   if(!all&&scaleBy==='discard')effect.scaleDiscard=true;
   else if(!all&&scaleBy)effect.scaleResource=scaleBy;
@@ -503,7 +516,7 @@ function effectWorkspace(initial,{scoped=false,passive=false,stack=false,role,on
       const config=newEffects[kind];
       const preferred=config?.[1]||suggestedTiming[kind]||'hit';
       return {kind,when:when||(legacyHitEvents.includes(preferred)?'hit':preferred),
-        to:['replayHit','amplifyHit',...stagedPowerEffects].includes(kind)?'self':config?.[2]||(selfEffects.has(kind)?'self':'target'),
+        to:cardZoneTimings.includes(when)||['replayHit','amplifyHit',...stagedPowerEffects].includes(kind)?'self':config?.[2]||(selfEffects.has(kind)?'self':'target'),
         amount:['amplifyHit','healCut','hitLeech'].includes(kind)?50:1,...(kind==='poison'?{dotRounds:2}:{}),
         ...(kind==='amplifyHit'?{amountMode:'percent'}:{})};
     },
@@ -578,6 +591,7 @@ function effectRow(row,refresh,scoped,passive,stack){
   const toOptions=replace?[['self','자신'],['target','원래 대상']]:
     Object.entries(effectRecipients).map(([id,label])=>[id,(passive||['struck','hurt','clash'].includes(row.when))&&id==='target'?'전투 상대':label]);
   const to=select('to',toOptions,row.to||'target');
+  const targetOption=[...to.options].find(option=>option.value==='target');
   to.title='카드 대상 이외의 자동 대상은 효과 발동 시 전장 전체에서 정해요.';
   const condition=select('condition',Object.entries(effectConditions).filter(([key])=>
     (!replace||replacementConditions.includes(key))&&(!['criticalStacks','criticalSpent'].includes(key)||row.condition===key)),row.condition||'');
@@ -596,6 +610,18 @@ function effectRow(row,refresh,scoped,passive,stack){
     ...availableCards.filter(card=>passive||card.id!==edit).map(card=>[card.id,card.name])
   ],row.replacementId||'');
   const cardOptions=[['','카드를 골라 주세요'],...availableCards.map(card=>[card.id,card.name])];
+  const zoneCard=select('zoneCard',Object.entries(zoneCardFilters).filter(([key])=>!passive||!['same','other'].includes(key)),row.zoneCard||(passive?'any':'same'));
+  const zoneOwner=select('zoneOwner',Object.entries(zoneOwnerFilters),row.zoneOwner||'self');
+  const zoneId=select('zoneCardId',cardOptions,row.zoneCardId||'');
+  const zoneName=input('zoneCardName',row.zoneCardName||'','text',{maxlength:80});
+  const ownerName=input('zoneOwnerName',row.zoneOwnerName||'','text',{maxlength:80});
+  const zoneIdField=searchableSelect('어떤 카드?',zoneId);
+  const zoneNameField=field('이동한 카드의 정확한 이름',zoneName);
+  const ownerNameField=field('카드 주인의 정확한 이름',ownerName);
+  const zoneFields=el('fieldset',undefined,{class:'effect-block','data-part':'condition'});
+  zoneFields.append(el('legend','카드 이동 조건'),field('어떤 카드가 이동하면?',zoneCard),zoneIdField,zoneNameField,
+    field('누구의 카드가 이동하면?',zoneOwner),ownerNameField);
+  if(!passive)zoneFields.append(note('다른 카드의 이동을 감지하는 효과는 전투 덱에 등록되었거나 전투 중 얻은 카드에서 작동해요. 같은 카드가 여러 장 있어도 효과는 이동한 카드 한 장당 한 번씩 발동해요.'));
   const give=select('givenCardId',cardOptions,row.givenCardId||'');
   const conditionCard=select('conditionCardId',cardOptions,row.conditionCardId||'');
   give.required=row.kind==='giveCard';
@@ -647,13 +673,21 @@ function effectRow(row,refresh,scoped,passive,stack){
     thresholdValue.max=dice?maxDiceTotal:100;
     if(!dice&&Number(thresholdValue.value)>100)thresholdValue.value=100;
     diceHelp.hidden=!dice;
-    if(passive&&!replace){
-      const automatic=passiveRoundTimings.includes(when.value)||cardZoneTimings.includes(when.value);
-      for(const option of to.options)option.disabled=when.value==='held'?option.value!=='self':automatic&&['target','primary','secondary'].includes(option.value);
+    const zone=cardZoneTimings.includes(when.value);
+    zoneFields.hidden=!zone;
+    zoneIdField.hidden=zoneId.disabled=!zone||zoneCard.value!=='specific';
+    zoneNameField.hidden=zoneName.disabled=!zone||zoneCard.value!=='named';
+    ownerNameField.hidden=ownerName.disabled=!zone||zoneOwner.value!=='named';
+    for(const control of [zoneId,zoneName,ownerName])control.required=!control.disabled;
+    if(targetOption)targetOption.textContent=zone?'이동한 카드의 주인':
+      (passive||['struck','hurt','clash'].includes(when.value))&&!replace?'전투 상대':
+      replace?'원래 대상':effectRecipients.target;
+    if(!replace){
+      for(const option of to.options)option.disabled=when.value==='held'?option.value!=='self':
+        zone?['primary','secondary'].includes(option.value):
+        passive&&passiveRoundTimings.includes(when.value)&&['target','primary','secondary'].includes(option.value);
       if(to.selectedOptions[0]?.disabled)to.value='self';
     }
-    if(!passive&&cardZoneTimings.includes(when.value)&&['target','primary','secondary'].includes(to.value))to.value='self';
-    if(!passive)for(const option of to.options)option.disabled=cardZoneTimings.includes(when.value)&&['target','primary','secondary'].includes(option.value);
     const held=when.value==='held';
     limit.disabled=held;
     if(held){limit.value='none';if(condition.value==='cardUsed')condition.value='';}
@@ -714,7 +748,7 @@ function effectRow(row,refresh,scoped,passive,stack){
     x.amountPart=partNode;
   }
   fields.append(input('kind',row.kind,'hidden'),when,...(x.amountPart?[]:[amount]),
-    part('대상','target',field(replace?'조건을 확인할 대상':'누구에게?',to)),
+    zoneFields,part('대상','target',field(replace?'조건을 확인할 대상':'누구에게?',to)),
     ...(row.kind==='stack'?[part('중첩 부여','effect',tag)]:[]),
     part('효과 옵션','effect',...replacementFields,...consumeFields,...(row.kind==='giveCard'?[giveField]:[]),
       ...capFields,...ampFields,...duration,...settings,...stackScale,reactionField,...(row.kind==='stack'?[]:[tag]),fixedField),

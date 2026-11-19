@@ -918,21 +918,14 @@ function renderCardFace(preview,card){
   if(cost&&(role==='overload'||card.concept))body.append(note('정신력 −'+cost+(card.concept?' · 부족하면 사용 불가':'')));
   const {popup,keyword}=cardKeywordHelp(preview);
   const description=el('div',undefined,{class:'forge-description',tabindex:0,role:'region','aria-label':'카드 설명'});
-  const byStack=new Map();
-  for(const effect of rows){
-    for(const name of effectStackNames(effect)){
-      if(!byStack.has(name))byStack.set(name,[]);
-      byStack.get(name).push(effect);
-    }
-  }
-  if(byStack.size){
+  const stackNames=new Set(rows.flatMap(effectStackNames));
+  if(stackNames.size){
     const stacks=el('div',undefined,{class:'row forge-keywords','aria-label':'중첩'});
-    for(const [name,references] of byStack){
+    for(const name of stackNames){
       const trait=(card.concept?conceptStacks[name]:null)||state.profile?.stackTraits?.find(item=>item.name===name)||conceptStacks[name];
       const lines=(trait?.effects||[]).map(effect=>effectTiming(effect)+' · '+effectSentence(effect)+
         (effect.scaleStack==='count'?' · 보유 중첩 수를 곱함':''));
       if(Object.hasOwn(basicStacks,name))lines.unshift(basicStacks[name].description);
-      lines.push(...references.map(effect=>effectTiming(effect)+' · '+effectSentence(effect)));
       stacks.append(keyword(name,[...new Set(lines)],'stack-tag',trait?.flavor));
     }
     description.append(stacks);

@@ -2125,7 +2125,8 @@ function battlePanel(){
       if(!choice||choice.target==='tile'||choice.role==='counter')return [];
       if(collapsed&&choice.role!=='guard')return collapseTargets(choice,{...self,pos},b.units,b.walls);
       return b.units.filter(u=>u.hp>0&&gridCardHasReach(choice,pos,targetPos(u),b.walls)&&
-        (choice.role==='guard'?!u.enemy&&u.id!==self.id:choice.target==='self'?u.id===self.id:u.enemy));
+        (choice.role==='guard'?!u.enemy&&u.id!==self.id:choice.target==='self'?u.id===self.id:
+          choice.targetSide==='ally'?u.enemy===self.enemy&&(choice.includeSelf||u.id!==self.id):u.enemy));
     };
     const candidates=candidatesFor(card);
     const targetLimit=gridTargetLimit(card);

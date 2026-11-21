@@ -5,6 +5,8 @@ export const maxActions = 10;
 export const hitTargetModes={all:'전부',primary:'주 대상',secondary:'부 대상',random:'무작위 1명',randomDistinct:'무작위 1명 · 연속 중복 금지'};
 export const cardReferenceFields=['copyId','replacementId','givenCardId','conditionCardId','zoneCardId'];
 export const newEffects = {
+  conceptIncomingCut:['개념물 피해 감소','held','self','개념물에게 받는 피해 {n}% 감소'],
+  transferDebuff:['상태 이상 대신 떠안기','hit','target','대상의 상태 이상 하나를 해제하고 시전자가 수치와 남은 시간의 절반을 떠안음'],
   giveCard:['지정 카드 지급','use','self','지정 카드를 손패에 {n}장 지급'],
   markCard:['카드에 피해 표식','decide','self','선택한 카드에 피해 표식 {n} 부여 · 해당 카드 사용 시 표식이 터져 사용자에게 피해'],
   clearCardMark:['카드 표식 해제','confirm','self','선택한 카드의 피해 표식을 해제'],
@@ -399,9 +401,14 @@ export const maxCardHits = 8;
 export const maxCardEffects = 24;
 export const maxPassives = 8;
 export const maxPassiveEffects = 8;
-export const heldStackEffectKinds = ['critChance','critMultiplier','outgoingDamage','incomingDamage'];
+export const heldStackEffectKinds = ['conceptIncomingCut','critChance','critMultiplier','outgoingDamage','incomingDamage'];
 // Concept cards grant these traits to their holder for the current battle.
 export const conceptStacks = {
+  '죄 사함의 광배':{cap:3,effects:[
+    {when:'held',kind:'incomingDamage',to:'self',amount:-10,amountMode:'percent',scaleStack:'count'},
+    {when:'held',kind:'conceptIncomingCut',to:'self',amount:15},
+    {when:'turnStart',kind:'mind',to:'self',amount:2,scaleStack:'count'}
+  ]},
   '미식가의 식탁': {cap:1,description:'적에게 실제로 준 체력 피해의 35% 회복. 턴당 한 번, 피해를 주면 가장 다친 아군을 3 회복.',effects:[
     {when:'damage',kind:'hitLeech',to:'self',amount:35},
     {when:'damage',kind:'allyHeal',to:'woundedAlly',amount:3,limit:{period:'turn',count:1}}
@@ -446,7 +453,7 @@ export const passiveTimings = [...passiveRoundTimings,...planningTimings,...card
 export const passiveEffectKinds = [
   'replaceCard','giveCard','markCard','clearCardMark',
   'clearActionPenalty','clearActionBonus','clearRoot','collapseResist','collapseImmune','clearCollapse','clearAwakening','clearTemptation',
-  'mindGuard','mindRecoveryCut','mindRegen','mindBurn','clearMindBuffs','clearMindDebuffs','purgeDefense','purgeOffense','purgeRegen',
+  'transferDebuff','mindGuard','mindRecoveryCut','mindRegen','mindBurn','clearMindBuffs','clearMindDebuffs','purgeDefense','purgeOffense','purgeRegen',
   'power','basePower','finalPower','focus','weaken','shield','reduce','fortify','heal','healPercent','healMissing','regen',
   'clearStatus','temporaryShield','stealShield','shieldGift','allyHeal','lethalGuard','healCut','dodge','trueStrike','stackWard',
   'rerollLow','hitLeech','damage','bossDamage','pierce','fixedDamage','piercingFixedDamage','drainLife','lifeSteal','shieldConversion','stack','consume','remove','doubleStack','stealStack',

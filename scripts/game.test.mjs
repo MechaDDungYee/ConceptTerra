@@ -2538,7 +2538,7 @@ test('concept cards are stronger catalogue choices and pay mental cost once on u
   const f=await fixture();
   const concepts=f.state.defaults.filter(card=>card.concept);
   assert.equal(concepts.length,10);
-  assert.equal(f.state.profile.conceptStackTraits.length,9);
+  assert.equal(f.state.profile.conceptStackTraits.length,10);
   const {parsePower}=await import('../public/rules.js');
   const average=card=>(card.hitPowers??[card.power]).reduce((sum,value)=>{const power=parsePower(value);return sum+power.bonus+power.count*(power.sides+1)/2;},0);
   const baseline=Math.max(...f.state.defaults.filter(card=>['strike','hold','shot','rush','trace'].includes(card.id)).map(average));
@@ -3197,6 +3197,19 @@ test('first stop loads a 225 HP foe and resolves peaceful and brute-force extrac
       assert.equal(f.state.battle.outcome.extract,undefined);
       assert.equal(f.state.profile.mind,100);
       assert.deepEqual(f.state.profile.orbs,['orbDarkHalo']);
+      assert.ok(f.state.defaults.some(card=>card.id==='conceptForgive'));
+      await f.act('deck',{cards:['conceptForgive','strike','strike','guard','guard','hold','hold','shot','shot','rush']});
+      await f.act('reset');
+      await f.act('start',{solo:true,bots:0});
+      configureBattle(f,(b,self)=>{
+        Object.assign(self,{hand:['conceptForgive'],poison:6,mind:70});
+        b.units.enemy.blockedRounds=1;
+      });
+      await f.act('plan',{card:'conceptForgive',targets:[f.state.me]});
+      await f.act('round');
+      assert.equal(livingForm(f).shield,14);
+      assert.equal(livingForm(f).poison,0);
+      assert.equal(livingForm(f).stacks['죄 사함의 광배'],1);
     }else{
       assert.equal(f.state.battle.outcome.tier,'bruteKill');
       assert.equal(f.state.battle.outcome.extract.rolls.length,2);

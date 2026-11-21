@@ -2049,16 +2049,17 @@ function battlePanel(){
   }
   const editable=!self.ready;
   const actionLimit=self.actionLimit??baseActions;
-  const slotCount=Math.max(1,actionLimit);
+  const freeActions=Number(self.hand.some(card=>card.freeAction));
+  const slotCount=Math.max(1,actionLimit+freeActions);
   const actionFields=({card=null,targets=[],clash=false,stance,foeIntent='',copyId='',targetTile=null}={})=>({card,targets,clash,foeIntent,stance:stance||(clash?'clash':'unopposed'),copyId,targetTile});
   const draft=editable?battleDraft:{...planned};
   draft.slots??=(draft.cards||[draft]).map(actionFields);
   draft.slots.length=Math.min(draft.slots.length,slotCount);
   while(draft.slots.length<slotCount)draft.slots.push(actionFields());
-  if(!actionLimit)Object.assign(draft,actionFields({card:''}));
+  if(!actionLimit&&!freeActions)Object.assign(draft,actionFields({card:''}));
   if(draft.slot==null||draft.slot>=slotCount){
     draft.slot=0;
-    Object.assign(draft,actionLimit?draft.slots[0]:actionFields({card:''}));
+    Object.assign(draft,actionLimit||freeActions?draft.slots[0]:actionFields({card:''}));
   }
   const slotChoices=()=>draft.slots.map((slot,index)=>index===draft.slot?actionFields(draft):slot);
   const otherCards=()=>slotChoices().filter((_,i)=>i!==draft.slot);
@@ -2070,7 +2071,7 @@ function battlePanel(){
     refresh();
   }));
   queue.append(...queueSlots);
-  queue.hidden=actionLimit<=1;
+  queue.hidden=slotCount<=1;
   const canMove=pos=>paths.has(pos);
   let moveMode=false;
   const hand=el('fieldset',undefined,{class:'battle-hand'}), handRows=el('div',undefined,{class:'battle-card-fan'});
@@ -2149,7 +2150,7 @@ function battlePanel(){
   },true);
   const cancel=button('선택 초기화',()=>{
     draft.slots=Array.from({length:slotCount},()=>actionFields());
-    Object.assign(draft,actionFields({card:actionLimit?null:''}),{slot:0,pos:self.pos,discard:[]});
+    Object.assign(draft,actionFields({card:actionLimit||freeActions?null:''}),{slot:0,pos:self.pos,discard:[]});
     moveMode=false;
     refresh();
   });
@@ -2172,7 +2173,8 @@ function battlePanel(){
     for(const control of handRows.children){
       const id=control.dataset.card,choice=self.hand.find(card=>card.id===id);
       control.setAttribute('aria-pressed',String(id===(editable?draft.card:draft.card||'')));
-      control.disabled=!editable||!!id&&(!actionLimit||!cardUsable(self,choice)||reserved(id)>=playableCount(id));
+      const paid=others.filter(slot=>slot.card&&!self.hand.find(card=>card.id===slot.card)?.freeAction).length;
+      control.disabled=!editable||!!id&&(!choice?.freeAction&&paid>=actionLimit||!cardUsable(self,choice)||reserved(id)>=playableCount(id));
     }
     queueSlots.forEach((button,index)=>{
       const name=self.hand.find(card=>card.id===slots[index].card)?.name;
@@ -2283,14 +2285,15 @@ function battlePanel(){
       }
       return !incoming||clashTaken&&index===draft.slot;
     });
-    const ready=invalidSlot<0&&(!actionLimit||selected.length>0||slotChoices().some(slot=>slot.card===''));
+    const paid=selected.filter(slot=>!self.hand.find(card=>card.id===slot.card)?.freeAction).length;
+    const ready=paid<=actionLimit&&invalidSlot<0&&(!actionLimit||selected.length>0||slotChoices().some(slot=>slot.card===''));
     commit.disabled=!ready||crisis&&!draft.vow;
     if(crisis)vowInfo.textContent='붕괴 직전 · 연속 '+(self.crisisProofs||0)+'/'+crisisRounds+' · '+self.collapseRound+'라운드 종료까지 · '+(crisisVowRules[draft.vow]||'세 라운드 연속 같은 뜻을 지키세요.');
     const names=countering?'반격 대기':guarding?(designated?.name||'자동 엄호'):candidates.filter(u=>chosen.has(u.id)).map(u=>u.name).join(', ');
     if(!editable)status.textContent='행동 확정 · '+(selected.map(slot=>self.hand.find(card=>card.id===slot.card)?.name).filter(Boolean).join(' → ')||'이동만 / 대기')+(awaiting.length?' · 대기 '+awaiting.length+'명':' · 라운드 진행 대기');
     else if(invalidSlot>=0&&invalidSlot!==draft.slot)status.textContent=(invalidSlot+1)+'번 카드의 대상 또는 선택을 확인하세요.';
     else if(draft.card===null)status.textContent='손패에서 카드를 고르세요. 이동할 칸도 선택할 수 있어요.';
-    else if(!actionLimit)status.textContent='행동량 0 · 카드를 사용할 수 없어요. 이동하거나 대기하세요.';
+    else if(!actionLimit&&!freeActions)status.textContent='행동량 0 · 카드를 사용할 수 없어요. 이동하거나 대기하세요.';
     else if(!card)status.textContent='이동할 칸을 선택하거나 현재 위치에서 대기하세요.';
     else if(requiresCopy&&!copy.value)status.textContent=copy.options.length>1?'손패에서 복제할 카드를 고르세요.':'복제할 다른 카드가 손패에 없어요.';
     else if(guarding)status.textContent=designated

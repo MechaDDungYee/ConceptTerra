@@ -649,7 +649,7 @@ function gameBrightTransition(b){
     e.stage=2;
     e.stageRound=b.round;
     b.foeDeck={cards:[...brightSecond],index:0};
-    holder.library.conceptForgive={...darkForgive,cost:0,
+    holder.library.conceptForgive={...darkForgive,cost:0,freeAction:true,
       effects:[...darkForgive.effects,{...gameEffect('hit','bright:absolve',1),publicLabel:'세뇌 해제 · 정신력 25 회복'}]};
     gameBrightReturnPardon(b,holder);
     gameLog(b,dawn.name+' · 승객의 뒤에 강림');
@@ -659,7 +659,7 @@ function gameBrightTransition(b){
     const dawn=b.units.conceptDawn;
     dawn.hp=0;
     e.stage=3;
-    holder.library.conceptForgive={...darkForgive,cost:0,name:'사면 · 거짓을 삼키는 밤',power:'666',
+    holder.library.conceptForgive={...darkForgive,cost:0,freeAction:true,name:'사면 · 거짓을 삼키는 밤',power:'666',
       range:'0~4',targetSide:'any',effects:[...darkForgive.effects,
         {...gameEffect('hit','bright:final',1),publicLabel:'거짓된 빛을 지정하면 모든 적에게 방어막 관통 고정 피해 666'}]};
     gameBrightReturnPardon(b,holder);
@@ -712,7 +712,13 @@ function gameBrightHit(b,ctx,unit,id){
       gameClearCrisis(b,unit);
       gameMental(b,unit,25,true);
       if(unit!==actor)gameMental(b,actor,25,true);
-      delete unit.stacks[brightLight];
+      const dawn=b.units.conceptDawn;
+      const light=unit.stacks[brightLight]||0;
+      if(gameAlive(dawn)&&light){
+        dawn.stacks[brightLight]=(dawn.stacks[brightLight]||0)+light;
+        gameLog(b,dawn.name+' · '+unit.name+'의 황홀한 빛 '+light+' 대속');
+      }
+      gameWriteStacks(unit,brightLight,[]);
       for(const ally of brightPassengers(b))if(!ally.brainwashed&&ally.stacks[brightLight]>0)ally.stacks[brightLight]--;
       b.units.enemy.blockedRounds=Math.max(b.units.enemy.blockedRounds||0,1);
       b.units.enemy.nextBlockedRounds=Math.max(b.units.enemy.nextBlockedRounds||0,1);
@@ -2238,6 +2244,7 @@ function gameBegin(state,members,settings,actor,collections) {
 
 const gameActionLimit=u=>u.blockedRounds?0:bounded((u.baseActions??baseActions)+(u.bonusActions||0)-(u.actionPenalty||0),0,maxActions);
 const gamePlannedCards=plan=>plan?.cards??(plan?.card?[plan]:[]);
+const gamePaidActions=(unit,cards)=>cards.filter(plan=>plan.card&&!unit.library[plan.card]?.freeAction).length;
 const gameHasClash=plan=>gamePlannedCards(plan).some(card=>card.clash);
 function gameAllowedTargets(b,u,card) {
   if(card.role==='counter')return [u];
@@ -2247,7 +2254,7 @@ function gameAllowedTargets(b,u,card) {
 }
 function gameSelect(b,u,input,ai=false) {
   const cardId=input.card||null;
-  if(cardId&&!gameActionLimit(u))gameFail('이번 턴에 사용할 수 있는 카드가 없어요.');
+  if(cardId&&!gameActionLimit(u)&&!u.library[cardId]?.freeAction)gameFail('이번 턴에 사용할 수 있는 카드가 없어요.');
   const crisis=u.zero==='crisis';
   const vow=u.crisisVow||input.vow;
   if(crisis&&!Object.hasOwn(crisisVows,vow))gameFail('붕괴 직전 지킬 뜻을 선택하세요.');
@@ -2304,7 +2311,7 @@ function gameSelect(b,u,input,ai=false) {
 function gameSelectTurn(b,u,input,ai=false){
   if(!Object.hasOwn(input,'cards'))return gameSelect(b,u,input,ai);
   const {cards,pos,vow,discard}=input;
-  if(!Array.isArray(cards)||cards.length>gameActionLimit(u))gameFail('이번 턴 행동량까지만 카드를 예약할 수 있어요.');
+  if(!Array.isArray(cards)||cards.length>maxActions+1||gamePaidActions(u,cards.filter(Boolean))>gameActionLimit(u))gameFail('이번 턴 행동량까지만 카드를 예약할 수 있어요.');
   if(cards.some(card=>!card||typeof card.card!=='string'||!card.card))gameFail('예약할 카드를 확인하세요.');
   const clashes=cards.filter(card=>card.clash===true||['clash','intercept'].includes(card.stance));
   const clashTargets=new Set(clashes.map(card=>gameIsRail(b)?card.foeIntent:'enemy'));
@@ -5155,7 +5162,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
         const target=b&&Object.hasOwn(b.units,input.target)?b.units[input.target]:null;
         if(!gameActive(b)||!gameAlive(target)||target.enemy||!gameInt(input.baseActions,baseActions,maxActions))gameFail('기본 행동량을 확인하세요.');
         target.baseActions=input.baseActions;
-        if(gamePlannedCards(b.plans[target.id]).length>gameActionLimit(target))delete b.plans[target.id];
+        if(gamePaidActions(target,gamePlannedCards(b.plans[target.id]))>gameActionLimit(target))delete b.plans[target.id];
         gameLog(b,target.name+' · 기본 행동량 '+target.baseActions);
         break;
       }

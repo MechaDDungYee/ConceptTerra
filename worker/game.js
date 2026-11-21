@@ -2822,7 +2822,7 @@ function gameBegin(state,members,settings,actor,collections) {
     battle.encounter={id:encounter.id,name:encounter.name,peace:0,peaceOpen:false,damage:0,lastDamage:0,attackers:[]};
     if(encounter===brightStop){
       foe.passives=[];
-      battle.encounter.rank='전설급';
+      battle.encounter.difficulty='전설급';
       battle.encounter.stage=1;
       battle.encounter.holder=Object.keys(units).find(id=>state.profiles[id]?.orbs?.includes('orbDarkHalo'));
     }
@@ -5452,7 +5452,7 @@ function gameView(state,revision,actor,manager,members) {
         targets:action.targets||[],target:action.targets?.[0],targetTile:action.targetTile,clash:action.clash,actionLink:action.actionLink,foeIntent:action.foeIntent}]:[];
     })),
     ...(b.encounter?{encounter:{id:b.encounter.id,name:b.encounter.name,peace:b.encounter.peace,peaceOpen:b.encounter.peaceOpen,
-      deckSize:b.foeDeck.cards.length,subdueOrder:b.encounter.subdueOrder,rank:b.encounter.rank,negotiating:b.encounter.breakRound===b.round,...(gameIsBright(b)&&(manager||b.encounter.stage>1)?{stage:b.encounter.stage}:{})},zones:b.zones,outcome:b.outcome}:{}),log:gameVisibleLog(b.log,manager),walls:b.walls,extraWalls:b.extraWalls,tiles:b.tiles,poses:b.poses||[],
+      deckSize:b.foeDeck.cards.length,subdueOrder:b.encounter.subdueOrder,rank:Array.isArray(b.encounter.rank)?b.encounter.rank:undefined,difficulty:b.encounter.difficulty??(typeof b.encounter.rank==='string'?b.encounter.rank:undefined),negotiating:b.encounter.breakRound===b.round,...(gameIsBright(b)&&(manager||b.encounter.stage>1)?{stage:b.encounter.stage}:{})},zones:b.zones,outcome:b.outcome}:{}),log:gameVisibleLog(b.log,manager),walls:b.walls,extraWalls:b.extraWalls,tiles:b.tiles,poses:b.poses||[],
     awaiting:gameActive(b)?gameAwaiting(b,members).map(u=>u.name):[],clashActor:Object.keys(b.plans||{}).find(id=>gameHasClash(b.plans[id])),
     units:Object.values(b.units).map(({library,hand,deck,grave,exile,cover,effectUsage,passives,cardMarks,configuredDeck,lifeSteal,poisonSources,shieldSlots,queuedShields,activityLocations,locationTags,stackTraits,stackDefinitions,sealedHighest,stackRuns,damageDebt,damageOverTime,delayedStrike,controlledIndex,controlledPower,cardUseCounts,keywordUses,...unit})=>({
       ...unit,

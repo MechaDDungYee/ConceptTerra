@@ -2052,7 +2052,7 @@ function battlePanel(){
   if(state.manager&&b.phase==='finished')controls.append(button('다음 전투 준비',()=>send('reset'),true));
   if(b.encounter?.subdueOrder?.length)controls.append(note('제압 순서 · '+b.encounter.subdueOrder.map(key=>({leader:'지휘관',shield:'방패병',sniper:'저격수'})[key]).join(' → ')));
   if(self?.judgmentMark)controls.append(note('죄인의 표식 · 심판자에게 받는 피해 +35% · 직접 합 위력 −6'));
-  if(b.encounter?.rank?.length)controls.append(note('직전 라운드 피해 순위 · '+b.encounter.rank.map(item=>item.name+' '+item.damage).join(' / ')));
+  if(Array.isArray(b.encounter?.rank)&&b.encounter.rank.length)controls.append(note('직전 라운드 피해 순위 · '+b.encounter.rank.map(item=>item.name+' '+item.damage).join(' / ')));
   if(b.encounter?.negotiating)controls.append(note('협상 파훼 · 수금원 공격 정지 · 받는 피해 +25%'));
   if(b.outcome){
     const result=({peace:'평화 해소',break:'강제 격파',paid:'완납',seized:'강제 회수',installment:'분할 납부',balance:'균형 회복',blunt:'강제 판결',level:'수평의 정적',clearLine:'조준선 해제',cutCommand:'지휘 차단',railSubdued:'보안반 제압',inspect:'검문 응답'})[b.outcome.kind]||'조우 실패';

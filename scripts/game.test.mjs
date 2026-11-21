@@ -4012,3 +4012,14 @@ test('portrait uploads accept a larger payload through the artwork route',async(
   assert.equal(response.status,200);
   assert.equal((await response.arrayBuffer()).byteLength,180000);
 });
+
+test('bright plaza exposes a difficulty label separately from damage rankings',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0,encounter:'blight01'});
+  assert.equal(f.state.battle.encounter.difficulty,'전설급');
+  assert.equal(f.state.battle.encounter.rank,undefined);
+  configureBattle(f,b=>{delete b.encounter.difficulty;b.encounter.rank='전설급';});
+  const view=await f.send(f.endpoint,undefined,f.host.cookie);
+  assert.equal(view.body.battle.encounter.difficulty,'전설급');
+  assert.equal(view.body.battle.encounter.rank,undefined);
+});

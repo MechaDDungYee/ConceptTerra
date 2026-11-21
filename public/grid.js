@@ -6,6 +6,20 @@ export const gridSize = gridWidth * gridHeight;
 export const gridValid = p => Number.isInteger(p) && p >= 0 && p < gridSize;
 export const gridPoint = p => ({x: p % gridWidth, y: Math.floor(p / gridWidth)});
 export const gridIndex = (x,y) => x >= 0 && x < gridWidth && y >= 0 && y < gridHeight ? y * gridWidth + x : -1;
+export function gridLineOfSight(from,to,walls=[]){
+  if(!gridValid(from)||!gridValid(to)||from===to)return true;
+  const start=gridPoint(from),end=gridPoint(to);
+  const dx=end.x-start.x,dy=end.y-start.y;
+  const steps=Math.max(Math.abs(dx),Math.abs(dy));
+  for(let i=1;i<steps;i++){
+    const x=Math.round(start.x+dx*i/steps),y=Math.round(start.y+dy*i/steps);
+    if(walls.includes(gridIndex(x,y)))return false;
+  }
+  return true;
+}
+export function gridCardHasReach(card,from,to,walls=[]){
+  return gridCardInRange(card,from,to)&&(card.target==='tile'||gridLineOfSight(from,to,walls));
+}
 export function gridDistance(a,b) {
   const one=gridPoint(a), two=gridPoint(b);
   return Math.abs(one.x-two.x)+Math.abs(one.y-two.y);
@@ -84,9 +98,9 @@ export function gridTileGroups(card,actor,tile,units,walls=[]){
     (actor.collapsed||unit.enemy!==actor.enemy))||null;
   return {primary,secondary:gridSplashTargets(card,actor,{pos:tile,id:primary?.id},units).filter(unit=>unit.pos!==tile)};
 }
-export function collapseTargets(card,actor,units){
+export function collapseTargets(card,actor,units,walls=[]){
   if(card.target==='self')return [actor];
-  const inRange=units.filter(unit=>unit.id!==actor.id&&unit.hp>0&&gridCardInRange(card,actor.pos,unit.pos));
+  const inRange=units.filter(unit=>unit.id!==actor.id&&unit.hp>0&&gridCardHasReach(card,actor.pos,unit.pos,walls));
   inRange.sort((a,b)=>gridDistance(actor.pos,a.pos)-gridDistance(actor.pos,b.pos)||a.pos-b.pos);
   return card.target==='area'?inRange:inRange.slice(0,gridTargetLimit(card));
 }

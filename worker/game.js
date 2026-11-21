@@ -1,4 +1,4 @@
-import {gridValid, gridSize, gridTileGroups, gridDistance, gridPaths, gridDisplacement, gridCardInRange, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
+import {gridValid, gridSize, gridTileGroups, gridDistance, gridPaths, gridDisplacement, gridCardInRange,gridCardHasReach, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
 import {stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,maxActivityLocations,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
@@ -569,7 +569,8 @@ const gameActive=b=>b?.phase==='planning';
 const gameAlive=u=>u&&u.hp>0;
 const gameCanPlan=u=>gameAlive(u)&&!u.blockedRounds&&(u.collapsed||!u.zero||u.zero==='crisis');
 const gameDistance=(a,b)=>gridDistance(a.pos,b.pos);
-const gameReach=(card,a,b)=>gridCardInRange(card,a.pos,b.pos);
+const gameBattleWalls=b=>[...(b.walls||[]),...(b.extraWalls||[]).map(wall=>wall.index)];
+const gameReach=(b,card,from,to)=>gridCardHasReach(card,from.pos,to.pos,gameBattleWalls(b));
 function gameVisibility(value,card=false){
   if(value.gmOnly!==true&&value.visibility!=='gm')return {};
   const publicHint=gameText(value.publicHint,120);
@@ -1146,7 +1147,7 @@ function gameDeckEffects(b,when){
     for(const card of sources){
       if(!gameAlive(actor)||!card||(!card.passive&&!cardUsable(actor,card))||!card.effects.some(effect=>effect.when===when))continue;
       if(card.stackCount&&!actor.stacks[card.name])continue;
-      const targets=card.passive||card.target==='tile'?[]:actor.collapsed?collapseTargets(card,actor,Object.values(b.units)):gameAllowedTargets(b,actor,card);
+      const targets=card.passive||card.target==='tile'?[]:actor.collapsed?collapseTargets(card,actor,Object.values(b.units),gameBattleWalls(b)):gameAllowedTargets(b,actor,card);
       const ctx=gameContext(actor,card,targets);
       const base=ctx.mod;
       b.shock={};
@@ -1196,7 +1197,7 @@ function gameNext(b) {
   if(distance>4&&!enemy.rootNext&&!enemy.blockedRounds)gameMove(b,enemy,victim.pos,Math.min(bounded(2+enemy.nextMove,0,7),distance-4),true);
   enemy.rooted=!!enemy.rootNext;
   enemy.rootNext=false;enemy.nextMove=0;
-  b.intent={target:victim.id,card:gameFoe,reachable:gameActionLimit(enemy)>0&&gameReach(gameFoe,enemy,victim)};
+  b.intent={target:victim.id,card:gameFoe,reachable:gameActionLimit(enemy)>0&&gameReach(b,gameFoe,enemy,victim)};
   b.plans={};
   b.phase='planning';
   if(b.round===1){
@@ -1214,7 +1215,7 @@ function gameNext(b) {
     delete unit.lateDraw;
   }
   gameDeckEffects(b,'turnStart');
-  b.intent.reachable=gameActionLimit(enemy)>0&&gameReach(gameFoe,enemy,victim);
+  b.intent.reachable=gameActionLimit(enemy)>0&&gameReach(b,gameFoe,enemy,victim);
   if(!gameAlive(enemy)||!party.some(gameAlive))gameNext(b);
 }
 function gameCollection(profile,row){
@@ -1399,8 +1400,8 @@ const gamePlannedCards=plan=>plan?.cards??(plan?.card?[plan]:[]);
 const gameHasClash=plan=>gamePlannedCards(plan).some(card=>card.clash);
 function gameAllowedTargets(b,u,card) {
   if(card.role==='counter')return [u];
-  if(card.target==='self')return gameAlive(u)&&gameReach(card,u,u)?[u]:[];
-  return Object.values(b.units).filter(v=>gameAlive(v)&&v.enemy!==u.enemy&&gameReach(card,u,v));
+  if(card.target==='self')return gameAlive(u)&&gameReach(b,card,u,u)?[u]:[];
+  return Object.values(b.units).filter(v=>gameAlive(v)&&v.enemy!==u.enemy&&gameReach(b,card,u,v));
 }
 function gameSelect(b,u,input,ai=false) {
   const cardId=input.card||null;
@@ -1428,7 +1429,7 @@ function gameSelect(b,u,input,ai=false) {
   }
   // Collapse targets are calculated after movement. Ignore submitted target and clash choices.
   if(u.collapsed){
-    if(card&&!['guard','counter'].includes(card.role)&&!collapseTargets(card,{...u,pos:goal},Object.values(b.units)).length)gameFail('선택한 위치에서 사거리 안에 자동 표적이 없어요.');
+    if(card&&!['guard','counter'].includes(card.role)&&!collapseTargets(card,{...u,pos:goal},Object.values(b.units),gameBattleWalls(b)).length)gameFail('선택한 위치에서 사거리 안에 자동 표적이 없어요.');
     return {card:cardId,pos:goal,targets:[],clash:false,...(copyId?{copyId}:{}),discard};
   }
   const clash=input.clash===true;
@@ -1438,12 +1439,12 @@ function gameSelect(b,u,input,ai=false) {
   const targets=(guarding||targetLimit)&&Array.isArray(input.targets)?[...new Set(input.targets)]:[];
   if(targets.length>5||targets.some(t=>typeof t!=='string'||!Object.hasOwn(b.units,t)))gameFail('대상을 확인하세요.');
   const preview={...u,pos:goal};
-  const available=guarding?Object.values(b.units).filter(v=>v!==u&&v.enemy===u.enemy&&gameAlive(v)&&gameReach(card,preview,v)):
+  const available=guarding?Object.values(b.units).filter(v=>v!==u&&v.enemy===u.enemy&&gameAlive(v)&&gameReach(b,card,preview,v)):
     card?gameAllowedTargets(b,preview,card):[];
   if(card&&!guarding&&!available.length)gameFail('선택한 위치에서 사거리 안에 대상이 없어요.');
   if(guarding?targets.length>1:targetLimit&&(!targets.length||targets.length>targetLimit))gameFail('카드의 대상 수를 확인하세요.');
   if(!targets.every(id=>available.some(v=>v.id===id)))gameFail('선택한 위치에서 대상이 사거리 밖에 있어요.');
-  if(clash&&b.intent.target===u.id&&!gameReach(b.intent.card,b.units.enemy,{...u,pos:goal}))gameFail('이동할 위치가 적의 예고 공격 사거리 밖이에요.');
+  if(clash&&b.intent.target===u.id&&!gameReach(b,b.intent.card,b.units.enemy,{...u,pos:goal}))gameFail('이동할 위치가 적의 예고 공격 사거리 밖이에요.');
   if(clash&&!(card.target==='area'?available.some(v=>v.enemy):targets.includes('enemy')))gameFail('합을 걸려면 예고 공격을 하는 적을 대상으로 선택하세요.');
   if(clash&&Object.entries(b.plans).some(([id,plan])=>id!==u.id&&gameHasClash(plan)))gameFail('이미 다른 참가자가 합을 확정했어요.');
   return {card:cardId,...(crisis?{vow}:{}),pos:goal,targets,clash,...(copyId?{copyId}:{}),discard};
@@ -1477,7 +1478,7 @@ function gameBotPlan(b,u,allowClash=true) {
     const card=gameCollapseCard;
     const paths=gridPaths(u.pos,u.move,gameBlocked(b,u));
     const units=Object.values(b.units);
-    for(const pos of paths.keys())if(collapseTargets(card,{...u,pos},units).length)return gameSelect(b,u,{card:card.id,pos},true);
+    for(const pos of paths.keys())if(collapseTargets(card,{...u,pos},units,gameBattleWalls(b)).length)return gameSelect(b,u,{card:card.id,pos},true);
     const pos=[...paths.keys()].sort((a,c)=>gridDistance(a,enemy.pos)-gridDistance(c,enemy.pos))[0];
     return gameSelect(b,u,{pos},true);
   }
@@ -1495,10 +1496,10 @@ function gameBotPlan(b,u,allowClash=true) {
       const targetTile=card.target==='tile'?gameChooseTile(b,card,preview):null;
       const targets=card.target==='tile'?(targetTile==null?[]:[enemy]):card.role==='guard'?[u]:gameAllowedTargets(b,preview,card);
       if(!targets.length)continue;
-      if(card.role==='guard'&&(!b.intent.reachable||danger===u||!gameReach(card,{...u,pos:goal},danger)||Object.values(b.plans).some(gameHasClash)))continue;
-      if(card.role==='counter'&&(danger!==u||!gameReach(b.intent.card,enemy,{...u,pos:goal})||
-        !gameReach(card,{...u,pos:goal},enemy)||Object.values(b.plans).some(gameHasClash)))continue;
-      const clash=allowClash&&b.intent.reachable&&(danger.id!==u.id||gameReach(b.intent.card,enemy,{...u,pos:goal}))&&!['assist','guard','counter'].includes(card.role)&&card.clash&&gameReach(card,{...u,pos:goal},enemy)&&!Object.values(b.plans).some(gameHasClash);
+      if(card.role==='guard'&&(!b.intent.reachable||danger===u||!gameReach(b,card,{...u,pos:goal},danger)||Object.values(b.plans).some(gameHasClash)))continue;
+      if(card.role==='counter'&&(danger!==u||!gameReach(b,b.intent.card,enemy,{...u,pos:goal})||
+        !gameReach(b,card,{...u,pos:goal},enemy)||Object.values(b.plans).some(gameHasClash)))continue;
+      const clash=allowClash&&b.intent.reachable&&(danger.id!==u.id||gameReach(b,b.intent.card,enemy,{...u,pos:goal}))&&!['assist','guard','counter'].includes(card.role)&&card.clash&&gameReach(b,card,{...u,pos:goal},enemy)&&!Object.values(b.plans).some(gameHasClash);
       if(crisis&&!clash)continue;
       const score=(clash?10:0)+(['guard','counter'].includes(card.role)?6:card.target==='self'?1:4)+cardHitPowers(card).reduce((sum,power)=>sum+Number(power.match(/\+(\d+)$/)?.[1]||0),0)*.4-path.length*.25;
       open.push({score,card:id,copyId,pos:goal,vow,targetTile,targets:card.role==='guard'?[]:[targets[0].id],clash});
@@ -2822,7 +2823,7 @@ function gameStrike(b,ctx,target,roll){
 function gameHitSequence(b,ctx,target,rolls,intercepted,replay,indexOnly=null){
   let base=0,critical=false,brokeShield=false,struck=false;
   if(indexOnly===null)ctx.hitAmplifiers=new Map();
-  const canStrike=()=>gameAlive(ctx.actor)&&gameAlive(target)&&(intercepted||gameReach(ctx.card,ctx.actor,target));
+  const canStrike=()=>gameAlive(ctx.actor)&&gameAlive(target)&&(intercepted||gameReach(b,ctx.card,ctx.actor,target));
   const strike=roll=>{
     const dealt=gameStrike(b,ctx,target,roll);
     if(dealt===null)return;
@@ -2871,7 +2872,7 @@ function gameHitByTargetMode(b,ctx,rolls,intercepted,replay,recordAttack){
   const {actor,card}=ctx;
   const tile=card.target==='tile';
   const selected=ctx.targets[0];
-  if(!tile&&(!selected||card.splash&&(!gameAlive(selected)||!intercepted&&!gameReach(card,actor,selected))))return;
+  if(!tile&&(!selected||card.splash&&(!gameAlive(selected)||!intercepted&&!gameReach(b,card,actor,selected))))return;
   ctx.splashOrigin=!tile&&card.splash?{id:selected.id,pos:selected.pos}:null;
   ctx.actionGroups=gameActionGroups(b,ctx);
   const {primary,secondary}=ctx.actionGroups;
@@ -2879,7 +2880,7 @@ function gameHitByTargetMode(b,ctx,rolls,intercepted,replay,recordAttack){
   let previous=new Set();
   ctx.hitAmplifiers=new Map();
   const eligible=unit=>gameAlive(unit)&&unit!==actor&&(actor.collapsed||unit.enemy!==actor.enemy)&&
-    (tile||intercepted||card.splash&&unit!==primary||gameReach(card,actor,unit));
+    (tile||intercepted||card.splash&&unit!==primary||gameReach(b,card,actor,unit));
   for(const [index,mode] of (card.hitTargets||rolls.map(()=> 'all')).entries()){
     const active=gameGroupUnits({primary,secondary}).filter(eligible);
     let targets=mode==='primary'?active.filter(unit=>unit===primary):mode==='secondary'?active.filter(unit=>unit!==primary):active;
@@ -2921,7 +2922,7 @@ function gameHit(b,ctx,roll,intercepted=false){
     });
   };
   const resolveHit=(target,skipReach,replay)=>{
-    if(!gameAlive(target)||(!skipReach&&!gameReach(ctx.card,ctx.actor,target)))return false;
+    if(!gameAlive(target)||(!skipReach&&!gameReach(b,ctx.card,ctx.actor,target)))return false;
     ctx.brokeShield=false;
     ctx.critical=false;
     if(target===ctx.actor||(!ctx.actor.collapsed&&target.enemy===ctx.actor.enemy)){
@@ -2984,7 +2985,7 @@ function gameHit(b,ctx,roll,intercepted=false){
   }
   for(const defender of counters||[]){
     const queue=b.counterPlans.get(defender.id);
-    const reaction=queue?.find(candidate=>gameReach(candidate.card,defender,ctx.actor));
+    const reaction=queue?.find(candidate=>gameReach(b,candidate.card,defender,ctx.actor));
     if(!reaction||!gameAlive(defender)||!gameAlive(ctx.actor))continue;
     queue.splice(queue.indexOf(reaction),1);
     if(!queue.length)b.counterPlans.delete(defender.id);
@@ -3009,7 +3010,7 @@ function gameUnopposedAttack(b,ctx){
   if(ctx.card.effects.some(effect=>effect.when==='unopposed')){
     const {actor,card}=ctx;
     const targets=ctx.targets.filter(target=>gameAlive(target)&&target!==actor&&
-      (actor.collapsed||target.enemy!==actor.enemy)&&(tile||gameReach(card,actor,target)));
+      (actor.collapsed||target.enemy!==actor.enemy)&&(tile||gameReach(b,card,actor,target)));
     for(const target of tile&&!targets.length?[null]:targets){
       gameTriggers(b,ctx,'unopposed',target);
       gamePassives(b,ctx.actor,'unopposed',target,ctx);
@@ -3023,7 +3024,7 @@ function gameCover(b,attacker,target){
     if(unit===target||unit.enemy!==target.enemy||!gameAlive(unit)||unit.blockedRounds||(unit.zero&&unit.zero!=='crisis'))continue;
     for(const [index,charge] of (unit.cover||[]).entries()){
       const card=unit.library[charge.card??charge];
-      if(cardUsable(unit,card)&&(!charge.target||charge.target===target.id)&&gameReach(card,unit,target)){
+      if(cardUsable(unit,card)&&(!charge.target||charge.target===target.id)&&gameReach(b,card,unit,target)){
         options.push({unit,index,card,charge,designated:!!charge.target});
       }
     }
@@ -3083,9 +3084,9 @@ function gameReplacement(b,u,original,plan,moved,originalTargets){
       const guard=card.role==='guard';
       const targetTile=card.target==='tile'?
         [plan.targetTile,...originalTargets.map(unit=>unit.pos),gameChooseTile(b,card,u)]
-          .find(tile=>gridValid(tile)&&!b.walls.includes(tile)&&gameReach(card,u,{pos:tile})):undefined;
+          .find(tile=>gridValid(tile)&&!b.walls.includes(tile)&&gameReach(b,card,u,{pos:tile})):undefined;
       if(card.target==='tile'&&targetTile==null)continue;
-      const targets=card.target==='tile'?gameGroupUnits(gameTileGroups(b,card,u,targetTile)):guard?[u]:u.collapsed&&card.role!=='counter'?collapseTargets(card,u,Object.values(b.units)):
+      const targets=card.target==='tile'?gameGroupUnits(gameTileGroups(b,card,u,targetTile)):guard?[u]:u.collapsed&&card.role!=='counter'?collapseTargets(card,u,Object.values(b.units),gameBattleWalls(b)):
         limit?[...new Set([...originalTargets.filter(unit=>nearest.includes(unit)),...nearest])].slice(0,limit):nearest;
       if(!targets.length&&card.target!=='tile')continue;
       const copyId=card.effects.some(row=>row.kind==='copyChosen')?(u.hand.includes(plan.copyId)?plan.copyId:u.hand[0]):null;
@@ -3112,7 +3113,7 @@ function gamePrepareAction(b,u,plan,moved){
     return;
   }
   if(!temporary)u.hand.splice(handIndex,1);
-  const originalTargets=original.target==='tile'?gameGroupUnits(gameTileGroups(b,original,u,plan.targetTile)):['guard','counter'].includes(original.role)?[u]:u.collapsed?[]:!gridTargetLimit(original)?gameAllowedTargets(b,u,original):plan.targets.map(id=>b.units[id]).filter(v=>gameAlive(v)&&gameReach(original,u,v));
+  const originalTargets=original.target==='tile'?gameGroupUnits(gameTileGroups(b,original,u,plan.targetTile)):['guard','counter'].includes(original.role)?[u]:u.collapsed?[]:!gridTargetLimit(original)?gameAllowedTargets(b,u,original):plan.targets.map(id=>b.units[id]).filter(v=>gameAlive(v)&&gameReach(b,original,u,v));
   const replacement=gameReplacement(b,u,original,plan,moved,originalTargets);
   const card=replacement?.card||original;
   const targets=replacement?.targets||originalTargets;
@@ -3160,7 +3161,7 @@ function gamePrepareAction(b,u,plan,moved){
   ctx.temporary=temporary;
   ctx.copyId=replacement?replacement.copyId:plan.copyId;
   ctx.goal=plan.pos;
-  ctx.clash=plan.clash&&(!replacement||card.clash&&targets.includes(b.units.enemy))&&gameReach(card,u,b.units.enemy);
+  ctx.clash=plan.clash&&(!replacement||card.clash&&targets.includes(b.units.enemy))&&gameReach(b,card,u,b.units.enemy);
   gameLog(b,u.name+' · '+(card.gmOnly?(card.publicName||'숨겨진 카드'):card.name));
   if(card.role!=='assist')gamePassives(b,u,'use',targets[0]||null,ctx);
   if(card.role==='guard'){
@@ -3193,12 +3194,12 @@ function gamePrepareAction(b,u,plan,moved){
 }
 function gameEnemyReady(b){
   const enemy=b.units.enemy,target=b.units[b.intent.target];
-  return gameAlive(enemy)&&gameActionLimit(enemy)>0&&gameAlive(target)&&gameReach(b.intent.card,enemy,target);
+  return gameAlive(enemy)&&gameActionLimit(enemy)>0&&gameAlive(target)&&gameReach(b,b.intent.card,enemy,target);
 }
 function gameResolveWave(b,contexts,countered){
   const resolveCollapseCard=ctx=>{
     const {actor,card}=ctx;
-    ctx.targets=collapseTargets(card,actor,Object.values(b.units));
+    ctx.targets=collapseTargets(card,actor,Object.values(b.units),gameBattleWalls(b));
     if(ctx.targets.length)gameLog(b,actor.name+' · 붕괴 자동 표적 → '+ctx.targets.map(v=>v.name).join(', '));
     else gameLog(b,actor.name+' · 사거리 안에 붕괴 표적이 없습니다.');
     for(const victim of ctx.targets)gameTriggers(b,ctx,'use',victim);
@@ -3247,7 +3248,7 @@ function gameResolveWave(b,contexts,countered){
       ctx.actionGroups=gameActionGroups(b,ctx);
       ctx.targets=gameGroupUnits(ctx.actionGroups);
     }
-    ctx.triggered=ctx.targets.some(v=>gameAlive(v)&&(tile||gameReach(ctx.card,ctx.actor,v)));
+    ctx.triggered=ctx.targets.some(v=>gameAlive(v)&&(tile||gameReach(b,ctx.card,ctx.actor,v)));
     if(ctx.triggered){
       b.shock={};gameLog(b,ctx.actor.name+' 원호 공격');
       gameTriggerCardMark(b,ctx.actor,ctx.card);
@@ -3928,7 +3929,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
         if(!gameActive(b)||Object.keys(b.plans).length)gameFail('플레이어가 행동을 확정하기 전에 바꿀 수 있어요.');
         const target=Object.hasOwn(b.units,input.target)?b.units[input.target]:null, foe=b.units.enemy;
         if(!gameAlive(target)||target.enemy)gameFail('살아 있는 대상을 선택하세요.');
-        b.intent={target:target.id,card:gameFoe,reachable:gameActionLimit(foe)>0&&gameReach(gameFoe,foe,target)};
+        b.intent={target:target.id,card:gameFoe,reachable:gameActionLimit(foe)>0&&gameReach(b,gameFoe,foe,target)};
         break;
       }
       case 'adjustActions': {

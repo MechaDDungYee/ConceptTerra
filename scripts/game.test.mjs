@@ -3094,3 +3094,20 @@ test('activity locations seed enemy intel and server keeps unknown enemy power o
     assert.ok(!view.battle.units.some(unit=>Object.hasOwn(unit,'activityLocations')));
   }
 });
+
+test('direct attacks cannot target through a wall, while tile targeting is exempt from LOS',async()=>{
+  const {gridCardHasReach}=await import('../public/grid.js');
+  const direct={range:'1~4',target:1};
+  assert.equal(gridCardHasReach(direct,16,20,[18]),false);
+  assert.equal(gridCardHasReach(direct,0,18,[9]),false);
+  assert.equal(gridCardHasReach({...direct,target:'tile'},16,20,[18]),true);
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:['shot']});
+    b.units.enemy.pos=20;
+    b.walls=[18];
+  });
+  const result=await f.send(f.endpoint,{action:'plan',revision:f.state.revision,card:'shot',targets:['enemy']},f.host.cookie);
+  assert.equal(result.status,400);
+});

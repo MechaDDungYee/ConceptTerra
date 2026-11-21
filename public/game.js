@@ -1,7 +1,7 @@
 import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
 import {accountPanel} from './account.js';
-import {gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridCardInRange,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
+import {gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridCardInRange,gridCardHasReach,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
 import {stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTagGroups,maxActivityLocations,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
 const studio=location.pathname==='/studio';
@@ -2059,8 +2059,8 @@ function battlePanel(){
     const tileGroups=targetingTile?gridTileGroups(card,{...self,pos},center,b.units,b.walls):null;
     const candidatesFor=choice=>{
       if(!choice||choice.target==='tile'||choice.role==='counter')return [];
-      if(collapsed&&choice.role!=='guard')return collapseTargets(choice,{...self,pos},b.units);
-      return b.units.filter(u=>u.hp>0&&gridCardInRange(choice,pos,targetPos(u))&&
+      if(collapsed&&choice.role!=='guard')return collapseTargets(choice,{...self,pos},b.units,b.walls);
+      return b.units.filter(u=>u.hp>0&&gridCardHasReach(choice,pos,targetPos(u),b.walls)&&
         (choice.role==='guard'?!u.enemy&&u.id!==self.id:choice.target==='self'?u.id===self.id:u.enemy));
     };
     const candidates=candidatesFor(card);
@@ -2073,7 +2073,7 @@ function battlePanel(){
     const designated=guarding&&b.units.find(u=>chosen.has(u.id));
     const coverInRange=designated&&candidates.includes(designated);
     const clashTaken=others.some(slot=>slot.clash)||!!b.clashActor&&b.clashActor!==self.id;
-    const incoming=b.intent?.reachable&&target&&foe&&gridCardInRange(b.intent.card,foe.pos,targetPos(target));
+    const incoming=b.intent?.reachable&&target&&foe&&gridCardHasReach(b.intent.card,foe.pos,targetPos(target),b.walls);
     const canClash=!collapsed&&card?.clash&&!['guard','assist','counter'].includes(card.role)&&incoming&&chosen.has(foe?.id)&&!clashTaken;
     if(editable){
       draft.targets=manual?[...chosen]:[];
@@ -2096,7 +2096,7 @@ function battlePanel(){
     discardLabel.firstElementChild.textContent=overflow?'라운드 종료에 '+overflow+'장을 더 버려야 합니다':
       '라운드 종료에 버릴 카드 · '+draft.discard.length+'장';
     fieldView.overlay.replaceChildren();
-    if(target&&foe&&gridCardInRange(b.intent.card,foe.pos,targetPos(target)))boardArrow(fieldView.overlay,foe.pos,targetPos(target),draft.clash?'clashing':'incoming');
+    if(target&&foe&&gridCardHasReach(b.intent.card,foe.pos,targetPos(target),b.walls))boardArrow(fieldView.overlay,foe.pos,targetPos(target),draft.clash?'clashing':'incoming');
     if(center!=null)boardArrow(fieldView.overlay,pos,center,'outgoing');
     for(const u of candidates)if(chosen.has(u.id))boardArrow(fieldView.overlay,pos,targetPos(u),draft.clash?'clashing':'outgoing');
     allyPanel.replaceChildren(...(card?[actionPanel(draft.clash?'내 합 카드':'내 행동',card,self,card.image)]:[]));
@@ -2153,7 +2153,7 @@ function battlePanel(){
       const isChosen=targetingTile?center===i:guarding?designated?.pos===i:candidates.some(u=>targetPos(u)===i&&chosen.has(u.id));
       const inspected=unitAt(i);
       tile.classList.toggle('reachable',editable&&canMove(i));
-      tile.classList.toggle('in-range',!!card&&gridCardInRange(card,pos,i)&&!b.walls.includes(i));
+      tile.classList.toggle('in-range',!!card&&gridCardHasReach(card,pos,i,b.walls)&&!b.walls.includes(i));
       tile.classList.toggle('path-cell',path.includes(i));
       tile.classList.toggle('picked',i===pos);
       tile.classList.toggle('targetable',canAimTile||editable&&!!targetUnit);

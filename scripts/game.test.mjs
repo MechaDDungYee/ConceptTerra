@@ -3245,3 +3245,47 @@ test('an explicit interceptor becomes the enemy target on losing the clash',asyn
   assert.equal(result.body.battle.units.find(unit=>unit.id===f.state.me).hp,92);
   assert.equal(result.body.battle.units.find(unit=>unit.id===guest.body.me).hp,100);
 });
+
+test('collector counts actual card uses, applies compound interest, and pauses its fixed deck on negotiation',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0,encounter:'collector01'});
+  assert.equal(livingForm(f,'enemy').hp,340);
+  assert.equal(f.state.battle.intent.card.id,'collectReceipt');
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{baseActions:3,hand:['guard','guard','guard'],shield:0});
+    b.units.enemy.blockedRounds=1;
+  });
+  await f.act('plan',{cards:[{card:'guard'},{card:'guard'},{card:'guard'}]});
+  await f.act('round');
+  assert.equal(livingForm(f).stacks['미수금'],3);
+  configureBattle(f,(b,self)=>{
+    self.stacks['미수금']=1;
+    delete self.stackRuns?.['미수금'];
+    b.units.enemy.blockedRounds=1;
+  });
+  await f.act('plan',{cards:[]});
+  await f.act('round');
+  assert.equal(livingForm(f).stacks['미수금'],0);
+  assert.equal(f.state.battle.encounter.negotiating,true);
+  assert.equal(f.state.battle.intent.reachable,false);
+});
+
+test('collector seizes the highest expected power copy and leaves the duplicate available',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0,encounter:'collector01'});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:['shot','strike','shot','hold'],baseActions:2,stacks:{미수금:4},mind:50});
+    self.library.shot={...self.library.shot,power:'16'};
+    b.units.enemy.pos=18;
+    b.intent={target:self.id,reachable:true,card:{...b.intent.card,id:'collectOverdue',power:'1',range:'1~3',
+      effects:[{when:'hit',kind:'collector:collectOverdue',amount:1,to:'target',condition:''}]}};
+  });
+  await f.act('plan',{cards:[]});
+  await f.act('round');
+  assert.equal(livingForm(f).sealedHighest?.id,'shot',JSON.stringify(f.state.battle.log));
+  assert.equal(livingForm(f).sealedHighest.index,0);
+  const rejected=await f.send(f.endpoint,{action:'plan',revision:f.state.revision,
+    cards:[{card:'shot',targets:['enemy']},{card:'shot',targets:['enemy']}]},f.host.cookie);
+  assert.equal(rejected.status,400);
+  await f.act('plan',{card:'shot',targets:['enemy']});
+});

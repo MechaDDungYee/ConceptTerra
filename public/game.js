@@ -417,6 +417,7 @@ function stackEffectText(effect){
   return effectTiming(effect)+' · '+effectSentence(effect)+(effect.scaleStack==='count'?' · 보유 중첩 수를 곱함':'');
 }
 function effectSentence(e,extra=[]){
+  if(e.publicLabel)return e.publicLabel;
   if(e.kind==='replaceCard'){
     const cards=effectCards(extra);
     const replacement=cards.find(card=>card.id===e.replacementId);
@@ -1651,7 +1652,7 @@ function startPanel(){
     bots.value=String(Math.min(old,max));
   };
   solo.onchange=refresh;refresh();bots.value=String(4-state.roster.length-Number(solo.checked));
-  const encounter=select('encounter',[['','객차 연습 전투'],['stop01','첫 정류장 · 불 꺼진 제6국 외곽 막다른 골목']],'');
+  const encounter=select('encounter',[['','객차 연습 전투'],['stop01','첫 정류장 · 불 꺼진 제6국 외곽 막다른 골목'],['collector01','외상 장부의 수금원 · 잿빛 세관 창고']],'');
   form.append(field('조우 선택',encounter),field('내 캐릭터로 혼자 연습',solo,'inline'),field('자동 행동 봇 동료',bots),submit('전투 시작'));
   root.append(form,note('봇은 빈 플레이어 자리를 채우고 라운드 처리 시 이동·공격·합·원호를 자동 선택합니다.'));
   return root;
@@ -1780,14 +1781,19 @@ function battlePanel(){
   const fieldView=battleGrid(b,self);
   if(b.phase==='planning'&&target&&foe&&b.intent.reachable)boardArrow(fieldView.overlay,foe.pos,target.pos,'incoming');
   const controls=el('div',undefined,{class:'battle-footer-controls row'});
+  if(self?.sealedHighest?.round===b.round){
+    const locked=self.hand?.[self.sealedHighest.index];
+    if(locked)controls.append(note('압류 표식 · '+locked.name+' 사본 1장 봉인 · 기대 위력 '+self.sealedHighest.power));
+  }
   if(state.manager&&b.phase==='planning'){
     const advance=button('라운드 진행',()=>send('round'),true);
     advance.disabled=awaiting.length>0;
     controls.append(advance);
   }
   if(state.manager&&b.phase==='finished')controls.append(button('다음 전투 준비',()=>send('reset'),true));
+  if(b.encounter?.negotiating)controls.append(note('협상 파훼 · 수금원 공격 정지 · 받는 피해 +25%'));
   if(b.outcome){
-    const result=b.outcome.kind==='peace'?'평화 해소':b.outcome.kind==='break'?'강제 격파':'조우 실패';
+    const result=({peace:'평화 해소',break:'강제 격파',paid:'완납',seized:'강제 회수',installment:'분할 납부'})[b.outcome.kind]||'조우 실패';
     controls.append(note(result+(b.outcome.extract?' · 추출 '+b.outcome.extract.total+'/'+b.outcome.extract.need:'')+
       (b.outcome.orb?' · 개념구 획득':'')));
   }
@@ -2090,10 +2096,11 @@ function battlePanel(){
     const others=otherCards();
     const reserved=id=>others.filter(slot=>slot.card===id).length;
     const handCount=id=>self.hand.filter(card=>card.id===id).length;
+    const playableCount=id=>handCount(id)-Number(self.sealedHighest?.round===b.round&&self.sealedHighest.id===id);
     for(const control of handRows.children){
       const id=control.dataset.card,choice=self.hand.find(card=>card.id===id);
       control.setAttribute('aria-pressed',String(id===(editable?draft.card:draft.card||'')));
-      control.disabled=!editable||!!id&&(!actionLimit||!cardUsable(self,choice)||reserved(id)>=handCount(id));
+      control.disabled=!editable||!!id&&(!actionLimit||!cardUsable(self,choice)||reserved(id)>=playableCount(id));
     }
     queueSlots.forEach((button,index)=>{
       const name=self.hand.find(card=>card.id===slots[index].card)?.name;
@@ -2181,7 +2188,7 @@ function battlePanel(){
       if(!slot.card)return false;
       const choice=self.hand.find(card=>card.id===slot.card);
       if(!cardUsable(self,choice))return true;
-      if(choices.filter(other=>other.card===slot.card).length>handCount(slot.card))return true;
+      if(choices.filter(other=>other.card===slot.card).length>playableCount(slot.card))return true;
       if(choice.effects.some(effect=>effect.kind==='copyChosen')&&
         (!slot.copyId||handCount(slot.copyId)<=choices.slice(0,index+1).filter(other=>other.card===slot.copyId).length))return true;
       if(choice.target==='tile')return !legalTile(choice,slot.targetTile);

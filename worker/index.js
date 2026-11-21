@@ -50,10 +50,11 @@ async function roomState(db, room, memberId, headers) {
 
 async function readInput(request,large=false) {
   const body = await request.text();
-  if (body.length > (large ? maxCardFileBytes+500 : 48000)) throw new Error('too large');
+  if (body.length > (large ? Math.max(maxCardFileBytes+500,1250000) : 48000)) throw new Error('too large');
   const value = JSON.parse(body);
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('invalid body');
-  if(body.length>48000&&!['cardImport','passiveImport','characterImport'].includes(value.action))throw new Error('too large');
+  if(body.length>48000&&!['cardImport','passiveImport','characterImport','importSave'].includes(value.action))throw new Error('too large');
+  if(value.action!=='importSave'&&body.length>maxCardFileBytes+500)throw new Error('too large');
   return value;
 }
 

@@ -45,7 +45,7 @@ function formFor(action,read){
 }
 function submit(text){return el('button',text,{class:'primary'});}
 async function request(body){
-  const large=['cardImport','passiveImport','characterImport'].includes(body?.action);
+  const large=['cardImport','passiveImport','characterImport','importSave'].includes(body?.action);
   const r=await fetch(endpoint+(large?'?import=1':''),body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const data=await r.json().catch(()=>({}));
   if(!r.ok)throw Object.assign(new Error(data.error||'세션 연결을 확인하세요.'),{status:r.status});
@@ -67,7 +67,7 @@ async function send(action,payload={}){
     if(action==='cardClone')edit=state.editedCardId;
     if(['passive','passiveDelete','passiveTake','passiveClone','passiveImport','characterImport','characterAccountSelect'].includes(action))passiveEdit=null;
 
-    if(['plan','start','round','reset'].includes(action))battleDraft=null;
+    if(['plan','start','round','reset','loadSlot','importSave','loopRevert'].includes(action))battleDraft=null;
     if(released)battleDraft={...released,key:state.battle.round+':'+state.me+(releasedUnit.collapsed?':collapsed':releasedUnit.zero==='crisis'?':crisis':''),card:released.card||'',discard:released.discard||''};
     draftDirty=false;render();
     if(action==='cardClone')panel.querySelector('input[name="name"]')?.focus();
@@ -1589,6 +1589,55 @@ function cards(){
   const layout=group(preview,editor,library,...(studio?[]:[shared]));
   layout.append(cataloguePreview.popup);layout.classList.add('forge');return layout;
 }
+function saveSlotsPanel(){
+  if(!state.manager||studio)return null;
+  const panel=el('details',undefined,{class:'stack campaign-saves'});
+  panel.append(el('summary','캠페인 저장 · 불러오기'));
+  if(state.savedAt)panel.append(note('자동 저장됨 · '+new Date(state.savedAt).toLocaleString()));
+  for(let slot=1;slot<=3;slot++){
+    const saved=state.saveSlots?.find(item=>item.slot===slot);
+    const entry=section(slot+'번 슬롯',note(saved?saved.label+(saved.round?' · '+saved.round+'라운드':'')+
+      ' · '+new Date(saved.updated_at).toLocaleString():'빈 슬롯'));
+    const actions=el('div',undefined,{class:'row'});
+    const write=button('현재 진행 저장',()=>{
+      if(saved&&!window.confirm(slot+'번 저장을 덮어쓸까요?'))return;
+      return send('saveSlot',{slot});
+    });
+    write.disabled=!state.battle&&!state.campaign;
+    actions.append(write);
+    if(saved)actions.append(
+      button('이어하기',()=>{if(window.confirm('현재 진행을 이 저장으로 바꿀까요?'))return send('loadSlot',{slot});}),
+      button('JSON 내보내기',async()=>{
+        try{
+          const file=await request({action:'exportSave',slot});
+          const blob=new Blob([JSON.stringify(file)],{type:'application/json'});
+          const url=URL.createObjectURL(blob);
+          const link=el('a',undefined,{href:url,download:'conceptterra-save-'+code+'-'+slot+'.json'});
+          document.body.append(link);link.click();link.remove();
+          setTimeout(()=>URL.revokeObjectURL(url),1000);
+        }catch(error){errors.textContent=error.message;}
+      }),
+      button('슬롯 삭제',()=>{if(window.confirm(slot+'번 저장을 삭제할까요?'))return send('deleteSlot',{slot});})
+    );
+    entry.append(actions);
+    panel.append(entry);
+  }
+  const inputFile=input(undefined,'','file',{accept:'.json,application/json'});
+  inputFile.hidden=true;
+  inputFile.onchange=async()=>{
+    try{
+      const file=inputFile.files[0];
+      if(!file)return;
+      if(file.size>1250000)throw new Error('저장 파일이 너무 커요.');
+      const data=JSON.parse(await file.text());
+      if(window.confirm('이 파일의 진행으로 현재 진행을 바꿀까요?'))await send('importSave',{file:data});
+    }catch(error){errors.textContent=error.message;}
+    finally{inputFile.value='';}
+  };
+  panel.append(note('JSON 파일은 이 세션의 GM 또는 방장이 같은 방에서 다시 열 수 있어요.'),
+    button('JSON 불러오기',()=>inputFile.click()),inputFile);
+  return panel;
+}
 function trainCheckpoints(){
   const campaign=state.campaign;
   if(!campaign?.checkpoints.length)return null;
@@ -1639,6 +1688,8 @@ function trainCheckpoints(){
 }
 function startPanel(){
   const root=section('빈 객차',note('눈을 뜨자 객차에는 남은 승객들뿐입니다. 존속의 집행체가 열차에 들어옵니다.'));
+  const saves=saveSlotsPanel();
+  if(saves)root.append(saves);
   const train=trainCheckpoints();
   if(train)root.append(train);
   if(!state.manager){root.append(note('GM 또는 방장이 전투를 시작할 때까지 기다려 주세요.'));return root;}
@@ -1805,6 +1856,8 @@ function battlePanel(){
   const menu=el('details',undefined,{class:'battle-menu'});
   const menuItems=el('div');
   menu.append(el('summary','☰ 전투 메뉴'),menuItems);
+  const saves=saveSlotsPanel();
+  if(saves)menuItems.append(saves);
   if(state.manager&&b.phase==='planning'){
     const choices=b.units.filter(u=>!u.enemy&&u.hp>0);
     const settings=formFor('intent',(_,data)=>({target:data.get('target')}));
@@ -2332,7 +2385,7 @@ try{
     try{
       const next=await request();
       if(busy||state!==before)return;
-      if(next.revision!==state.revision||next.collectionRevision!==state.collectionRevision||next.manager!==state.manager||JSON.stringify(next.roster)!==JSON.stringify(state.roster)){
+      if(next.revision!==state.revision||next.collectionRevision!==state.collectionRevision||next.manager!==state.manager||JSON.stringify(next.roster)!==JSON.stringify(state.roster)||JSON.stringify(next.saveSlots)!==JSON.stringify(state.saveSlots)){
         const newRound=next.battle?.round!==state.battle?.round||next.battle?.phase!==state.battle?.phase;
         state=next;
         if(newRound)battleDraft=null;

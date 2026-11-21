@@ -21,6 +21,9 @@ export function localDb(filename = ':memory:') {
   if (!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='local_accounts'").get()) {
     db.exec(readFileSync(new URL('../drizzle/0005_local_accounts.sql', import.meta.url),'utf8'));
   }
+  if (!db.prepare("SELECT name FROM sqlite_master WHERE name='campaign_saves'").get()) {
+    db.exec(readFileSync(new URL('../drizzle/0006_campaign_saves.sql', import.meta.url),'utf8'));
+  }
   return {
     prepare(sql) {
       return {bind(...args) {

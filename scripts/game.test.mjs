@@ -3343,3 +3343,31 @@ test('rail squad rotates independent decks, keeps fighting after a member falls 
   assert.equal(f.state.battle.log.filter(line=>line.startsWith('합 방장')).length,2);
   assert.deepEqual(f.state.battle.intentQueue.map(intent=>intent.card.id),['railBash','railPierce']);
 });
+
+test('campaign slots and authenticated files restore a saved round for the room GM',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'참가 승객'});
+  await f.act('start',{solo:true,bots:0,encounter:'collector01'});
+  await f.act('saveSlot',{slot:1,label:'수금원 직전'});
+  assert.equal(f.state.saveSlots[0].label,'수금원 직전');
+  const file=(await f.send(f.endpoint,{action:'exportSave',slot:1},f.host.cookie)).body;
+  assert.equal(file.format,'conceptterra-campaign-save');
+  assert.equal(file.saveVersion,2);
+  const hidden=await f.send(f.endpoint,{action:'exportSave',slot:1},guest.cookie);
+  assert.equal(hidden.status,403);
+  await f.act('plan',{cards:[]});
+  await f.act('round');
+  assert.equal(f.state.battle.round,2);
+  const revision=f.state.revision;
+  const bad=await f.send(f.endpoint+'?import=1',{action:'importSave',revision,file:{...file,iv:'AAAA'}},f.host.cookie);
+  assert.equal(bad.status,400);
+  await f.act('loadSlot',{slot:1});
+  assert.equal(f.state.battle.round,1);
+  await f.act('deleteSlot',{slot:1});
+  assert.deepEqual(f.state.saveSlots,[]);
+  await f.act('reset');
+  const imported=await f.send(f.endpoint+'?import=1',{action:'importSave',revision:f.state.revision,file},f.host.cookie);
+  assert.equal(imported.status,200,JSON.stringify(imported.body));
+  assert.equal(imported.body.battle.round,1);
+  assert.equal(imported.body.battle.intent.card.id,'collectReceipt');
+});

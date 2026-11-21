@@ -4382,6 +4382,76 @@ function gameView(state,revision,actor,manager,members) {
   }:null;
   return {revision,manager,me:actor,roster:members.filter(m=>m.seat>0),profile:{name:'',country:'제4국',status:'하위층 시민',wall:'',job:'',goal:'',concept:'',stats:[50,50,50,50,50,50],mind:50,cards:[],deck:[],...state.profiles[actor]},defaults:gameCatalogue,battle};
 }
+const gameSaveFormat='conceptterra-campaign-save';
+const gameSaveVersion=2;
+function gameSaveSnapshot(state){
+  const battle=state.battle?structuredClone(state.battle):null;
+  if(battle?.resolving)gameFail('라운드 판정이 끝난 뒤 저장하세요.');
+  if(battle)delete battle.pendingEdits;
+  const party=Object.fromEntries(Object.entries(state.profiles).map(([id,profile])=>[
+    id,{mind:profile.mind,orbs:profile.orbs,guilt:profile.guilt,debt:profile.debt,collapsed:profile.collapsed}
+  ]));
+  return {saveVersion:gameSaveVersion,battle,campaign:state.campaign??null,party};
+}
+function gameLoadSnapshot(state,snapshot,members){
+  if(!snapshot||snapshot.saveVersion!==gameSaveVersion||!snapshot.party)
+    gameFail('이 버전에서는 해당 저장 파일을 열 수 없어요.');
+  const memberIds=new Set(members.map(member=>member.id));
+  if(snapshot.battle&&Object.values(snapshot.battle.units).some(unit=>!unit.bot&&!unit.enemy&&!memberIds.has(unit.id)))
+    gameFail('저장 당시 승객이 이 방에 있어야 전투를 이어갈 수 있어요.');
+  const live=state.campaign, saved=snapshot.campaign;
+  const liveLosses=live?.lostCards||[], savedLosses=saved?.lostCards||[];
+  const mismatch=liveLosses.length!==savedLosses.length||liveLosses.some((entry,index)=>
+    entry.cardId!==savedLosses[index]?.cardId||entry.actor!==savedLosses[index]?.actor||entry.replacedBy!==savedLosses[index]?.replacedBy);
+  if(mismatch&&(liveLosses.length||savedLosses.length))
+    gameFail('이 저장은 현재 소실 장부와 달라 불러올 수 없어요. 열차 책갈피에서 회귀를 사용하세요.');
+  state.battle=snapshot.battle;
+  state.campaign=saved;
+  if(live&&saved){
+    saved.memory??={intel:{}};
+    saved.memory.intel??={};
+    for(const [key,value] of Object.entries(live.memory?.intel||{}))
+      saved.memory.intel[key]=Math.max(saved.memory.intel[key]||0,value);
+  }
+  for(const [id,details] of Object.entries(snapshot.party)){
+    if(!memberIds.has(id))continue;
+    const profile=state.profiles[id]??={cards:[],deck:[]};
+    for(const key of ['mind','orbs','guilt','debt','collapsed']){
+      if(Object.hasOwn(details,key))profile[key]=details[key];
+      else delete profile[key];
+    }
+  }
+}
+function gameSaveBase64(bytes){
+  let value='';
+  for(let offset=0;offset<bytes.length;offset+=8192)value+=String.fromCharCode(...bytes.subarray(offset,offset+8192));
+  return btoa(value);
+}
+const gameSaveBytes=value=>Uint8Array.from(atob(value),character=>character.charCodeAt(0));
+async function gameSaveKey(db,roomCode){
+  let row=await query(db,'SELECT secret FROM campaign_save_keys WHERE room_code = ?',roomCode).first();
+  if(!row){
+    await query(db,'INSERT OR IGNORE INTO campaign_save_keys(room_code,secret) VALUES (?,?)',roomCode,
+      gameSaveBase64(crypto.getRandomValues(new Uint8Array(32)))).run();
+    row=await query(db,'SELECT secret FROM campaign_save_keys WHERE room_code = ?',roomCode).first();
+  }
+  return crypto.subtle.importKey('raw',gameSaveBytes(row.secret),'AES-GCM',false,['encrypt','decrypt']);
+}
+async function gameExportSave(db,roomCode,snapshot){
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const key=await gameSaveKey(db,roomCode);
+  const buffer=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify(snapshot)));
+  return {format:gameSaveFormat,saveVersion:gameSaveVersion,room:roomCode,iv:gameSaveBase64(iv),data:gameSaveBase64(new Uint8Array(buffer))};
+}
+async function gameImportSave(db,roomCode,file){
+  if(file?.format!==gameSaveFormat||file.saveVersion!==gameSaveVersion||file.room!==roomCode||
+    typeof file.iv!=='string'||typeof file.data!=='string')gameFail('이 방에서 만든 현재 버전의 저장 파일을 선택하세요.');
+  try{
+    const key=await gameSaveKey(db,roomCode);
+    const decoded=await crypto.subtle.decrypt({name:'AES-GCM',iv:gameSaveBytes(file.iv)},key,gameSaveBytes(file.data));
+    return JSON.parse(new TextDecoder().decode(decoded));
+  }catch{gameFail('저장 파일을 인증할 수 없어요. 내보낸 파일을 다시 선택하세요.');}
+}
 async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=null,studio=false){
   const {results:members}=await query(db,'SELECT id, name, seat, collection_id, account_collection_id FROM members WHERE room_code = ? ORDER BY seat, joined_at',room.code).all();
   const self=members.find(m=>m.id===actor);
@@ -4461,11 +4531,16 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
   }
   const shares=()=>Object.values(state.cardShares||{}).filter(share=>members.some(member=>member.id===share.owner));
   const passiveShares=()=>Object.values(state.passiveShares||{}).filter(post=>members.some(member=>member.id===post.owner));
+  const readSlots=async()=>manager&&!studio?(await query(db,
+    'SELECT slot,label,updated_at,round FROM campaign_saves WHERE room_code = ? ORDER BY slot',room.code).all()).results:[];
+  let savedSlots=await readSlots();
   const view=(version=revision,collection=ownCollection,editedCardId)=>{
     const data=gameView(state,version,actor,manager,members);
     data.roster=data.roster.map(({id,name,seat})=>({id,name,seat}));
     data.collectionRevision=collection.revision;
     data.campaign=gameCampaignView(state,actor,manager);
+    if(manager&&!studio)data.saveSlots=savedSlots;
+    data.savedAt=state.lastSavedAt;
     data.sharedCards=shares().map(({id,owner,bundle})=>({
       id,owner,author:members.find(member=>member.id===owner).name,card:bundle[0],included:bundle.slice(1).map(card=>card.name)
     }));
@@ -4485,13 +4560,36 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       (source.effects||[]).flatMap(effectStackNames))])];
     data.profile.artSlots=Object.keys(data.profile.art||{});
     delete data.profile.art;
-    if(!studio&&gameActive(b)){
-      data.pendingEdits=Object.values(b.pendingEdits||{}).filter(edit=>manager||edit.actor===actor)
+    if(!studio&&gameActive(state.battle)){
+      data.pendingEdits=Object.values(state.battle.pendingEdits||{}).filter(edit=>manager||edit.actor===actor)
         .map(({id,actor,name,cardNames,passiveNames})=>({id,actor,name,cardNames,passiveNames}));
     }
     return json(manager?data:gamePublicView(data));
   };
   if(!input)return view();
+  if(['saveSlot','loadSlot','deleteSlot','exportSave','importSave'].includes(input.action)){
+    if(!manager||studio)return error('세션의 GM 또는 방장만 저장 파일을 관리할 수 있어요.',403);
+    if(input.action!=='importSave'&&!gameInt(input.slot,1,3))return error('저장 슬롯을 확인하세요.');
+    if(input.action==='exportSave'){
+      const record=await query(db,'SELECT data FROM campaign_saves WHERE room_code = ? AND slot = ?',room.code,input.slot).first();
+      if(!record)return error('이 슬롯에 저장이 없어요.',404);
+      return json(await gameExportSave(db,room.code,JSON.parse(record.data)));
+    }
+    if(input.revision!==revision)return error('다른 창에서 변경되었습니다. 다시 시도하세요.',409);
+    if(input.action==='saveSlot'){
+      if(!state.battle&&!state.campaign)return error('저장할 전투나 열차 기록이 없어요.');
+      const label=gameText(input.label,40)||state.battle?.encounter?.name||'열차 기록';
+      await query(db,'INSERT INTO campaign_saves(room_code,slot,data,label,updated_at,round) VALUES (?,?,?,?,?,?) ON CONFLICT(room_code,slot) DO UPDATE SET data=excluded.data,label=excluded.label,updated_at=excluded.updated_at,round=excluded.round',
+        room.code,input.slot,JSON.stringify(gameSaveSnapshot(state)),label,new Date().toISOString(),state.battle?.round??null).run();
+      savedSlots=await readSlots();
+      return view();
+    }
+    if(input.action==='deleteSlot'){
+      await query(db,'DELETE FROM campaign_saves WHERE room_code = ? AND slot = ?',room.code,input.slot).run();
+      savedSlots=await readSlots();
+      return view();
+    }
+  }
   const collectionEdit=['card','deck','cardClone','cardDelete','cardImport','cardTake','stackCreate','stackEdit'].includes(input.action);
   if(['characterAccountSave','characterAccountSelect'].includes(input.action)&&!account)
     return error('캐릭터 보관함을 사용하려면 ChatGPT로 로그인하세요.',401);
@@ -4723,6 +4821,15 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
         if(!saved.meta.changes)return error('보관함이 다른 화면에서 먼저 변경됐어요. 다시 시도해 주세요.',409);
         return view(revision,{cards,deck,stackNames,stackTraits,revision:ownCollection.revision+1},editedCardId);
       }
+      case 'loadSlot': {
+        const record=await query(db,'SELECT data FROM campaign_saves WHERE room_code = ? AND slot = ?',room.code,input.slot).first();
+        if(!record)gameFail('이 슬롯에 저장이 없어요.');
+        gameLoadSnapshot(state,JSON.parse(record.data),members);
+        break;
+      }
+      case 'importSave':
+        gameLoadSnapshot(state,await gameImportSave(db,room.code,input.file),members);
+        break;
       case 'loopCheckpoint':
         if(!manager||gameActive(b))gameFail('GM만 열차에서 책갈피를 남길 수 있어요.');
         gameCheckpoint(state,null,'manual',gameText(input.label,40));
@@ -4843,6 +4950,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       default:gameFail('알 수 없는 작업이에요.');
     }
   }catch(e){if(e instanceof GameInputError)return error(e.message);throw e;}
+  state.lastSavedAt=new Date().toISOString();
   const serialized=JSON.stringify(state);
   if(serialized.length>900000)return error('방 저장 공간이 가득 찼어요. 이미지 크기를 줄여 주세요.',413);
   const saved=current?

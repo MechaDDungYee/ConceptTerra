@@ -382,7 +382,7 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
   gameValidateFlow(entries);
   const hitFlavors=Array.isArray(input.hitFlavors)?hitPowers.map((_,index)=>gameText(input.hitFlavors[index],180)):[];
   const flavor=gameText(input.flavor,300);
-  return {id,name,...gameVisibility(input,true),unredirectable:input.unredirectable===true,power:hitPowers[0],...(flavor?{flavor}:{}),...(hitFlavors.some(Boolean)?{hitFlavors}:{}),...(hitPowers.length>1?{hitPowers}:{}),...(hitTargets?{hitTargets}:{}),range,...(rangeShape?{rangeShape}:{}),target,...(splash?{splash}:{}),requiredState,clash:!counter&&target!=='tile'&&input.clash===true,unstoppable:!counter&&target!=='tile'&&input.unstoppable===true&&input.clash===true&&!['guard','assist'].includes(input.role)&&target!=='self',role:input.role,cost:input.role==='overload'?bounded(Number(input.cost)||20,10,30):0,notes:gameText(input.notes,300),effects:entries,image};
+  return {id,name,...gameVisibility(input,true),unredirectable:input.unredirectable===true,power:hitPowers[0],...(flavor?{flavor}:{}),...(hitFlavors.some(Boolean)?{hitFlavors}:{}),...(hitPowers.length>1?{hitPowers}:{}),...(hitTargets?{hitTargets}:{}),range,...(rangeShape?{rangeShape}:{}),target,...(splash?{splash}:{}),requiredState,clash:!counter&&target!=='tile'&&input.clash===true,unstoppable:!counter&&target!=='tile'&&input.unstoppable===true&&!['guard','assist'].includes(input.role)&&target!=='self',role:input.role,cost:input.role==='overload'?bounded(Number(input.cost)||20,10,30):0,notes:gameText(input.notes,300),effects:entries,image};
 }
 function gamePassive(input,id=gameId(),owned=[],stack=false){
   const limit=maxPassiveEffects+Number(stack);

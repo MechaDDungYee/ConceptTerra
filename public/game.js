@@ -1581,7 +1581,7 @@ function cards(){
       hit.targetModeField.hidden=hit.targetModeControl.disabled=form.target.disabled||form.target.value==='self';
     }
     for(const control of [form.target,form.clash,form.unstoppable])control.parentElement.hidden=role.value==='counter';
-    form.unstoppable.disabled=['guard','assist','counter'].includes(role.value)||form.target.value==='self'||form.clash.disabled||!form.clash.checked;
+    form.unstoppable.disabled=['guard','assist','counter'].includes(role.value)||form.target.value==='self'||form.target.value==='tile';
   };
   role.onchange=()=>{
     sync();

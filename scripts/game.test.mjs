@@ -3172,3 +3172,35 @@ test('train rewind keeps observation, permanently removes a copy, and requires a
   assert.ok(f.state.campaign.ownDeck.some(card=>card.id===authored));
   assert.equal(f.state.campaign.lostCards.length,2);
 });
+
+test('first stop loads a 225 HP foe and resolves peaceful and brute-force extraction separately',async()=>{
+  for(const peaceful of [true,false]){
+    const f=await fixture();
+    await f.act('start',{solo:true,bots:0,encounter:'stop01'});
+    const {battle}=f.state;
+    assert.equal(livingForm(f,'enemy').hp,225);
+    assert.equal(battle.encounter.deckSize,8);
+    assert.ok([7,15,23,31,39].every(index=>battle.walls.includes(index)));
+    assert.equal(battle.intent.card.id,'stopEye');
+    configureBattle(f,(b,self)=>{
+      self.pos=21;
+      self.mind=40;
+      b.encounter.peaceOpen=peaceful;
+      b.encounter.peace=peaceful?1:0;
+      if(!peaceful)b.units.enemy.hp=0;
+    });
+    await f.act('plan',{pos:21});
+    await f.act('round');
+    assert.equal(f.state.battle.phase,'finished');
+    if(peaceful){
+      assert.equal(f.state.battle.outcome.tier,'puzzleSolved');
+      assert.equal(f.state.battle.outcome.extract,undefined);
+      assert.equal(f.state.profile.mind,100);
+      assert.deepEqual(f.state.profile.orbs,['orbDarkHalo']);
+    }else{
+      assert.equal(f.state.battle.outcome.tier,'bruteKill');
+      assert.equal(f.state.battle.outcome.extract.rolls.length,2);
+      assert.equal(f.state.battle.outcome.extract.need,10);
+    }
+  }
+});

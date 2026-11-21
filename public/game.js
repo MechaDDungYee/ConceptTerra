@@ -1641,7 +1641,7 @@ function startPanel(){
   const train=trainCheckpoints();
   if(train)root.append(train);
   if(!state.manager){root.append(note('GM 또는 방장이 전투를 시작할 때까지 기다려 주세요.'));return root;}
-  const form=formFor('start',(_,data)=>({solo:data.has('solo'),bots:Number(data.get('bots'))}));
+  const form=formFor('start',(_,data)=>({solo:data.has('solo'),bots:Number(data.get('bots')),encounter:data.get('encounter')}));
   const solo=input('solo','1','checkbox',{checked:!state.roster.length,disabled:!!state.roster.length});
   const bots=select('bots',[],0);
   const refresh=()=>{
@@ -1651,7 +1651,8 @@ function startPanel(){
     bots.value=String(Math.min(old,max));
   };
   solo.onchange=refresh;refresh();bots.value=String(4-state.roster.length-Number(solo.checked));
-  form.append(field('내 캐릭터로 혼자 연습',solo,'inline'),field('자동 행동 봇 동료',bots),submit('연습 전투 시작'));
+  const encounter=select('encounter',[['','객차 연습 전투'],['stop01','첫 정류장 · 불 꺼진 제6국 외곽 막다른 골목']],'');
+  form.append(field('조우 선택',encounter),field('내 캐릭터로 혼자 연습',solo,'inline'),field('자동 행동 봇 동료',bots),submit('전투 시작'));
   root.append(form,note('봇은 빈 플레이어 자리를 채우고 라운드 처리 시 이동·공격·합·원호를 자동 선택합니다.'));
   return root;
 }
@@ -1745,7 +1746,8 @@ function battleGrid(b,self){
     const {x,y}=gridPoint(i), wall=b.walls.includes(i);
     const unit=b.units.find(u=>u.pos===i&&u.hp>0)||b.units.find(u=>u.pos===i&&!u.hp);
     const tile=el('button',undefined,{type:'button'});
-    tile.className='battle-cell'+(wall?' wall':'');
+    tile.className='battle-cell'+(wall?' wall':'')+(b.zones?.includes(i)?' sanctuary-zone':'');
+    if(b.zones?.includes(i))tile.title=i===22?'성역':'포근한 광배';
     tile.setAttribute('aria-label',`${x+1}열 ${y+1}행${wall?' · 벽':unit?' · '+unit.name:''}`);
     tile.append(el('small',String.fromCharCode(65+x)+(y+1),{class:'coordinate'}));
     if(unit){
@@ -1784,6 +1786,11 @@ function battlePanel(){
     controls.append(advance);
   }
   if(state.manager&&b.phase==='finished')controls.append(button('다음 전투 준비',()=>send('reset'),true));
+  if(b.outcome){
+    const result=b.outcome.kind==='peace'?'평화 해소':b.outcome.kind==='break'?'강제 격파':'조우 실패';
+    controls.append(note(result+(b.outcome.extract?' · 추출 '+b.outcome.extract.total+'/'+b.outcome.extract.need:'')+
+      (b.outcome.orb?' · 개념구 획득':'')));
+  }
   const menu=el('details',undefined,{class:'battle-menu'});
   const menuItems=el('div');
   menu.append(el('summary','☰ 전투 메뉴'),menuItems);
@@ -1803,7 +1810,7 @@ function battlePanel(){
   const board=el('section',undefined,{class:'battle-dummy'});
   const topbar=el('div',undefined,{class:'battle-topbar'});
   const heading=el('div');
-  heading.append(el('p','빈 객차',{class:'tag'}),el('h2',b.phase==='finished'?'전투 '+b.result:'라운드 '+b.round));
+  heading.append(el('p',b.encounter?.name||'빈 객차',{class:'tag'}),el('h2',b.phase==='finished'?'전투 '+b.result:'라운드 '+b.round));
   const meters=el('div',undefined,{class:'battle-meters'});
   if(self)meters.append(el('span','체력 '+self.hp+'/'+self.maxHp),el('span','정신력 '+self.mind+'/100'),el('span','위력 '+signed(mentalPower(self.mind)+(self.awakening?awakeningPower:0))));
   if(self)meters.append(el('span','행동량 '+(self.actionLimit??baseActions)));

@@ -3900,3 +3900,23 @@ test('independent stack effects grant and spend one axis without changing the ot
     assert.equal(unit.stackRuns['시험 축'].reduce((sum,run)=>sum+run.count*run.power,0),power);
   }
 });
+
+test('dialogue is shared in order before battle and standing art is available to room members',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'동료'});
+  await f.act('profile',{name:'승객',country:'제4국',status:'하위층 시민',stats:[50,50,50,50,50,50]});
+  await f.act('art',{slot:'normal.idle',image:'data:image/png;base64,iVBORw0KGgo='});
+  await f.act('dialogue',{message:'첫 대사\n두 번째 줄'});
+  assert.equal(f.state.battle,null);
+  assert.equal(f.state.dialogue[0].name,'승객');
+  assert.equal(f.state.dialogue[0].artVersion,1);
+  const view=await f.send(f.endpoint,undefined,guest.cookie);
+  assert.equal(view.body.dialogue[0].message,'첫 대사\n두 번째 줄');
+  const reply=await f.send(f.endpoint,{action:'dialogue',revision:view.body.revision,message:'응답'},guest.cookie);
+  assert.equal(reply.status,200);
+  assert.equal(reply.body.dialogue.length,2);
+  assert.ok(reply.body.dialogue[0].at<=reply.body.dialogue[1].at);
+  const art=await worker.fetch(new Request('https://game.test'+f.endpoint+'?unit='+f.state.me+'&art=normal.idle',{headers:{Cookie:guest.cookie}}),{DB:f.DB});
+  assert.equal(art.status,200);
+  assert.equal(art.headers.get('content-type'),'image/png');
+});

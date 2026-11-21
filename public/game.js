@@ -10,6 +10,7 @@ document.querySelector('#back').href=studio?'/':'/room/'+code;
 if(studio){
   document.querySelector('#back').textContent='← 로비로';
   document.querySelector('[data-tab="battle"]').remove();
+  document.querySelector('[data-tab="dialogue"]').remove();
   document.querySelector('.game-title h1').textContent='개인 제작실';
   document.querySelector('.game-title .tag').textContent='CONCEPTTERRA / STUDIO';
   document.title='개인 제작실 · 콘셉트테라 TRPG';
@@ -57,7 +58,13 @@ async function send(action,payload={}){
   try{
     const releasedUnit=action==='unplan'?state.battle?.units.find(u=>u.id===state.me):null;
     const released=releasedUnit?.plan;
-    state=await request({action,revision:state.revision,collectionRevision:state.collectionRevision,...payload});
+    const submitAction=()=>request({action,revision:state.revision,collectionRevision:state.collectionRevision,...payload});
+    try{state=await submitAction();}
+    catch(error){
+      if(action!=='dialogue'||error.status!==409)throw error;
+      state=await request();
+      state=await submitAction();
+    }
     if(action==='stackCreate'||action==='stackEdit'){
       updateStackControls();
       feedback.textContent=action==='stackCreate'?'중첩을 만들었어요.':'중첩 효과를 저장했어요.';
@@ -70,10 +77,12 @@ async function send(action,payload={}){
 
     if(['plan','start','round','reset','loadSlot','importSave','loopRevert'].includes(action))battleDraft=null;
     if(released)battleDraft={...released,key:state.battle.round+':'+state.me+(releasedUnit.collapsed?':collapsed':releasedUnit.zero==='crisis'?':crisis':''),card:released.card||'',discard:released.discard||''};
-    draftDirty=false;render();
+    if(action!=='dialogue')draftDirty=false;
+    render();
     if(action==='cardClone')panel.querySelector('input[name="name"]')?.focus();
     feedback.textContent={plan:'행동을 확정했어요.',unplan:'행동을 수정할 수 있어요.',round:'라운드 처리를 마쳤어요.',card:'카드 보관함에 저장했어요.',deck:'전투 덱을 저장했어요.',cardClone:'카드 사본을 만들었어요.',cardDelete:'카드를 삭제했어요.',cardShare:'이 방에 카드를 공유했어요.',cardUnshare:'공유를 해제했어요.',cardTake:'공유 카드를 보관함에 가져왔어요.',cardImport:'파일의 카드를 보관함에 가져왔어요.',passive:'패시브를 저장했어요.',passiveClone:'패시브 사본을 만들었어요.',passiveShare:'이 방에 패시브를 공유했어요.',passiveUnshare:'패시브 공유를 해제했어요.',passiveTake:'패시브를 가져왔어요. 장착하면 전투에서 발동해요.',
       characterAccountSave:'계정에 캐릭터를 저장했어요.',characterAccountSelect:'캐릭터를 불러왔어요.',requestEdit:'GM에게 변경 적용을 요청했어요.'}[action]||'반영했어요.';
+    return true;
   }catch(err){
     errors.textContent=err.message;
     if(err.status===409){state=await request().catch(()=>state);if(action==='stackCreate'||action==='stackEdit')updateStackControls();else if(!draftDirty||tab==='battle')render();}
@@ -2462,11 +2471,93 @@ function battleEditControls(){
   }
   return tab==='battle'&&(!state.manager||!pending.length)?null:box;
 }
+
+let dialogue;
+function dialoguePanel(){
+  if(!dialogue){
+    const stage=el('div',undefined,{class:'dialogue-stage'});
+    const portraits=el('div',undefined,{class:'dialogue-portraits','aria-hidden':'true'});
+    const speaker=el('strong','대화');
+    const words=el('p','첫 대사를 입력해 이야기를 시작하세요.');
+    const line=el('div',undefined,{class:'dialogue-line','aria-live':'polite'});
+    line.append(speaker,words);
+    stage.append(portraits,line);
+    const message=area('message','',500);
+    message.required=true;
+    message.setAttribute('aria-label','대사');
+    message.placeholder='대사를 입력하세요';
+    const post=submit('대사 보내기');
+    const form=el('form',undefined,{class:'dialogue-input'});
+    form.append(message,post);
+    form.onsubmit=async event=>{
+      event.preventDefault();
+      if(busy||post.disabled||!message.value.trim())return;
+      post.disabled=true;
+      try{
+        if(await send('dialogue',{message:message.value}))message.value='';
+      }finally{post.disabled=false;message.focus();}
+    };
+    const transcript=el('details',undefined,{class:'dialogue-history'});
+    const history=el('ol',undefined,{class:'log'});
+    transcript.append(el('summary','대화 기록'),history);
+    const root=section('세션 대화',stage,form,transcript);
+    dialogue={root,portraits,speaker,words,history,actors:new Map(),latest:null};
+  }
+  const {root,portraits,speaker,words,history,actors}=dialogue;
+  const messages=state.dialogue||[];
+  const latest=messages.at(-1);
+  if(!latest||latest.id===dialogue.latest)return root;
+  dialogue.latest=latest.id;
+  const cast=new Map();
+  for(const entry of messages){
+    for(const [id,other] of cast)if(id!==entry.actor&&entry.at-other.at>=10000)cast.delete(id);
+    cast.set(entry.actor,entry);
+  }
+  const previous=new Map([...actors].map(([id,node])=>[id,node.getBoundingClientRect().left]));
+  for(const [id,node] of actors)if(!cast.has(id)){node.remove();actors.delete(id);}
+  const animate=!matchMedia('(prefers-reduced-motion: reduce)').matches;
+  for(const [id,entry] of cast){
+    let node=actors.get(id);
+    if(!node){node=el('div',undefined,{class:'dialogue-actor'});actors.set(id,node);portraits.append(node);}
+    const art=entry.artVersion!=null?artUrl(id,'normal.idle',entry.artVersion):null;
+    if(!node.firstChild||node.dataset.art!==(art||'')||node.dataset.name!==entry.name){
+      const fallback=el('span',Array.from(entry.name)[0]||'?',{class:'dialogue-placeholder'});
+      if(art){
+        const image=el('img',undefined,{src:art,alt:''});
+        image.onerror=()=>image.replaceWith(fallback);
+        node.replaceChildren(image);
+      }else node.replaceChildren(fallback);
+      node.dataset.art=art||'';
+      node.dataset.name=entry.name;
+    }
+    node.classList.toggle('speaking',id===latest.actor);
+  }
+  speaker.textContent=latest.name;
+  words.textContent=latest.message;
+  history.replaceChildren(...messages.map(entry=>{
+    const row=el('li');
+    row.append(el('strong',entry.name),document.createTextNode(' · '+entry.message));
+    return row;
+  }));
+  if(root.isConnected&&animate){
+    for(const [id,node] of actors){
+      const shift=previous.get(id)-node.getBoundingClientRect().left;
+      if(Number.isFinite(shift)&&Math.abs(shift)>1)node.animate([{transform:'translateX('+shift+'px)'},{transform:'translateX(0)'}],{duration:500,easing:'ease'});
+    }
+    actors.get(latest.actor)?.firstElementChild?.animate([{transform:'translateY(0)'},{transform:'translateY(-14px)',offset:0.38},{transform:'translateY(0)'}],{duration:360,easing:'ease-out'});
+  }
+  return root;
+}
 function render(){
   if(!state)return;
   for(const list of panel.querySelectorAll('.card-list-scroll'))cardListPositions.set(list.ariaLabel,list.scrollTop);
   panel.closest('main').classList.toggle('card-studio-page',tab==='cards');
   for(const x of document.querySelectorAll('#tabs button'))x.setAttribute('aria-pressed',String(x.dataset.tab===tab));
+  if(tab==='dialogue'){
+    const root=dialoguePanel();
+    if(root.parentNode!==panel)panel.replaceChildren(root);
+    return;
+  }
   panel.replaceChildren(tab==='battle'?battlePanel():tab==='character'?character():cards());
   if(!studio&&state.battle?.phase==='planning'){
     const editControls=battleEditControls();

@@ -4039,3 +4039,25 @@ test('allies expose the full dossier without an observation requirement',async()
   assert.equal(ally.allyIntel.passives[0].name,'회복 기질');
   assert.equal(ally.allyIntel.mind.managed,true);
 });
+
+test('only a GM can speak as an enemy and participants receive the selected portrait',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'동료'});
+  await f.act('start',{solo:true,bots:0,encounter:'railguard01'});
+  assert.ok(f.state.dialogueFoes.some(unit=>unit.id==='railSniper'));
+  const payload={revision:f.state.revision,speaker:'railSniper',message:'사격 중지'};
+  assert.equal((await f.send(f.endpoint,{action:'dialogue',...payload},guest.cookie)).status,403);
+  const image='data:image/png;base64,iVBORw0KGgo=';
+  assert.equal((await f.send(f.endpoint,{action:'dialogueEnemyArt',...payload,image},guest.cookie)).status,403);
+  await f.act('dialogueEnemyArt',{speaker:'railSniper',image});
+  await f.act('dialogue',{speaker:'railSniper',message:'사격 중지'});
+  await f.act('dialogue',{speaker:'railShield',message:'방벽을 유지하라'});
+  const view=await f.send(f.endpoint,undefined,guest.cookie);
+  assert.equal(view.body.dialogueFoes,undefined);
+  assert.deepEqual(view.body.dialogue.map(entry=>entry.name),['선로 보안반 저격수','선로 보안반 방패병']);
+  assert.notEqual(view.body.dialogue[0].actor,view.body.dialogue[1].actor);
+  const first=view.body.dialogue[0];
+  const response=await worker.fetch(new Request('https://game.test'+f.endpoint+'?'+new URLSearchParams({unit:first.portraitKey,art:'dialogue.enemy'}),{headers:{Cookie:guest.cookie}}),{DB:f.DB});
+  assert.equal(response.status,200);
+  assert.equal(response.headers.get('content-type'),'image/png');
+});

@@ -46,7 +46,7 @@ function formFor(action,read){
 }
 function submit(text){return el('button',text,{class:'primary'});}
 async function request(body){
-  const large=['art','cardImport','passiveImport','characterImport','importSave'].includes(body?.action);
+  const large=['art','dialogueEnemyArt','cardImport','passiveImport','characterImport','importSave'].includes(body?.action);
   const r=await fetch(endpoint+(large?'?import=1':''),body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const data=await r.json().catch(()=>({}));
   if(!r.ok)throw Object.assign(new Error(data.error||'세션 연결을 확인하세요.'),{status:r.status});
@@ -2758,7 +2758,7 @@ function battleEditControls(){
 }
 
 
-function dialogueForm(label,placeholder){
+function dialogueForm(label,placeholder,speaker){
   const message=area('message','',500);
   message.required=true;
   message.setAttribute('aria-label',label);
@@ -2772,7 +2772,7 @@ function dialogueForm(label,placeholder){
     if(busy||post.disabled||!draft.trim())return;
     post.disabled=true;
     try{
-      if(await send('dialogue',{message:draft})&&message.value===draft)message.value='';
+      if(await send('dialogue',{message:draft,...(speaker?.value?{speaker:speaker.value}:{})})&&message.value===draft)message.value='';
     }finally{post.disabled=false;if(form.isConnected)message.focus();}
   };
   return form;
@@ -2812,14 +2812,44 @@ function dialoguePanel(){
     const line=el('div',undefined,{class:'dialogue-line','aria-live':'polite'});
     line.append(speaker,words);
     stage.append(portraits,line);
-    const form=dialogueForm('대사','대사를 입력하세요');
+    const speakerSelect=select('dialogueSpeaker',[],'');
+    const controls=el('div',undefined,{class:'dialogue-gm-controls'});
+    controls.append(searchableSelect('말하는 적',speakerSelect));
+    const portrait=input('dialoguePortrait','','file',{accept:'image/png,image/jpeg,image/webp'});
+    const register=button('적 스탠딩 저장',async()=>{
+      if(!speakerSelect.value||!portrait.files.length)return;
+      const selected=speakerSelect.value;
+      try{
+        const image=await imageData(portrait.files[0],maxPortraitDataLength,maxPortraitSide,.86);
+        if(await send('dialogueEnemyArt',{speaker:selected,image}))portrait.value='';
+      }catch(error){errors.textContent=error.message;}
+    });
+    const portraitControl=el('div',undefined,{class:'row'});
+    portraitControl.append(field('선택한 적의 스탠딩',portrait),register);
+    controls.append(portraitControl);
+    speakerSelect.onchange=()=>{portraitControl.hidden=!speakerSelect.value;};
+    const form=dialogueForm('대사','대사를 입력하세요',speakerSelect);
+    const compose=el('div',undefined,{class:'dialogue-compose'});
+    compose.append(form,controls);
     const transcript=el('details',undefined,{class:'dialogue-history'});
     const history=el('ol',undefined,{class:'log'});
     transcript.append(el('summary','대화 기록'),history);
-    const root=section('세션 대화',stage,form,transcript);
-    dialogue={root,portraits,speaker,words,history,actors:new Map(),latest:null};
+    const root=section('세션 대화',stage,compose,transcript);
+    dialogue={root,portraits,speaker,words,history,controls,speakerSelect,portraitControl,actors:new Map(),latest:null};
   }
   const {root,portraits,speaker,words,history,actors}=dialogue;
+  const {controls,speakerSelect,portraitControl}=dialogue;
+  controls.hidden=!state.manager;
+  const foes=state.manager?state.dialogueFoes||[]:[];
+  const menu=JSON.stringify(foes);
+  if(dialogue.foeMenu!==menu){
+    dialogue.foeMenu=menu;
+    const previous=speakerSelect.value;
+    speakerSelect.replaceChildren(el('option','내 캐릭터 / GM',{value:''}),...foes.map(foe=>el('option',foe.name+(foe.portrait?' · 스탠딩 등록됨':''),{value:foe.id})));
+    speakerSelect.value=foes.some(foe=>foe.id===previous)?previous:'';
+    selectSearches.get(speakerSelect)?.();
+  }
+  portraitControl.hidden=!speakerSelect.value;
   const messages=state.dialogue||[];
   const latest=messages.at(-1);
   if(!latest||latest.id===dialogue.latest)return root;
@@ -2835,7 +2865,8 @@ function dialoguePanel(){
   for(const [id,entry] of cast){
     let node=actors.get(id);
     if(!node){node=el('div',undefined,{class:'dialogue-actor'});actors.set(id,node);portraits.append(node);}
-    const art=entry.artVersion!=null?artUrl(id,'normal.idle',entry.artVersion):null;
+    const art=entry.portraitKey?artUrl(entry.portraitKey,'dialogue.enemy',entry.artVersion):
+      entry.enemy?battleArt({id,name:entry.name},'idle'):entry.artVersion!=null?artUrl(id,'normal.idle',entry.artVersion):null;
     if(!node.firstChild||node.dataset.art!==(art||'')||node.dataset.name!==entry.name){
       const fallback=el('span',Array.from(entry.name)[0]||'?',{class:'dialogue-placeholder'});
       if(art){

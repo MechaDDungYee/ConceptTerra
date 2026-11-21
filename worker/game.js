@@ -5546,6 +5546,7 @@ async function gameImportSave(db,roomCode,file){
     return JSON.parse(new TextDecoder().decode(decoded));
   }catch{gameFail('저장 파일을 인증할 수 없어요. 내보낸 파일을 다시 선택하세요.');}
 }
+const gameDialogueFoeKey=(battle,unit)=>[battle.encounter?.id||'practice',unit.id].join(':');
 async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=null,studio=false){
   const {results:members}=await query(db,'SELECT id, name, seat, collection_id, account_collection_id FROM members WHERE room_code = ? ORDER BY seat, joined_at',room.code).all();
   const self=members.find(m=>m.id===actor);
@@ -5581,9 +5582,10 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
   }
   if(artQuery){
     const id=artQuery.get('unit'),slot=artQuery.get('art');
-    const data=Object.hasOwn(state.profiles,id)?state.profiles[id].art?.[slot]:null;
+    const portrait=slot==='dialogue.enemy'&&!studio&&(manager||state.dialogue?.some(entry=>entry.portraitKey===id))?state.enemyDialogueArt?.[id]:null;
+    const data=portrait?.image||(Object.hasOwn(state.profiles,id)?state.profiles[id].art?.[slot]:null);
     const dialogueArt=!studio&&slot==='normal.idle'&&members.some(member=>member.id===id)&&state.dialogue?.some(entry=>entry.actor===id);
-    if(!data||(!b?.units[id]&&id!==actor&&!dialogueArt))return error('일러스트를 찾을 수 없어요.',404);
+    if(!data||(!portrait&&!b?.units[id]&&id!==actor&&!dialogueArt))return error('일러스트를 찾을 수 없어요.',404);
     const [header,body]=data.split(',');
     return new Response(Uint8Array.from(atob(body),char=>char.charCodeAt(0)),{headers:{
       ...baseHeaders,'Content-Type':header.slice(5,header.indexOf(';')),'Cache-Control':'private, max-age=86400'
@@ -5656,7 +5658,13 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
     const known=[...data.defaults,...collection.cards,...(data.profile.passives||[]),...(data.profile.conceptTools||[]),...(data.profile.passiveCards||[])];
     data.profile.stackNames=[...new Set([...collection.stackNames,...known.flatMap(source=>
       (source.effects||[]).flatMap(effectStackNames))])];
-    if(!studio)data.dialogue=state.dialogue||[];
+    if(!studio){
+      data.dialogue=state.dialogue||[];
+      if(manager&&state.battle)data.dialogueFoes=Object.values(state.battle.units).filter(unit=>unit.enemy).map(unit=>{
+        const key=gameDialogueFoeKey(state.battle,unit);
+        return {id:unit.id,name:unit.name,portrait:!!state.enemyDialogueArt?.[key]};
+      });
+    }
     data.profile.artSlots=Object.keys(data.profile.art||{});
     delete data.profile.art;
     if(!studio&&gameActive(state.battle)){
@@ -5698,14 +5706,31 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
   const profile=state.profiles[actor]??={cards:[],deck:[]};
   try{
     switch(input.action){
+      case 'dialogueEnemyArt': {
+        if(studio||!manager)return error('GM만 적 스탠딩을 등록할 수 있어요.',403);
+        const unit=b?.units[input.speaker];
+        if(!unit?.enemy)gameFail('현재 세션의 적을 선택하세요.');
+        gameValidateArt('normal.idle',input.image);
+        const key=gameDialogueFoeKey(b,unit);
+        const portraits=state.enemyDialogueArt??={};
+        portraits[key]={image:input.image,version:(portraits[key]?.version||0)+1};
+        break;
+      }
       case 'dialogue': {
         if(studio)gameFail('세션 안에서 대사를 보낼 수 있어요.');
         const message=gameText(input.message,500);
         if(!message)gameFail('대사를 입력하세요.');
         const previous=state.dialogue||[];
         const at=Math.max(Date.now(),previous.at(-1)?.at||0);
-        state.dialogue=[...previous.slice(-99),{id:gameId(),actor,name:profile.name||self.name,message,at,
-          ...(profile.art?.['normal.idle']?{artVersion:profile.artVersion||0}:{})}];
+        let speaker={actor,name:profile.name||self.name,...(profile.art?.['normal.idle']?{artVersion:profile.artVersion||0}:{})};
+        if(input.speaker){
+          if(!manager)return error('GM만 적으로 대화할 수 있어요.',403);
+          const unit=b?.units[input.speaker];
+          if(!unit?.enemy)gameFail('현재 세션의 적을 선택하세요.');
+          const key=gameDialogueFoeKey(b,unit),portrait=state.enemyDialogueArt?.[key];
+          speaker={actor:'foe:'+key,name:unit.name,enemy:true,...(portrait?.image?{portraitKey:key,artVersion:portrait.version}:{})};
+        }
+        state.dialogue=[...previous.slice(-99),{id:gameId(),...speaker,message,at}];
         break;
       }
       case 'art': {
@@ -6084,7 +6109,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
   }catch(e){if(e instanceof GameInputError)return error(e.message);throw e;}
   state.lastSavedAt=new Date().toISOString();
   const serialized=JSON.stringify(state);
-  if(['art','characterImport','characterAccountSelect'].includes(input.action)&&new TextEncoder().encode(serialized).length>1500000)
+  if(['art','dialogueEnemyArt','characterImport','characterAccountSelect'].includes(input.action)&&new TextEncoder().encode(serialized).length>1500000)
     return error('세션 일러스트 저장 공간이 부족해요. 사용하지 않는 자세를 정리해 주세요.');
   if(serialized.length>900000)return error('방 저장 공간이 가득 찼어요. 이미지 크기를 줄여 주세요.',413);
   const saved=current?

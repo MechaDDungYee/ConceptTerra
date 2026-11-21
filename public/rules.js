@@ -187,7 +187,7 @@ export const ratioBasisAvailable = (basis,when) =>
   basis==='damageDealt'?['hit','damage','critical','noncritical','attackEnd','struck','hurt'].includes(when):
   basis==='cardTotal'?['roll','hit','damage','critical','noncritical','attackEnd','struck','hurt'].includes(when):true;
 
-export const signedEffects = ['critChance','critMultiplier'];
+export const signedEffects = ['critChance','critMultiplier','moveMod'];
 export const temptationLimit = 6;
 export const temptationStrain = 15;
 export const mentalCrisisThreshold = 25;
@@ -401,9 +401,25 @@ export const maxCardHits = 8;
 export const maxCardEffects = 24;
 export const maxPassives = 8;
 export const maxPassiveEffects = 8;
-export const heldStackEffectKinds = ['conceptIncomingCut','critChance','critMultiplier','outgoingDamage','incomingDamage'];
+export const heldStackEffectKinds = ['conceptIncomingCut','critChance','critMultiplier','outgoingDamage','incomingDamage','moveMod','forcedMoveImmune','leaveTrail'];
 // Concept cards grant these traits to their holder for the current battle.
 export const conceptStacks = {
+  '철벽 빗장':{cap:4,flavor:'빗장이 잠기는 소리는 바깥에서도 들렸다.',effects:[
+    {when:'held',kind:'incomingDamage',amount:-15,amountMode:'percent',scaleStack:'count',to:'self'},
+    {when:'held',kind:'outgoingDamage',amount:-15,amountMode:'percent',scaleStack:'count',to:'self'},
+    {when:'held',kind:'moveMod',amount:-1,scaleStack:'count',to:'self'},
+    {when:'held',kind:'forcedMoveImmune',amount:1,to:'self'}
+  ]},
+  '바위 껍질':{cap:4,flavor:'껍질의 돌 틈마다 새 흙이 끼어 있었다.',effects:[
+    {when:'held',kind:'incomingDamage',amount:-18,amountMode:'percent',scaleStack:'count',to:'self'},
+    {when:'held',kind:'outgoingDamage',amount:-25,amountMode:'percent',scaleStack:'count',to:'self'},
+    {when:'held',kind:'forcedMoveImmune',amount:1,to:'self'},
+    {when:'held',kind:'leaveTrail',amount:1,to:'self'}
+  ]},
+  '비축 금화':{cap:6,flavor:'충격을 받을 때마다 금고 안에서 동전이 하나씩 사라졌다.',effects:[
+    {when:'held',kind:'outgoingDamage',amount:-10,amountMode:'percent',scaleStack:'count',to:'self'}
+  ]},
+
   '죄 사함의 광배':{cap:3,effects:[
     {when:'held',kind:'incomingDamage',to:'self',amount:-10,amountMode:'percent',scaleStack:'count'},
     {when:'held',kind:'conceptIncomingCut',to:'self',amount:15},

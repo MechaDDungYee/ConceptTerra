@@ -2536,9 +2536,10 @@ test('arithmetic supports extra terms in effects and comparison operands',async(
 
 test('concept cards are stronger catalogue choices and pay mental cost once on use',async()=>{
   const f=await fixture();
-  const concepts=f.state.defaults.filter(card=>card.concept);
-  assert.equal(concepts.length,10);
-  assert.equal(f.state.profile.conceptStackTraits.length,10);
+  const allConcepts=f.state.defaults.filter(card=>card.concept);
+  assert.equal(allConcepts.length,13);
+  const concepts=allConcepts.filter(card=>!['conceptVaultStart','conceptSnailStart','conceptSafeStart'].includes(card.id));
+  assert.equal(f.state.profile.conceptStackTraits.length,13);
   const {parsePower}=await import('../public/rules.js');
   const average=card=>(card.hitPowers??[card.power]).reduce((sum,value)=>{const power=parsePower(value);return sum+power.bonus+power.count*(power.sides+1)/2;},0);
   const baseline=Math.max(...f.state.defaults.filter(card=>['strike','hold','shot','rush','trace'].includes(card.id)).map(average));
@@ -3434,4 +3435,53 @@ test('bright plaza changes decks, absolves a controlled passenger, and transform
   assert.equal(f.state.battle.outcome.kind,'swallowed');
   assert.ok(f.state.profile.orbs.includes('orbColdLamp'));
   assert.equal(f.state.battle.result,'승리');
+});
+
+test('vault guardian generates an attack, consumes coins, and removes the generated card after use',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    self.pos=18; self.mind=80; self.hand=['conceptSafeStart']; self.deck=[]; self.grave=[];
+    Object.assign(b.units.enemy,{pos:19,hp:999,maxHp:999,blockedRounds:2});
+    b.walls=[];
+  });
+  await f.act('plan',{card:'conceptSafeStart',targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f).stacks['비축 금화'],3);
+  assert.equal(livingForm(f).shield,10);
+  assert.ok(livingForm(f).hand.some(card=>card.id==='conceptSafeStrike'));
+  const before=livingForm(f,'enemy').hp;
+  await f.act('plan',{card:'conceptSafeStrike',targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f).stacks['비축 금화']||0,0);
+  assert.ok(before-livingForm(f,'enemy').hp>=15);
+  assert.ok(!livingForm(f).hand.some(card=>card.id==='conceptSafeStrike'));
+});
+
+test('snail shell leaves a trail and its generated zero-power roll shoves the enemy',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:1});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:17,mind:80,hand:['conceptSnailStart']});
+    Object.assign(b.units.bot0,{pos:18,blockedRounds:2});
+    Object.assign(b.units.enemy,{pos:19,hp:999,maxHp:999,blockedRounds:2});
+    b.walls=[];
+  });
+  await f.act('plan',{card:'conceptSnailStart',targets:['bot0']});
+  await f.act('round');
+  assert.equal(livingForm(f,'bot0').stacks['바위 껍질'],2);
+  assert.equal(livingForm(f,'bot0').shield,16);
+  assert.ok(livingForm(f).hand.some(card=>card.id==='conceptSnailRoll'));
+  configureBattle(f,(b,self)=>{
+    const bot=b.units.bot0;
+    self.pos=18;
+    bot.pos=10;
+    bot.blockedRounds=0;
+    b.plans.bot0={cards:[],pos:11,discard:[]};
+  });
+  await f.act('plan',{card:'conceptSnailRoll',targets:['enemy']});
+  await f.act('round');
+  assert.equal(f.state.battle.tiles[10].source,'bot0');
+  assert.equal(livingForm(f,'enemy').hp,999);
+  assert.equal(livingForm(f,'enemy').pos,21);
 });

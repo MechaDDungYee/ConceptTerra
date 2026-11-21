@@ -433,6 +433,7 @@ function gameUpgradeStackTrait({name,effects,critical,flavor,gainLimits,holdCoun
   if(!critical)return entry;
   return {...entry,effects:[...effects,{when:'held',kind:'critChance',amount:critical,to:'self',scaleStack:'count'}]};
 }
+const gameForcedMoveBlocked=(b,unit)=>unit.immovable||!!gameHeldModifiers(b,unit,null).forcedMoveImmune;
 function gameHeldModifiers(b,unit,opponent){
   const modifiers={};
   for(const [name,trait] of Object.entries(unit.stackTraits||{})){
@@ -559,9 +560,76 @@ const gameConceptPresets=[
   '조우 기록 · 금속 이빨이 두 번 닫혔다. 갑옷에는 작은 구멍들만 남았다. 팔을 들자 구멍 사이로 점선이 이어졌다.',
   '“점선을 따라 뜯으시오.” 포장지에 적힌 문장을 읽는 동안, 사냥개는 이미 그 선의 끝을 물고 있었다.'
 ][index]}));
+
+const defenseEffect=(when,kind,publicLabel,to='target')=>({...gameEffect(when,'defense:'+kind,1,to),publicLabel});
+const defenseGenerate=id=>({...gameEffect('use','giveCard',1,'self'),givenCardId:id});
+const defenseStarts=[
+  {...gamePreset('conceptVaultStart','빗장 잠그기','1d6+4','1~2','normal',1,[
+    gameEffect('hit','shield',14),gameConceptStack('철벽 빗장','target',2),
+    defenseEffect('hit','coverCut','대상 주변 1칸에서 단일 공격 대리 방어 · 대상에게 들어오는 광역 공격 차단'),
+    defenseGenerate('conceptVaultReflect')
+  ],11,false),targetSide:'ally'},
+  {...gamePreset('conceptSnailStart','단단해지기','1d6+2','1~2','normal',1,[
+    gameEffect('hit','shield',16),gameConceptStack('바위 껍질','target',2),
+    defenseEffect('hit','cover','대상 주변 1칸에서 단일 공격 대리 방어'),defenseGenerate('conceptSnailRoll')
+  ],10,false),targetSide:'ally'},
+  gamePreset('conceptSafeStart','돈으로 막기','2d6+3','1~2','normal',1,[
+    gameEffect('use','shield',10,'self'),gameConceptStack('비축 금화','self',3),defenseGenerate('conceptSafeStrike')
+  ],11)
+].map((card,index)=>({...card,concept:true,optional:true,flavor:[
+  '“문은 내가 잠글 테니 당신은 뒤에 서요.”',
+  '조우 기록 · 돌팽이가 지나간 자리에 젖은 진흙 줄이 남았다.',
+  '“금화 한 닢이면 한 대쯤은 막아 드리지요.”'
+][index]}));
+const defenseGenerated=[
+  gamePreset('conceptVaultReflect','충격 반사','2d6+4','1~2','normal',1,[
+    defenseEffect('hit','reflect','자신의 보호막 잔량만큼 고정 피해 · 예고 광역 삭제'),
+    gameEffect('hit','push',2)
+  ],14),
+  gamePreset('conceptSnailRoll','구르기','0','1~3','normal',1,[
+    gameEffect('hit','push',2),
+    defenseEffect('hit','roll','다음 라운드 입히는 피해 −50% · 바위 껍질 4중첩이면 행동 1회 봉쇄')
+  ],14,false),
+  gamePreset('conceptSafeStrike','돈으로 때리기','2d6+5','1~2','normal',1,[
+    defenseEffect('hit','spend','비축 금화 전부 소모 · 개당 고정 피해 5 · 처치 시 절반 올림 환급'),
+    gameEffect('hit','weaken',3)
+  ],15)
+].map((card,index)=>({...card,concept:true,generated:true,flavor:[
+  '조우 기록 · 빗장이 울리자 충격이 들어온 길을 되짚었다.',
+  '돌이 굴러간 뒤에도 땅은 한동안 흔들렸다.',
+  '“이제 계산서를 돌려드릴 차례군요.”'
+][index]}));
+function gameDefenseEffect(b,ctx,unit,kind){
+  const actor=ctx.actor;
+  if(kind==='cover'||kind==='coverCut'){
+    unit.defenseCover=b.round;
+    if(kind==='coverCut')unit.defenseSplashCut=b.round;
+  }else if(kind==='reflect'){
+    gameDamage(b,unit,actor.shield,actor,false,false,true,{kind:'card'});
+    if(b.intent?.attacker===unit.id||unit===b.units.enemy)b.intent.noSplash=true;
+    if(actor.stacks['철벽 빗장']>=4)actor.nextShield=(actor.nextShield||0)+10;
+  }else if(kind==='roll'){
+    unit.defenseWeakenRound=b.round+1;
+    if(actor.stacks['바위 껍질']>=4)unit.defenseSkip=(unit.defenseSkip||0)+1;
+  }else if(kind==='spend'){
+    const tag='비축 금화',count=actor.stacks[tag]||0;
+    gameTakeStacks(actor,tag,count);
+    gameDamage(b,unit,count*5,actor,false,false,true,{kind:'card'});
+    if(!gameAlive(unit)&&count)gameGrantStacks(b,actor,{tag,stackCap:6},Math.ceil(count/2),gameConceptTraits[tag],undefined,actor.id);
+  }
+}
+function gameDefenseRedirect(b,ctx,target){
+  if(ctx.card.unredirectable||ctx.card.splash||ctx.card.target!==1||ctx.card.targetSide==='ally'||ctx.actor.enemy===target.enemy)return target;
+  const guard=Object.values(b.units).find(unit=>unit!==target&&unit.enemy===target.enemy&&
+    gameAlive(unit)&&!unit.blockedRounds&&unit.defenseCover===b.round&&gameDistance(unit,target)<=1);
+  if(!guard)return target;
+  delete guard.defenseCover;
+  gameLog(b,guard.name+' · '+target.name+' 대신 대리 방어');
+  return guard;
+}
 const gameConceptTraits=Object.fromEntries(Object.entries(conceptStacks).map(([name,trait])=>
   [name,{...trait,name,concept:true,effects:trait.effects.map(effect=>({...gameEffect(effect.when,effect.kind,effect.amount,effect.to),...effect}))}]));
-const gameCatalogue=[...gameDefaults,gameCounterPreset,gameCopyPreset,...gameResourcePresets,...gameAwakeningPresets,...gameConceptPresets];
+const gameCatalogue=[...gameDefaults,gameCounterPreset,gameCopyPreset,...gameResourcePresets,...gameAwakeningPresets,...gameConceptPresets,...defenseStarts];
 const darkForgive={...gamePreset('conceptForgive','사면 · 어둠 속의 광배','0','0~3','normal',1,[
   {...gameEffect('hit','shield',14),shieldCap:30,shieldSource:'forgiveHalo'},
   gameEffect('hit','mind',6),gameConceptStack('죄 사함의 광배','target'),
@@ -1472,6 +1540,9 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
     gameLog(b,u.name+' · 취약으로 피해 +'+bonus);
   }
   const hostile=actor.enemy!==u.enemy||actor.collapsed&&actor!==u;
+  const vaultReflect=attack&&amount>0&&hostile&&u.stacks['철벽 빗장']>0&&gameDistance(u,actor)<=1;
+  const goldMitigation=attack&&amount>0&&hostile&&!fixedDamage&&u.stacks['비축 금화']>0;
+  if(goldMitigation)gameTakeStacks(u,'비축 금화',1);
   const bossOutgoing=gameBoss(u),bossIncoming=gameBoss(actor);
   const modified=hostile&&!fixedDamage;
   const outgoing=modified?gameHeldModifiers(b,actor,u):{};
@@ -1505,6 +1576,8 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
       adjusted=defense>=adjusted?0:Math.floor(adjusted/2);
     }else return gameDamage(b,dawn,amount,actor,piercing,attack,fixedDamage,origin);
   }
+  if(goldMitigation)adjusted=Math.floor(adjusted*0.6);
+  if(modified&&actor.defenseWeakenRound===b.round)adjusted=Math.floor(adjusted/2);
   const absorbed=piercing?0:gameRemoveShield(u,adjusted);
   if(collateral){
     const seen=b.encounter.collateralHit??={};
@@ -1547,6 +1620,7 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
   if(gameBrightSafe(b,u)&&u.id!=='conceptDawn'||gameIsBright(b)&&u.enemy&&b.encounter.stage<3&&b.encounter.holder&&gameAlive(b.units[b.encounter.holder]))
     actual=Math.min(actual,u.hp-1);
   u.hp-=actual;
+  if(vaultReflect||goldMitigation)gameDamage(b,actor,3,u,false,false,true,{kind:'stack'});
   if(actual&&gameIsJudge(b)&&u.enemy&&!actor.enemy&&!origin.judgeIndirect){
     const hits=b.encounter.hits??={};
     hits[actor.id]=(hits[actor.id]||0)+actual;
@@ -1797,6 +1871,14 @@ function gameMove(b,u,goal,limit,approach=false) {
   if(path.length){
     u.pos=path.at(-1);
     b.moved?.add(u.id);
+  }
+  if(path.length){
+    const penalty=path.filter(pos=>b.tiles?.[pos]?.through>=b.round&&b.tiles[pos].source!==u.id).length;
+    if(penalty)u.nextMove=Math.max(-7,u.nextMove-penalty);
+    if(gameHeldModifiers(b,u,null).leaveTrail){
+      b.tiles??={};
+      for(const pos of [origin,...path.slice(0,-1)])b.tiles[pos]={source:u.id,through:b.round+1};
+    }
   }
   if(path.length&&gameIsRail(b)&&!u.enemy&&b.aimLine&&u.railCrossRound!==b.round){
     const line=b.aimLine.index;
@@ -2058,7 +2140,7 @@ const gameNormalCard=card=>card&&!card.concept&&cardState(card.requiredState)===
 function gameCampaignDeck(state,id,collection){
   const campaign=state.campaign;
   const party=campaign?.loopCount?campaign.party.find(unit=>unit.id===id):null;
-  const owned=[...gameCatalogue,...gameUnlockedCards(state.profiles[id]),...collection.cards,...Object.values(campaign?.definitions||{})];
+  const owned=[...gameCatalogue,...defenseGenerated,...gameUnlockedCards(state.profiles[id]),...collection.cards,...Object.values(campaign?.definitions||{})];
   if(!party)return {owned,cards:gameDeck(owned,collection.deck)};
   const cards=party.deck.map(cardId=>owned.find(card=>card.id===cardId));
   if(cards.length!==deckSize||cards.some(card=>!card))gameFail('소실된 덱의 빈자리를 새 카드로 채운 뒤 출발하세요.');
@@ -3061,6 +3143,7 @@ function gameApplyVisibleEffect(b,ctx,when,target,depth,effect,u,applied,consume
     }
   }
   const {actor,card}=ctx;
+  if(effect.kind.startsWith('defense:')){gameDefenseEffect(b,ctx,u,effect.kind.slice(8));return;}
   if(effect.kind.startsWith('bright:')){gameBrightHit(b,ctx,u,effect.kind.slice(7));return;}
   if(effect.kind==='giveCard'&&(u.enemy||!gameAlive(u)||!actor.library[effect.givenCardId]||u.hand.length>=12))return;
   if(stagedPowerEffects.includes(effect.kind)&&ctx.once.has(sourceEffect))return;
@@ -3189,7 +3272,7 @@ function gameApplyVisibleEffect(b,ctx,when,target,depth,effect,u,applied,consume
         gameLog(b,u.name+' · '+effects[effect.kind]);
         break;
       case 'clearRoot':
-        if(u.rooted)u.move=bounded(2+u.nextMove,0,7);
+        if(u.rooted)u.move=bounded(2+u.nextMove+(gameHeldModifiers(b,u,null).moveMod||0),0,7);
         u.rooted=false;u.rootNext=false;
         break;
       case 'collapseResist':
@@ -3502,7 +3585,7 @@ function gameApplyVisibleEffect(b,ctx,when,target,depth,effect,u,applied,consume
       case 'pull': {
         if(actor.id===u.id||!gameAlive(u))break;
         for(let i=0;i<n;i++){
-          if(u.immovable)break;
+          if(gameForcedMoveBlocked(b,u))break;
           const dest=gridDisplacement(actor.pos,u.pos,effect.kind==='pull');
           if(!gridValid(dest)||b.walls.includes(dest)){
             if(ctx.hitResult?.target===u)ctx.hitResult.wall=true;
@@ -3554,7 +3637,7 @@ function gameApplyVisibleEffect(b,ctx,when,target,depth,effect,u,applied,consume
       case 'weaken': u.nextPower=bounded((u.nextPower||0)-n,-999,999);break;
       case 'nextSlow': u.nextMove=Math.max(-7,u.nextMove-n);break;
       case 'retreat': {
-        if(u.immovable)break;
+        if(gameForcedMoveBlocked(b,u))break;
         const other=u===actor?(target&&target!==actor?target:b.units.enemy):actor;
         if(other===u)break;
         const paths=gridPaths(u.pos,Math.min(12,n),gameBlocked(b,u));
@@ -3565,7 +3648,7 @@ function gameApplyVisibleEffect(b,ctx,when,target,depth,effect,u,applied,consume
       }
       case 'swapPosition': {
         const other=u===actor?target:actor;
-        if(other&&u!==other&&!u.immovable&&!other.immovable&&gameAlive(u)&&gameAlive(other)&&gameDistance(u,other)<=n){
+        if(other&&u!==other&&!gameForcedMoveBlocked(b,u)&&!gameForcedMoveBlocked(b,other)&&gameAlive(u)&&gameAlive(other)&&gameDistance(u,other)<=n){
           [u.pos,other.pos]=[other.pos,u.pos];
           gameLog(b,u.name+' ↔ '+other.name+' 자리 교환');
         }
@@ -3668,7 +3751,9 @@ function gameContext(actor,card,targets,moved=0){
   return {actor,card,targets,moved,mod:actor.enemy?0:mentalPower(actor.mind),destination:'grave',replay:false,discarded:0,paidHealth:0,paidMind:0,once:new Set(),effectRecipients:new Map(),scalePayments:new Map()};
 }
 function gameEnemyAction(b,actor,target,card=b.intent.card){
-  const ctx=gameContext(actor,card,[target]);
+  const intent=b.intentQueue?.find(entry=>entry.attacker===actor.id)||b.intent;
+  const effective=card.splash&&(intent?.noSplash||target.defenseSplashCut===b.round)?{...card,splash:null}:card;
+  const ctx=gameContext(actor,effective,[target]);
   if(gameIsRail(b)){
     if(actor.id!=='enemy'&&b.encounter.leaderDownRound<b.round)ctx.mod-=3;
     if(actor.scope?.round===b.round&&actor.scope.target===target.id)ctx.mod+=3;
@@ -3687,7 +3772,7 @@ function gameFinishCard(b,ctx){
   gameTriggers(b,ctx,'end',ctx.targets[0]||ctx.actor);
   gamePassives(b,ctx.actor,'end',ctx.targets[0]||ctx.actor,ctx);
   const u=ctx.actor,id=ctx.originId||ctx.card.id;
-  if(u.enemy||ctx.temporary)return;
+  if(u.enemy||ctx.temporary||u.library[id]?.generated)return;
   if(gameIsBright(b)&&id===darkForgive.id&&b.encounter.stage>=2){
     gamePlaceCards(b,u,'hand',[id]);
     return;
@@ -3731,6 +3816,7 @@ function gameClashEffects(b,left,right){
 function gameStrike(b,ctx,target,roll){
   gamePose(b,ctx.actor,'attack');
   const actor=ctx.actor;
+  if(ctx.card.id==='conceptSnailRoll')roll=0;
   if(ctx.card.id===darkForgive.id&&ctx.card.targetSide==='any'&&target===b.units.enemy)return 0;
   if(target.dodge>0){
     target.dodge--;
@@ -3905,6 +3991,9 @@ function gameHit(b,ctx,roll,intercepted=false){
   };
   const resolveHit=(target,skipReach,replay)=>{
     if(!gameAlive(target)||(!skipReach&&!gameReach(b,ctx.card,ctx.actor,target)))return false;
+    const original=target;
+    if(!replay)target=gameDefenseRedirect(b,ctx,target);
+    skipReach||=target!==original;
     ctx.brokeShield=false;
     ctx.critical=false;
     if(target===ctx.actor||(!ctx.actor.collapsed&&target.enemy===ctx.actor.enemy)){
@@ -4099,6 +4188,7 @@ function gamePrepareAction(b,u,plan,moved){
   if(!plan?.card||!gameCanPlan(u))return;
   const original=u.library[plan.card];
   if(!cardUsable(u,original))return;
+  if(u.defenseSkip>0&&!original.freeAction){u.defenseSkip--;gameLog(b,u.name+' · 구르기로 행동 1회 봉쇄');return;}
   const handIndex=gameHandCardIndex(u,original.id,b.round);
   const temporary=handIndex<0;
   if(temporary&&!original.temporary){
@@ -4191,6 +4281,7 @@ function gamePrepareAction(b,u,plan,moved){
   return ctx;
 }
 function gameEnemyReady(b){
+  if(b.units.enemy.defenseSkip>0)return false;
   if(gameIsBright(b)&&brightScripted.has(b.intent.card.id))return false;
   if(gameIsRail(b)||gameIsFirstStop(b)||gameIsCollector(b)&&b.encounter.breakRound===b.round)return false;
   const enemy=b.units.enemy,target=b.units[b.intent.target];
@@ -4431,6 +4522,7 @@ function gameResolve(b) {
     b.encounter.damage=0;
   }
   gameDeckEffects(b,'turnEnd');
+  if(enemy.defenseSkip>0)enemy.defenseSkip--;
   if(gameIsRail(b)){
     const alive=party.filter(gameAlive);
     const inspection=alive.length>0&&alive.every(unit=>gridPoint(unit.pos).x===2)&&
@@ -4559,6 +4651,7 @@ function gameResolve(b) {
       gameTakeStacks(unit,name,trait.endDecay);
     }
   }
+  if(b.tiles)for(const [pos,tile] of Object.entries(b.tiles))if(tile.through<=b.round)delete b.tiles[pos];
   for(const entity of Object.values(b.units))if(entity.enemy)gameObserve(b,entity,10);
   b.round++;
   gameNext(b);
@@ -4596,7 +4689,7 @@ function gameView(state,revision,actor,manager,members) {
   const battle=b?{round:b.round,phase:b.phase,result:b.result,intent,
     ...(b.intentQueue?{intentQueue:b.intentQueue.map(revealIntent),aimLine:b.aimLine}:{}),
     ...(b.encounter?{encounter:{id:b.encounter.id,name:b.encounter.name,peace:b.encounter.peace,peaceOpen:b.encounter.peaceOpen,
-      deckSize:b.foeDeck.cards.length,subdueOrder:b.encounter.subdueOrder,rank:b.encounter.rank,negotiating:b.encounter.breakRound===b.round,...(gameIsBright(b)&&(manager||b.encounter.stage>1)?{stage:b.encounter.stage}:{})},zones:b.zones,outcome:b.outcome}:{}),log:gameVisibleLog(b.log,manager),walls:b.walls,poses:b.poses||[],
+      deckSize:b.foeDeck.cards.length,subdueOrder:b.encounter.subdueOrder,rank:b.encounter.rank,negotiating:b.encounter.breakRound===b.round,...(gameIsBright(b)&&(manager||b.encounter.stage>1)?{stage:b.encounter.stage}:{})},zones:b.zones,outcome:b.outcome}:{}),log:gameVisibleLog(b.log,manager),walls:b.walls,tiles:b.tiles,poses:b.poses||[],
     awaiting:gameActive(b)?gameAwaiting(b,members).map(u=>u.name):[],clashActor:Object.keys(b.plans||{}).find(id=>gameHasClash(b.plans[id])),
     units:Object.values(b.units).map(({library,hand,deck,grave,exile,cover,effectUsage,passives,cardMarks,configuredDeck,lifeSteal,poisonSources,shieldSlots,queuedShields,activityLocations,locationTags,stackTraits,stackDefinitions,sealedHighest,stackRuns,damageDebt,damageOverTime,delayedStrike,controlledIndex,controlledPower,...unit})=>({
       ...unit,

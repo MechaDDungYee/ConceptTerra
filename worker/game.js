@@ -1,5 +1,5 @@
 import {gridValid, gridSize, gridTileGroups, gridDistance, gridPaths, gridDisplacement, gridCardInRange, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
-import {stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
+import {stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
 class GameInputError extends Error {}
@@ -173,7 +173,15 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
       typeof row.ratioBasis==='string'&&row.ratioBasis.startsWith('card')))gameFail('이 이벤트에서는 사용 대가와 판정 위력을 참조할 수 없어요.');
     if(cardZoneTimings.includes(row?.when)&&['primary','secondary'].includes(row.to))
       gameFail('카드 이동 이벤트의 효과 대상을 확인하세요.');
-    const timed=durationPolicyKinds.includes(row.kind)||!passive&&['struck','hurt'].includes(row.when);
+    const grantsShield=shieldGrantEffects.includes(row.kind);
+    const shieldDuration=grantsShield?(row.shieldDuration??row.duration??0):0;
+    const shieldCap=grantsShield?(row.shieldCap??row.cap??null):null;
+    const shieldSource=grantsShield?gameText(row.shieldSource,40):'';
+    const stackMode=grantsShield?(row.stackMode??'add'):'add';
+    if(grantsShield&&(!gameInt(shieldDuration,0,maxStatusRounds)||shieldCap!==null&&!gameInt(shieldCap,1,999)||
+      !Object.hasOwn(shieldStackModes,stackMode)||row.refreshDuration!=null&&typeof row.refreshDuration!=='boolean'))
+      gameFail('보호막 옵션을 확인하세요.');
+    const timed=grantsShield||durationPolicyKinds.includes(row.kind)||!passive&&['struck','hurt'].includes(row.when);
     const durationPolicy=timed?(row.durationPolicy??'default'):'default';
     const durationCap=timed?(row.durationCap??0):0;
     if(timed&&(!Object.hasOwn(durationPolicies,durationPolicy)||!gameInt(durationCap,0,maxDurationCap)))
@@ -320,10 +328,13 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
     if(row.numberExprs!=null&&(typeof row.numberExprs!=='object'||Array.isArray(row.numberExprs)))gameFail('숫자 설정의 연산을 확인하세요.');
     for(const [key,expr] of Object.entries(row.numberExprs||{})){
       if(!effectNumberBounds(row.kind,key,hitIndex,hitPowers.length,diceCondition))gameFail('연산을 연결할 수 없는 숫자 설정이에요.');
+      if(['shieldDuration','shieldCap'].includes(key)&&!grantsShield)gameFail('보호막 효과에만 연결할 수 있어요.');
       if(key==='durationCap'&&!timed)gameFail('이 효과에는 유지 라운드 상한을 연결할 수 없어요.');
       numberExprs[key]=gameExpression(expr);
     }
     return {...settings,...gainLimits,...(Object.keys(numberExprs).length?{numberExprs}:{}),...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
+      ...(grantsShield?{shieldDuration,shieldCap,stackMode,...(shieldSource?{shieldSource}:{}),
+        ...(row.refreshDuration===false?{refreshDuration:false}:{})}:{}),
       ...(durationPolicy!=='default'?{durationPolicy}:{}),...(durationCap?{durationCap}:{}),
       ...(conditionStackTag?{conditionStackTag}:{}),...(hitIndex?{hitIndex}:{}),...(reactionRounds?{reactionRounds}:{}),
       ...(givenCardId?{givenCardId}:{}),...(conditionCardId?{conditionCardId}:{}),
@@ -744,10 +755,63 @@ function gameAwaken(b,u,recovery){
   delete u.crisisVow;delete u.crisisProofs;delete u.crisisRecoveryBonus;
   gameLog(b,u.name+' · 탈피해 각성 (전투 중 판정 위력 +'+awakeningPower+')');
 }
+function gameShieldSlots(unit){
+  if(unit.shieldSlots?.reduce((total,slot)=>total+slot.amount,0)===unit.shield)return unit.shieldSlots;
+  const temporary=Math.min(unit.shield,unit.temporaryShield||0);
+  return unit.shieldSlots=[
+    ...(temporary?[{key:'legacy:temporary',amount:temporary,through:null,temporary:true}]:[]),
+    ...(unit.shield>temporary?[{key:'legacy',amount:unit.shield-temporary,through:null,temporary:false}]:[])
+  ];
+}
+function gameSyncShield(unit){
+  unit.shieldSlots=unit.shieldSlots.filter(slot=>slot.amount>0);
+  unit.shield=unit.shieldSlots.reduce((sum,slot)=>sum+slot.amount,0);
+  unit.temporaryShield=unit.shieldSlots.reduce((sum,slot)=>sum+(slot.temporary?slot.amount:0),0);
+}
+const gameShieldExpiry=slot=>slot.temporary?-1:slot.through??Infinity;
+function gameGainShield(b,unit,amount,effect={},key='legacy',temporary=false){
+  if(!gameAlive(unit)||amount<=0)return 0;
+  const slots=gameShieldSlots(unit);
+  const source=effect.shieldSource||key;
+  let slot=slots.find(entry=>entry.key===source&&entry.temporary===temporary);
+  const previous=slot?.amount??0;
+  const mode=effect.stackMode||'add';
+  const desired=mode==='max'?Math.max(previous,amount):mode==='replace'?amount:previous+amount;
+  const next=Math.min(effect.shieldCap??999,desired,999-unit.shield+previous);
+  const through=gameRenewThrough(b.round,slot?.through,effect.shieldDuration??0,effect,effect.refreshDuration===false?'ignore':'refresh');
+  if(!slot){
+    slot={key:source,amount:0,through:null,temporary};
+    slots.push(slot);
+  }
+  slot.amount=next;
+  slot.cap=effect.shieldCap??null;
+  if(through!==undefined)slot.through=through;
+  if(slots.length>16){
+    slots.sort((left,right)=>gameShieldExpiry(left)===gameShieldExpiry(right)?0:gameShieldExpiry(left)-gameShieldExpiry(right));
+    const merged=slots.pop();
+    slots.at(-1).amount+=merged.amount;
+    slots.at(-1).cap=null;
+  }
+  gameSyncShield(unit);
+  return Math.max(0,next-previous);
+}
+function gameExpireShields(unit,expired){
+  unit.shieldSlots=gameShieldSlots(unit).filter(slot=>!expired(slot));
+  gameSyncShield(unit);
+}
 function gameRemoveShield(u,n){
+  if(n<=0||!u.shield)return 0;
+  const slots=[...gameShieldSlots(u)].sort((left,right)=>
+    gameShieldExpiry(left)===gameShieldExpiry(right)?0:gameShieldExpiry(left)-gameShieldExpiry(right));
   const removed=Math.min(u.shield,n);
-  u.shield-=removed;
-  u.temporaryShield=Math.max(0,(u.temporaryShield||0)-removed);
+  let remaining=removed;
+  for(const slot of slots){
+    const cut=Math.min(remaining,slot.amount);
+    slot.amount-=cut;
+    remaining-=cut;
+    if(!remaining)break;
+  }
+  gameSyncShield(u);
   return removed;
 }
 const gameBoss=unit=>!!(unit?.boss??(unit?.enemy&&unit.id==='enemy'));
@@ -913,9 +977,7 @@ function gameApplyConversion(b,receiver,output,amount){
     const restored=gameMental(b,receiver,amount);
     if(restored>0)gameLog(b,receiver.name+' · 정신력 '+restored+' 회복');
   }else{
-    const gained=Math.min(amount,999-receiver.shield);
-    receiver.shield+=gained;
-    if(output==='temporaryShield')receiver.temporaryShield=(receiver.temporaryShield||0)+gained;
+    const gained=gameGainShield(b,receiver,amount,{},'conversion:'+output,output==='temporaryShield');
     if(gained)gameLog(b,receiver.name+' · '+(output==='temporaryShield'?'임시 방어막 ':'방어막 ')+gained+' 획득');
   }
 }
@@ -1068,6 +1130,8 @@ function gameNext(b) {
     b.result=gameAlive(enemy)?'패배':'승리';
     for(const unit of Object.values(b.units)){
       delete unit.lifeSteal;
+      delete unit.queuedShields;delete unit.nextShield;
+      if(unit.shield)gameExpireShields(unit,()=>true);
       for(const [name,trait] of Object.entries(unit.stackTraits||{})){
         if(trait.concept)gameWriteStacks(unit,name,[]);
       }
@@ -1100,6 +1164,12 @@ function gameNext(b) {
     gameDeckEffects(b,'battleStart');
     for(const [unit,ids] of opening)gameCardZoneEvents(b,unit,ids,'cardDrawn');
   }else for(const unit of party){
+    for(const queued of unit.queuedShields||[]){
+      const gained=gameGainShield(b,unit,queued.amount,queued.effect,queued.key);
+      if(gained)gameLog(b,unit.name+' · 보호막 '+gained+' 획득');
+    }
+    if(unit.nextShield)gameGainShield(b,unit,unit.nextShield);
+    delete unit.queuedShields;delete unit.nextShield;
     if(gameAlive(unit))gameDraw(unit,Math.max(0,handTarget-unit.hand.length)+(unit.lateDraw||0),b);
     delete unit.lateDraw;
   }
@@ -2057,6 +2127,8 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
     const origin=card.stackCount?{kind:'stack',ongoing:['turnStart','turnEnd'].includes(when),
       sources:gameStackRuns(actor,card.name).map(run=>({dealer:run.dealer,amount:run.count*run.power}))}:
       {kind:card.passive?'passive':'card'};
+    const shieldKey=actor.id+':'+card.id+'#'+card.effects.indexOf(sourceEffect.flowSource||sourceEffect);
+    const gainShield=(unit,amount,temporary=false)=>gameGainShield(b,unit,amount,effect,shieldKey,temporary);
     const damage=(amount,piercing=false,fixed=false)=>gameDamage(b,u,amount,actor,piercing,false,fixed,origin);
     switch(effect.kind) {
       case 'shieldConversion':
@@ -2099,7 +2171,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
       case 'purgeDefense':
       case 'purgeOffense':
         for(const key of gameBuffPurges[effect.kind])delete u[key];
-        if(effect.kind==='purgeDefense')u.shield=u.reduce=0;
+        if(effect.kind==='purgeDefense'){u.shield=u.reduce=0;u.shieldSlots=[];delete u.queuedShields;}
         if(effect.kind==='purgeOffense')for(const name of ['집중','강타'])gameWriteStacks(u,name,[]);
         gameLog(b,u.name+' · '+effects[effect.kind]);
         break;
@@ -2237,7 +2309,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
           if(ally===actor||ally.enemy!==actor.enemy||!gameAlive(ally))continue;
           const benefit=effect.amountMode==='percent'?Math.floor(gameHealthBase(ally,effect.healthBasis)*n/100):n;
           if(effect.kind==='rallyHeal')gameSupportHeal(b,ctx,ally,benefit);
-          else ally.shield=Math.min(999,ally.shield+benefit);
+          else gainShield(ally,benefit);
         }
         break;
       case 'focusClash': u.clashMemory=Math.min(999,(u.clashMemory||0)+n);break;
@@ -2296,7 +2368,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
           if(!remaining)break;
         }
         if(u.damageDebt)u.damageDebt=u.damageDebt.filter(entry=>entry.amount>0);
-        if(effect.kind==='debtShield')u.shield=Math.min(999,u.shield+Math.floor((n-remaining)*(effect.conversion??100)/100));
+        if(effect.kind==='debtShield')gainShield(u,Math.floor((n-remaining)*(effect.conversion??100)/100));
         break;
       }
       case 'delayedStrike':
@@ -2325,7 +2397,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
       case 'riposte': if(ctx.clashDifference===0&&u.enemy!==actor.enemy)damage(n);break;
       case 'shieldPower': ctx.mod+=Math.floor(u.shield*n/100);break;
       case 'gravePower': ctx.mod+=u.grave.length*n;break;
-      case 'shieldGift': if(u!==actor)u.shield+=gameRemoveShield(actor,Math.min(n,999-u.shield));break;
+      case 'shieldGift': if(u!==actor)gainShield(u,gameRemoveShield(actor,Math.min(n,999-u.shield)));break;
       case 'allyHeal': gameSupportHeal(b,ctx,u,n);break;
       case 'lethalGuard': u.lethalGuard=Math.max(u.lethalGuard||0,n);break;
       case 'recoverMindFloor': gameMental(b,u,Math.max(0,n-u.mind));break;
@@ -2340,7 +2412,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
       case 'graveToShield': {
         const cards=u.grave.splice(-n);
         gamePlaceCards(b,u,'exile',cards);
-        u.shield=Math.min(999,u.shield+(effect.perCard??2)*cards.length);
+        gainShield(u,(effect.perCard??2)*cards.length);
         break;
       }
       case 'draw': if(!u.enemy)gameDraw(u,n,b); break;
@@ -2399,7 +2471,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
       case 'damage': damage(n); break;
       case 'percent': damage((ctx.base||0)*n/100); break;
       case 'heal': gameSupportHeal(b,ctx,u,n); break;
-      case 'shield': u.shield=Math.min(999,u.shield+n); break;
+      case 'shield': gainShield(u,n); break;
       case 'reduce': u.reduce=Math.min(999,u.reduce+n); break;
       case 'power': ctx.mod+=n; break;
       case 'movement': if(u.rooted)break;u.move=Math.min(7,u.move+n); if(u===actor&&ctx.goal!==undefined)u.move-=gameMove(b,u,ctx.goal,u.move); break;
@@ -2455,7 +2527,10 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
       case 'drainLife': if(u!==actor)gameHeal(b,actor,damage(n));break;
       case 'healPercent': gameHeal(b,u,Math.floor(u.maxHp*n/100));break;
       case 'healMissing': gameHeal(b,u,Math.floor((u.maxHp-u.hp)*n/100));break;
-      case 'fortify': u.nextShield=Math.min(999,(u.nextShield||0)+n);break;
+      case 'fortify':
+        (u.queuedShields??=[]).push({amount:n,key:shieldKey,effect:{shieldDuration:effect.shieldDuration,durationCap:effect.durationCap,
+          shieldSource:effect.shieldSource,shieldCap:effect.shieldCap,stackMode:effect.stackMode,durationPolicy:effect.durationPolicy,refreshDuration:effect.refreshDuration}});
+        break;
       case 'focus': u.nextPower=bounded((u.nextPower||0)+n,-999,999);break;
       case 'weaken': u.nextPower=bounded((u.nextPower||0)-n,-999,999);break;
       case 'nextSlow': u.nextMove=Math.max(-7,u.nextMove-n);break;
@@ -2543,13 +2618,9 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
       case 'bottomdeck': ctx.destination='deckBottom';break;
       case 'expose': u.expose=Math.min(999,(u.expose||0)+n);break;
       case 'thorns': u.thorns=Math.min(999,(u.thorns||0)+n);break;
-      case 'temporaryShield': {
-        const amount=Math.min(n,999-u.shield);
-        u.shield+=amount;u.temporaryShield=(u.temporaryShield||0)+amount;
-        break;
-      }
+      case 'temporaryShield': gainShield(u,n,true);break;
       case 'stealShield': {
-        if(u!==actor)actor.shield+=gameRemoveShield(u,Math.min(n,999-actor.shield));
+        if(u!==actor)gainShield(actor,gameRemoveShield(u,Math.min(n,999-actor.shield)));
         break;
       }
       case 'guardBreak': u.cover?.splice(0,n);break;
@@ -2566,7 +2637,7 @@ function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
         break;
       }
       case 'cleanseStacks': gameWriteStacks(u,tag,[]);delete u.stacks[tag];break;
-      case 'shieldPerStack': if(ctx.usedPotency)u.shield=Math.min(999,u.shield+ctx.usedPotency*n);break;
+      case 'shieldPerStack': if(ctx.usedPotency)gainShield(u,ctx.usedPotency*n);break;
       case 'shuffleDeck': u.deck=gameShuffle(u.deck);break;
       case 'buryHand': gamePlaceCards(b,u,'deck',u.hand.splice(0,n).reverse(),true);break;
       case 'exileGrave': gamePlaceCards(b,u,'exile',u.grave.splice(-n));break;
@@ -3252,7 +3323,7 @@ function gameResolve(b) {
         gameDamage(b,u,amount,u,true,false,true,{kind:'other',ongoing:true,sources});
       }
     }
-    if(u.temporaryShield)gameRemoveShield(u,u.temporaryShield);
+    if(u.temporaryShield)gameExpireShields(u,slot=>slot.temporary);
     const poison=gamePoisonAmount(u);
     if(poison){
       b.shock={};
@@ -3267,10 +3338,7 @@ function gameResolve(b) {
     if(u.regen&&gameAlive(u)){gameHeal(b,u,u.regen);u.regen--;}
     delete u.dodge;delete u.trueStrike;delete u.stackWard;
     if(u.healCuts)u.healCuts=u.healCuts.filter(entry=>entry.through>b.round);
-    if(u.nextShield&&gameAlive(u)){
-      u.shield=Math.min(999,u.shield+u.nextShield);
-      gameLog(b,u.name+' · 보호막 '+u.nextShield+' 획득');u.nextShield=0;
-    }
+
   }
   for(const u of party){
     if(gameAlive(u)){
@@ -3306,6 +3374,8 @@ function gameResolve(b) {
 
   }
   for(const unit of Object.values(b.units)){
+    if(unit.shieldSlots?.some(slot=>slot.through!=null&&slot.through<=b.round))
+      gameExpireShields(unit,slot=>slot.through!=null&&slot.through<=b.round);
     for(const [kind,status] of Object.entries(unit.mindStatuses||{})){
       if(status.through<=b.round)delete unit.mindStatuses[kind];
     }
@@ -3342,8 +3412,9 @@ function gameView(state,revision,actor,manager,members) {
   const b=state.battle;
   const battle=b?{round:b.round,phase:b.phase,result:b.result,intent:b.intent,log:b.log,walls:b.walls,poses:b.poses||[],
     awaiting:gameActive(b)?gameAwaiting(b,members).map(u=>u.name):[],clashActor:Object.keys(b.plans||{}).find(id=>gameHasClash(b.plans[id])),
-    units:Object.values(b.units).map(({library,hand,deck,grave,exile,cover,effectUsage,passives,cardMarks,configuredDeck,lifeSteal,poisonSources,stackRuns,damageDebt,damageOverTime,delayedStrike,...unit})=>({
+    units:Object.values(b.units).map(({library,hand,deck,grave,exile,cover,effectUsage,passives,cardMarks,configuredDeck,lifeSteal,poisonSources,shieldSlots,queuedShields,stackRuns,damageDebt,damageOverTime,delayedStrike,...unit})=>({
       ...unit,
+      ...(shieldSlots?.length?{shieldSlots:shieldSlots.map(({amount,through,temporary,cap})=>({amount,through,temporary,cap}))}:{}),
       ...(stackRuns?{stackRuns:Object.fromEntries(Object.entries(stackRuns).filter(([,runs])=>runs.some(run=>run.power!==1)).map(([tag,runs])=>[tag,runs.map(({count,power})=>({count,power}))]))}:{}),
       ...(damageDebt?{damageDebt:damageDebt.map(({round,amount})=>({round,amount}))}:{}),
       ...(damageOverTime?{damageOverTime:damageOverTime.map(({through,amount})=>({through,amount}))}:{}),

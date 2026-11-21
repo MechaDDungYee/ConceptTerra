@@ -3043,3 +3043,19 @@ test('round cleanup discards multiple copies and only tops up the remaining hand
   assert.deepEqual(livingForm(f).hand.map(c=>c.id),['guard','hold','shot','rush']);
   assert.equal(livingForm(f).graveCount,2);
 });
+
+test('shield slots honor caps and keep their original expiry when duration refresh is disabled',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'지속 보호막',power:'0',role:'normal',range:'0',target:'self',effects:[
+    {when:'use',kind:'shield',to:'self',amount:5,duration:2,cap:8,shieldSource:'ward',refreshDuration:false}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0});
+  for(const expected of [5,0]){
+    configureBattle(f,(b,self)=>{self.hand=[id];b.units.enemy.blockedRounds=1;});
+    await f.act('plan',{card:id});
+    await f.act('round');
+    assert.equal(livingForm(f).shield,expected);
+  }
+  assert.equal(livingForm(f).shieldSlots,undefined);
+});

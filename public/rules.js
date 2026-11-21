@@ -168,12 +168,14 @@ export const stackGainLimits={
 };
 export const stackGainLimitMax=key=>stackGainLimits[key][1]==='count'?maxStatusStacks:maxStatusStacks*maxStackPotency;
 export const durationPolicies={default:'효과 기본 규칙',ignore:'이미 있으면 갱신 불가',refresh:'새 유지 라운드로 갱신',longest:'기존과 새 유지 시간 중 긴 쪽 적용',extend:'남은 라운드와 새 라운드 합산'};
+export const shieldGrantEffects=['shield','temporaryShield','rallyShield','shieldPerStack','debtShield','graveToShield','fortify','shieldGift','stealShield'];
+export const shieldStackModes={add:'누적',max:'높은 값 유지',replace:'새 값으로 교체'};
 export const durationPolicyKinds=['lifeSteal','shieldConversion','healCut','collapseImmune','mindGuard','mindRecoveryCut','mindRegen','mindBurn','poison','blockAction'];
 export const maxDurationCap=999;
 export function effectNumberBounds(kind,key,hitIndex=0,hitCount=8,dice=false){
   const limits={threshold:[dice?1:0,dice?maxDiceTotal:100],stackCap:[1,maxStatusStacks],stackPower:[1,maxStackPotency],
     stackPowerCap:[1,maxStackPotency],dotRounds:[1,maxStatusRounds],reactionRounds:[0,maxStatusRounds],
-    durationCap:[0,maxDurationCap],deferRounds:[1,maxDeferralRounds],amplifyIndex:[hitIndex+1,hitCount],limitCount:[1,maxEffectActivations],scaleCostAmount:[1,100]};
+    durationCap:[0,maxDurationCap],shieldDuration:[0,maxStatusRounds],shieldCap:[1,999],deferRounds:[1,maxDeferralRounds],amplifyIndex:[hitIndex+1,hitCount],limitCount:[1,maxEffectActivations],scaleCostAmount:[1,100]};
   if(Object.hasOwn(stackGainLimits,key)&&stackGrantEffects.includes(kind))return [1,stackGainLimitMax(key)];
   const settings=effectSettings[kind];
   return Object.hasOwn(limits,key)?limits[key]:settings&&Object.hasOwn(settings,key)?settings[key].slice(2):undefined;

@@ -1923,7 +1923,7 @@ function battleArt(unit,pose,form=unit.collapsed?'concept':unit.zero==='crisis'?
   const slot=[form+'.'+pose,...fallback,form+'.idle','normal.idle'].find(key=>unit.artSlots?.includes(key));
   const sprite=Object.hasOwn(battleSprites,unit.name)?battleSprites[unit.name]:null;
   if(slot)return artUrl(unit.id,slot,unit.artVersion);
-  if(unit.name==='어두운 곳에서 더욱 빛나는')return '/battle-art/dark-halo-standing.png';
+  if(unit.name==='어두운 곳에서 더욱 빛나는')return '/battle-art/dark-halo-standing.png?v=2';
   return sprite?'/battle-art/unit-'+sprite+'.png':null;
 }
 function battleGrid(b,self){
@@ -1960,7 +1960,7 @@ function battleGrid(b,self){
       const title=unit.enemy?'적':unit.id===self?.id?'나':unit.bot?'봇':'아군';
       const token=el('span',undefined,{class:'battle-token'+(unit.enemy?' enemy':'')+(unit.id===self?.id?' self':'')});
       const art=battleArt(unit,unit.ready?'ready':unit.pose||'idle');
-      if(art)token.append(el('img',undefined,{src:art,alt:'',class:'battle-unit-sprite'+(art.startsWith('/battle-art/unit-')?' pixel-sprite':''),draggable:'false'}));
+      if(art)token.append(el('img',undefined,{src:art,alt:'',class:'battle-unit-sprite'+(art.startsWith('/battle-art/unit-')?' pixel-sprite':'')+(art.includes('/dark-halo-standing.png')?' dark-halo-sprite':''),draggable:'false'}));
       else token.append(el('b',unit.collapsed?'개념화':unit.hp?title:'전투 불능',{class:unit.enemy?'enemy-core':''}));
       tokens.set(unit.id,token);
       token.dataset.unitId=unit.id;
@@ -2872,7 +2872,7 @@ function dialoguePanel(){
     if(!node.firstChild||node.dataset.art!==(art||'')||node.dataset.name!==entry.name){
       const fallback=el('span',Array.from(entry.name)[0]||'?',{class:'dialogue-placeholder'});
       if(art){
-        const image=el('img',undefined,{src:art,alt:''});
+        const image=el('img',undefined,{src:art,alt:'',class:art.includes('/dark-halo-standing.png')?'dark-halo-portrait':undefined});
         image.onerror=()=>image.replaceWith(fallback);
         node.replaceChildren(image);
       }else node.replaceChildren(fallback);

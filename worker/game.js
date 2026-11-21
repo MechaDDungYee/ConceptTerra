@@ -241,7 +241,7 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
     if(leech&&(!Object.hasOwn(lifeStealDamageResources,leechResource)||!Object.hasOwn(lifeStealBases,leechBasis)||
       !Object.hasOwn(lifeStealShieldModes,leechShield)||!Object.hasOwn(shieldConversion?shieldConversionOutputs:lifeStealRecoveryResources,leechRecovery)||
       !Object.hasOwn(lifeStealDamageTypes,leechDamage)||!Object.hasOwn(lifeStealVictims,leechVictim)||
-      !Object.hasOwn(lifeStealHealers,leechHeal)&&(!Object.hasOwn(effectRecipients,leechHeal)||['target','primary','secondary','self'].includes(leechHeal))))
+      !Object.hasOwn(lifeStealHealers,leechHeal)&&(!Object.hasOwn(effectRecipients,leechHeal)||['target','primary','secondary','self','keywordHolders'].includes(leechHeal))))
       gameFail('생명력 흡수의 피해 종류와 대상을 확인하세요.');
     const deferral=row.kind==='damageDebt';
     const defaultPercent=deferral||percentageDefaults.includes(row.kind);
@@ -344,7 +344,8 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
       if(key==='durationCap'&&!timed)gameFail('이 효과에는 유지 라운드 상한을 연결할 수 없어요.');
       numberExprs[key]=gameExpression(expr);
     }
-    return {...settings,...gainLimits,...gameVisibility(row),...(Object.keys(numberExprs).length?{numberExprs}:{}),...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
+    const recipientKeyword=row.to==='keywordHolders'?gameFlowTest({...row.recipientKeyword,type:'condition',condition:'keywordOwned'},row,id,owned):null;
+    return {...(recipientKeyword?{recipientKeyword}:{}),...settings,...gainLimits,...gameVisibility(row),...(Object.keys(numberExprs).length?{numberExprs}:{}),...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
       ...(grantsShield?{shieldDuration,shieldCap,stackMode,...(shieldSource?{shieldSource}:{}),
         ...(row.refreshDuration===false?{refreshDuration:false}:{})}:{}),
       ...(durationPolicy!=='default'?{durationPolicy}:{}),...(durationCap?{durationCap}:{}),
@@ -3416,7 +3417,7 @@ function gameKeywordOwned(b,unit,test){
       (test.mode==='any'||gameKeywordMode(effect)===test.mode));
   }).length;
 }
-function gameStackScan(b,ctx,test){
+function gameScanCandidates(b,ctx,test){
   const names=test.names?.split(', ');
   const targets=new Set(ctx.targets?.map(unit=>unit.id)||[]);
   const match=unit=>{
@@ -3430,7 +3431,13 @@ function gameStackScan(b,ctx,test){
       default:return true;
     }
   };
-  const count=Object.values(b.units).filter(unit=>gameAlive(unit)&&match(unit)&&
+  return Object.values(b.units).filter(unit=>gameAlive(unit)&&match(unit));
+}
+function gameKeywordHolders(b,ctx,test){
+  return test?gameScanCandidates(b,ctx,test).filter(unit=>gameKeywordOwned(b,unit,test)>=test.minimum):[];
+}
+function gameStackScan(b,ctx,test){
+  const count=gameScanCandidates(b,ctx,test).filter(unit=>
     (test.condition.startsWith('keywordOwned')?gameKeywordOwned(b,unit,test):test.condition==='keywordScan'?gameKeywordUses(unit,test,b.round):test.metric==='power'?stackPotency(unit,test.tag):unit.stacks[test.tag]||0)>=test.minimum).length;
   if(test.condition==='keywordOwned')return count>0;
   const threshold=test.thresholdExpr?Math.trunc(gameFlowValue(b,ctx,ctx.actor,test.thresholdExpr)):test.threshold;
@@ -3595,7 +3602,7 @@ function gameTriggers(b,ctx,when,target,depth=0,hitIndex=0) {
     }
     let selection=ctx.effectRecipients.get(effect);
     if(!selection){
-      selection={units:gameEffectRecipients(b,actor,effect.to),applied:new Set()};
+      selection={units:effect.to==='keywordHolders'?gameKeywordHolders(b,ctx,effect.recipientKeyword):gameEffectRecipients(b,actor,effect.to),applied:new Set()};
       ctx.effectRecipients.set(effect,selection);
     }
     for(const unit of selection.units){

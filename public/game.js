@@ -2,7 +2,7 @@ import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
 import {accountPanel} from './account.js';
 import {gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridLineOfSight,gridCardInRange,gridCardHasReach,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
-import {maxConceptTools,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTagGroups,maxActivityLocations,characterMaxHp,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
+import {keywordOwnedZones,keywordScanModes,stackScanScopes,maxConceptTools,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTagGroups,maxActivityLocations,characterMaxHp,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
 const studio=location.pathname==='/studio';
 const code=location.pathname.split('/')[2], endpoint=studio?'/api/studio':'/api/rooms/'+code+'/game';
@@ -476,7 +476,7 @@ function effectSentence(e,extra=[]){
     const card=effectCards(extra).find(card=>card.id===e.givenCardId);
     return (effectRecipients[e.to]||'자신')+'에게 「'+(card?.name||'지정 카드')+'」 '+(expression||e.amount)+'장 지급'+(e.limit?' · '+effectLimitPeriods[e.limit.period]+' '+e.limit.count+'회':'');
   }
-  const target=e.to==='target'?(cardZoneTimings.includes(e.when)?'이동한 카드의 주인':'대상'):effectRecipients[e.to];
+  const target=e.to==='keywordHolders'?(e.recipientKeyword?.scope==='named'?e.recipientKeyword.names:stackScanScopes[e.recipientKeyword?.scope||'allies'])+' 중 '+(e.recipientKeyword?.tag||'키워드')+' 카드 보유자':e.to==='target'?(cardZoneTimings.includes(e.when)?'이동한 카드의 주인':'대상'):effectRecipients[e.to];
   const number=expression||(['awakenBody','inscribeMeaning'].includes(e.kind)&&e.perStack?e.amount*e.perStack:e.amount||1);
   if(['lifeSteal','shieldConversion'].includes(e.kind)){
     const shield=e.kind==='shieldConversion';
@@ -575,6 +575,8 @@ function effectConditionText(e,extra=[]){
 function readEffect(row){
   const controls=[...row.querySelectorAll('[name]'),...(row.amountPart?.querySelectorAll('[name]')||[])];
   const {scaleBy,scaleCostMode,scaleCostAmount,scaleHealthBasis,limitPeriod,limitCount,...effect}=Object.fromEntries(controls.map(x=>[x.name,x.type==='number'?Number(x.value):x.value]));
+  if(effect.to==='keywordHolders')effect.recipientKeyword={tag:effect.recipientKeywordTag,scope:effect.recipientKeywordScope,zone:effect.recipientKeywordZone,mode:effect.recipientKeywordMode,minimum:effect.recipientKeywordMinimum,names:effect.recipientKeywordNames};
+  for(const key of Object.keys(effect))if(key.startsWith('recipientKeyword')&&key!=='recipientKeyword')delete effect[key];
   const all=effect.kind==='consume'&&effect.consumeAmount==='all';
   if(all||unnumberedEffects.includes(effect.kind))effect.amount=1;
   if(!effect.ratioBasis||effect.amountMode!=='percent')delete effect.ratioBasis;
@@ -689,7 +691,7 @@ function effectRow(row,refresh,scoped,passive,stack){
     field('피해 출처',select('leechDamage',Object.entries(lifeStealDamageTypes),row.leechDamage||'any')),
     field(shieldConversion?'누구의 방어막이 막을 때?':'누가 피해를 입을 때?',victim),victimNameField,
     field('누구에게 적용할까?',select('leechHeal',[...Object.entries(lifeStealHealers),
-      ...Object.entries(effectRecipients).filter(([key])=>!['target','primary','secondary','self'].includes(key))],row.leechHeal||'dealer')),
+      ...Object.entries(effectRecipients).filter(([key])=>!['target','primary','secondary','self','keywordHolders'].includes(key))],row.leechHeal||'dealer')),
     field(shieldConversion?'변환할 자원':'회복할 자원',output),formulaField,
     unitField('피해 1회당 상한 단위','capMode','fixed'),...mentalFields,
     note(shieldConversion?'방어막이 실제로 막은 피해량을 변환해요.':
@@ -750,6 +752,16 @@ function effectRow(row,refresh,scoped,passive,stack){
   const toOptions=replace?[['self','자신'],['target','원래 대상']]:
     Object.entries(effectRecipients).map(([id,label])=>[id,(passive||['struck','hurt','clash'].includes(row.when))&&id==='target'?'전투 상대':label]);
   const to=select('to',toOptions,row.to||'target');
+  const recipient=row.recipientKeyword||{};
+  const recipientTag=stackSelect(recipient.tag||'',undefined,'recipientKeywordTag');
+  const recipientScope=select('recipientKeywordScope',Object.entries(stackScanScopes),recipient.scope||'allies');
+  const recipientNames=input('recipientKeywordNames',recipient.names||'','text',{placeholder:'이름을 쉼표로 구분'});
+  const recipientNamesField=field('감지할 유닛 이름',recipientNames);
+  const recipientFields=el('div',undefined,{class:'stack'});
+  recipientFields.append(searchableSelect('카드 키워드',recipientTag),field('감지 범위',recipientScope),recipientNamesField,
+    field('카드 위치',select('recipientKeywordZone',Object.entries(keywordOwnedZones),recipient.zone||'active')),
+    field('키워드 처리 방식',select('recipientKeywordMode',Object.entries(keywordScanModes),recipient.mode||'any')),
+    field('유닛당 최소 보유 카드 수',input('recipientKeywordMinimum',recipient.minimum??1,'number',{min:1,max:9999})));
   const targetOption=[...to.options].find(option=>option.value==='target');
   to.title='카드 대상 이외의 자동 대상은 효과 발동 시 전장 전체에서 정해요.';
   const condition=select('condition',Object.entries(effectConditions).filter(([key])=>
@@ -842,6 +854,10 @@ function effectRow(row,refresh,scoped,passive,stack){
     thresholdValue.max=dice?maxDiceTotal:100;
     if(!dice&&Number(thresholdValue.value)>100)thresholdValue.value=100;
     diceHelp.hidden=!dice;
+    recipientFields.hidden=to.value!=='keywordHolders';
+    recipientNamesField.hidden=recipientFields.hidden||recipientScope.value!=='named';
+    recipientNames.required=!recipientNamesField.hidden;
+    recipientTag.required=!recipientFields.hidden;
     const zone=cardZoneTimings.includes(when.value);
     zoneFields.hidden=!zone;
     zoneIdField.hidden=zoneId.disabled=!zone||zoneCard.value!=='specific';
@@ -917,7 +933,7 @@ function effectRow(row,refresh,scoped,passive,stack){
     x.amountPart=partNode;
   }
   fields.append(input('kind',row.kind,'hidden'),when,...(x.amountPart?[]:[amount]),
-    zoneFields,part('대상','target',field(leech?'누가 피해를 줄 때?':replace?'조건을 확인할 대상':'누구에게?',to)),
+    zoneFields,part('대상','target',field(leech?'누가 피해를 줄 때?':replace?'조건을 확인할 대상':'누구에게?',to),recipientFields),
     ...(row.kind==='stack'?[part('중첩 부여','effect',tag)]:[]),
     part('효과 옵션','effect',...replacementFields,...consumeFields,...(row.kind==='giveCard'?[giveField]:[]),
       ...capFields,...ampFields,...shieldFields,...leechFields,...duration,...settings,durationPolicyField,durationCapField,...stackScale,reactionField,...(row.kind==='stack'?[]:[tag]),fixedField),

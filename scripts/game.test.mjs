@@ -3835,3 +3835,26 @@ test('keyword possession detects one holder and counts two distinct holders by z
   await f.act('plan',{cards:[]});await f.act('round');
   assert.equal(livingForm(f).shield,13);
 });
+
+test('keyword-holder effects apply only to qualifying units in the chosen card zone',async()=>{
+  const f=await fixture();
+  await f.act('conceptTool',{tool:{name:'집중 카드 소지자 보호',enabled:true,effects:[
+    {when:'turnStart',kind:'shield',amount:7,to:'keywordHolders',
+      recipientKeyword:{tag:'집중',scope:'allies',zone:'hand',mode:'consume',minimum:1}}
+  ]}});
+  await f.act('start',{solo:true,bots:2});
+  configureBattle(f,b=>{
+    for(const id of ['bot0','bot1']){
+      const bot=b.units[id];
+      bot.library.hold={...bot.library.hold,effects:[{when:'use',kind:'consume',to:'self',amount:1,tag:'집중'}]};
+      bot.blockedRounds=3;
+    }
+    b.units.bot0.hand=['hold','hold','hold','hold'];
+    b.units.bot1.hand=['strike','strike','strike','strike'];
+    b.units.bot1.deck=['hold'];b.units.enemy.blockedRounds=3;
+  });
+  await f.act('plan',{cards:[]});await f.act('round');
+  assert.equal(livingForm(f,'bot0').shield,7);
+  assert.equal(livingForm(f,'bot1').shield,0);
+  assert.equal(livingForm(f).shield,0);
+});

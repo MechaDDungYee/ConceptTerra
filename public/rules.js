@@ -262,6 +262,7 @@ export function applyPowerRatio(power,percent){
   return Math.max(0,Math.trunc(power*(100+percent)/100));
 }
 export const effectRecipients = {
+  keywordHolders:'특정 키워드 카드 보유자',
   target:'카드 대상',primary:'주 대상',secondary:'부 대상 전원',self:'자신',
   allAllies:'아군 전원 (자신 제외)',party:'자신과 아군 전원',
   allBosses:'강적 전원',nearestBoss:'가장 가까운 강적',lowestHpBoss:'현재 체력이 가장 적은 강적',
@@ -626,7 +627,7 @@ export function effectCardReferences(effect){
 }
 
 export function effectStackNames(effect){
-  const names=new Set([effect.tag,effect.conditionStackTag].filter(Boolean));
+  const names=new Set([effect.tag,effect.conditionStackTag,effect.recipientKeyword?.tag].filter(Boolean));
   const read=test=>{
     if(test.type==='condition'&&['stack','stackScan','keywordScan','keywordOwned','keywordOwnedCount'].includes(test.condition)&&test.tag)names.add(test.tag);
     else if(test.type==='gate')test.inputs.forEach(read);

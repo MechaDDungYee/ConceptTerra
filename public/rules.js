@@ -404,6 +404,10 @@ export const maxPassiveEffects = 8;
 export const heldStackEffectKinds = ['conceptIncomingCut','critChance','critMultiplier','outgoingDamage','incomingDamage','moveMod','forcedMoveImmune','leaveTrail'];
 // Concept cards grant these traits to their holder for the current battle.
 export const conceptStacks = {
+  '붉은 소양감':{cap:null,flavor:'손톱이 자랄 때마다 붉은 줄이 더 길어졌다.',effects:[
+    {when:'held',kind:'outgoingDamage',amount:10,amountMode:'percent',scaleStack:'count',to:'self',
+      publicLabel:'중첩당 입히는 피해 +10%, 위력 +1 · 출혈 불사 · 턴 시작 출혈 및 중첩 증가'}
+  ]},
   '충전 과압':{cap:5,flavor:'가라앉지 못한 무게가 깃털 끝에 맺혔다.',effects:[
     {when:'held',kind:'incomingDamage',amount:10,amountMode:'percent',scaleStack:'count',to:'self',publicLabel:'중첩당 받는 피해 +10% · 공격하지 않은 라운드 종료 시 +1'}
   ]},

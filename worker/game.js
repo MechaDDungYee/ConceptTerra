@@ -759,9 +759,103 @@ function gameFieldRound(b,when){
     if(tile?.kind==='spring'&&tile.side===unit.enemy&&gameAlive(unit))gameMental(b,unit,3);
   }
 }
+
+const guestEffect=(when,kind,publicLabel,to='target')=>({...gameEffect(when,'guest:'+kind,1,to),publicLabel});
+const redItch='붉은 소양감';
+const guestStarts=[
+  gamePreset('conceptFleshNails','살덩이 · 붉은 소양감','0','0','normal','self',[
+    guestEffect('use','itch','붉은 소양감 1 획득 또는 현재 중첩 2배','self')
+  ],10,false),
+  gamePreset('conceptBlindJudge','심판 · 눈 먼 천칭의 일격','5d10+18','1~2','normal',1,[
+    guestEffect('hit','verdict','치명타 차단 · 주는 쪽 감소 무시 · 부정 상태당 위력 +4, 최대 +16 · 홀수 주사위 합이면 인접 여파')
+  ],16),
+  gamePreset('conceptGuestStart','이방인 · 소매 안쪽의 필기','2d6+4','1~3','normal',1,[
+    guestEffect('use','rim','인접 아군이 없으면 다음 피격 주사위 상한 절반','self'),
+    guestEffect('hit','replay','직전에 다른 유닛이 적용한 카드 부가 효과 재발동'),
+    defenseGenerate('conceptGuestAgain')
+  ],10)
+].map((card,index)=>({...card,concept:true,optional:true,
+  flavor:['“긁지 말라고 했지. 손톱이 자라지 않는다고는 안 했어.”','천칭 한쪽에 피고의 죄목이 하나씩 올랐다.',
+    '손님은 이름 대신 앞 사람이 쓴 문장을 적어 냈다.'][index]}));
+const guestGenerated={...gamePreset('conceptGuestAgain','이방인 · 이번에는 무엇이 다릅니까','2d6+6','1~3','normal',1,[
+  guestEffect('hit','penalty','대상의 최다 사용 카드에 불리한 재굴림 및 행동 순서 지연'),
+  guestEffect('hit','isolate','아군에게서 멀어지고 다음 라운드까지 근접 지정 면역','self')
+],14),concept:true,generated:true,flavor:'“이번에는 무엇이 다릅니까?”'};
+const replayableGuestEffects=new Set(['shield','heal','mind','drain','poison','weaken','nextSlow','push','pull','stack']);
+function gameItchRound(b,unit,when){
+  const itch=unit.stacks[redItch]||0;
+  if(when==='turnStart'){
+    if(itch){
+      unit.redBleed={power:itch*4,count:Math.max(2,unit.redBleed?.count||0)};
+      unit.stacks[redItch]++;
+    }
+    return;
+  }
+  const bleed=unit.redBleed;
+  if(!bleed)return;
+  gameDamage(b,unit,itch?Math.min(bleed.power,unit.hp-1):bleed.power,b.units[bleed.dealer]||unit,true,false,true,{kind:'stack'});
+  bleed.count=Math.max(itch?1:0,bleed.count-1);
+  if(!bleed.count)delete unit.redBleed;
+}
+function gameItchHit(b,actor,target){
+  const itch=actor.stacks[redItch]||0;
+  if(!itch||!actor.redBleed||actor===target||actor.enemy===target.enemy||!gameAlive(target))return;
+  const amount=Math.ceil(actor.redBleed.power/2);
+  actor.redBleed.power-=amount;
+  target.redBleed={power:(target.redBleed?.power||0)+amount,count:Math.max(itch,target.redBleed?.count||0),dealer:actor.id};
+  gameHeal(b,actor,Math.max(3,amount));
+}
+function gameGuestEffect(b,ctx,unit,kind){
+  const actor=ctx.actor;
+  switch(kind){
+    case 'itch':
+      actor.stackTraits??={};
+      actor.stackTraits[redItch]=gameConceptTraits[redItch];
+      actor.stacks[redItch]=Math.max(1,(actor.stacks[redItch]||0)*2);
+      break;
+    case 'rim':
+      if(!Object.values(b.units).some(other=>other!==actor&&gameAlive(other)&&other.enemy===actor.enemy&&gameDistance(other,actor)<=1))
+        actor.guestRim=b.round+1;
+      break;
+    case 'replay': {
+      if(ctx.guestReplayed)return;
+      const record=b.guestActions?.findLast(entry=>entry.actor!==actor.id&&entry.card!==ctx.card.id);
+      if(!record)return;
+      ctx.guestReplayed=true;
+      for(const effect of record.effects)gameApplyVisibleEffect(b,ctx,'hit',unit,0,{...effect,to:'target'},unit,new Set());
+      gameLog(b,actor.name+' · '+record.effects.length+'개 부가 효과 받아 적음');
+      break;
+    }
+    case 'penalty': {
+      const counts=Object.entries(unit.cardUseCounts||{}).sort((left,right)=>right[1]-left[1]);
+      if(counts.length)unit.guestPenalty={card:counts[0][0],through:b.round+1};
+      break;
+    }
+    case 'isolate': {
+      const allies=Object.values(b.units).filter(other=>other!==actor&&other.enemy===actor.enemy&&gameAlive(other));
+      if(allies.length&&!gameForcedMoveBlocked(b,actor)){
+        const distance=pos=>Math.min(...allies.map(ally=>gridDistance(ally.pos,pos)));
+        const tile=[...gridPaths(actor.pos,1,gameBlocked(b,actor)).keys()].sort((a,c)=>distance(c)-distance(a))[0];
+        gamePosition(b,actor,tile);
+      }
+      actor.guestMelee=b.round+1;
+      break;
+    }
+  }
+}
+function gameRecordGuestAction(b,ctx){
+  if(ctx.guestRecorded||!b.guestActions)return;
+  ctx.guestRecorded=true;
+  b.guestActions.push({actor:ctx.actor.id,card:ctx.card.id,effects:ctx.guestEffects||[]});
+}
+function gameCountCardUse(ctx){
+  const counts=ctx.actor.cardUseCounts??={};
+  if(typeof counts[ctx.card.id]!=='number')counts[ctx.card.id]=0;
+  counts[ctx.card.id]++;
+}
 const gameConceptTraits=Object.fromEntries(Object.entries(conceptStacks).map(([name,trait])=>
   [name,{...trait,name,concept:true,effects:trait.effects.map(effect=>({...gameEffect(effect.when,effect.kind,effect.amount,effect.to),...effect}))}]));
-const gameCatalogue=[...gameDefaults,gameCounterPreset,gameCopyPreset,...gameResourcePresets,...gameAwakeningPresets,...gameConceptPresets,...defenseStarts,...fieldStarts];
+const gameCatalogue=[...gameDefaults,gameCounterPreset,gameCopyPreset,...gameResourcePresets,...gameAwakeningPresets,...gameConceptPresets,...defenseStarts,...fieldStarts,...guestStarts];
 const darkForgive={...gamePreset('conceptForgive','사면 · 어둠 속의 광배','0','0~3','normal',1,[
   {...gameEffect('hit','shield',14),shieldCap:30,shieldSource:'forgiveHalo'},
   gameEffect('hit','mind',6),gameConceptStack('죄 사함의 광배','target'),
@@ -1367,6 +1461,7 @@ const gameCanPlan=u=>gameAlive(u)&&!u.brainwashed&&!u.blockedRounds&&(u.collapse
 const gameDistance=(a,b)=>gridDistance(a.pos,b.pos);
 const gameBattleWalls=(b,unit)=>[...(b.walls||[]),...(b.extraWalls||[]).filter(wall=>!unit||wall.ownerSide!==unit.enemy).map(wall=>wall.index)];
 const gameReach=(b,card,from,to)=>{
+  if(from.enemy!==to.enemy&&to.guestMelee>=b.round&&gridDistance(from.pos,to.pos)<=1)return false;
   if(gameIsRail(b)&&card.id==='railPierce'&&gameRailAim(b,to))
     return gridCardHasReach({...card,range:'1~'+card.range.split('~').at(-1)},from.pos,to.pos,gameBattleWalls(b,from));
   return gridCardHasReach(card,from.pos,to.pos,gameBattleWalls(b,from));
@@ -1679,10 +1774,11 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
   const modified=hostile&&!fixedDamage&&!origin.ignoreReduction;
   const outgoing=modified?gameHeldModifiers(b,actor,u):{};
   const incoming=modified?gameHeldModifiers(b,u,actor):{};
-  const bonuses=modified&&amount>0?[actor.outgoingDamage,u.incomingDamage,outgoing.outgoingDamage,incoming.incomingDamage,
-    bossOutgoing?actor.bossOutgoingDamage:0,bossIncoming?u.bossIncomingDamage:0]:[];
-  const ratios=modified?[actor.outgoingDamagePercent,u.incomingDamagePercent,outgoing.outgoingDamagePercent,incoming.incomingDamagePercent,
-    bossOutgoing?actor.bossOutgoingDamagePercent:0,bossIncoming?u.bossIncomingDamagePercent:0,actor.conceptEntity?-(incoming.conceptIncomingCut||0):0,
+  const outgoingValue=value=>origin.ignoreOutgoingCuts?Math.max(0,value||0):value;
+  const bonuses=modified&&amount>0?[outgoingValue(actor.outgoingDamage),u.incomingDamage,outgoingValue(outgoing.outgoingDamage),incoming.incomingDamage,
+    bossOutgoing?outgoingValue(actor.bossOutgoingDamage):0,bossIncoming?u.bossIncomingDamage:0]:[];
+  const ratios=modified?[outgoingValue(actor.outgoingDamagePercent),u.incomingDamagePercent,outgoingValue(outgoing.outgoingDamagePercent),incoming.incomingDamagePercent,
+    bossOutgoing?outgoingValue(actor.bossOutgoingDamagePercent):0,bossIncoming?u.bossIncomingDamagePercent:0,actor.conceptEntity?-(incoming.conceptIncomingCut||0):0,
     u.enemy&&gameIsCollector(b)&&b.encounter.breakRound===b.round?25:0]:[];
   const sum=values=>values.reduce((total,value)=>total+(value||0),0);
   const base=Math.floor(amount)+bonus;
@@ -1709,7 +1805,7 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
     }else return gameDamage(b,dawn,amount,actor,piercing,attack,fixedDamage,origin);
   }
   if(goldMitigation)adjusted=Math.floor(adjusted*0.6);
-  if(modified&&actor.defenseWeakenRound===b.round)adjusted=Math.floor(adjusted/2);
+  if(modified&&!origin.ignoreOutgoingCuts&&actor.defenseWeakenRound===b.round)adjusted=Math.floor(adjusted/2);
   const absorbed=piercing?0:gameRemoveShield(u,adjusted*(origin.doubleShield?2:1));
   if(collateral){
     const seen=b.encounter.collateralHit??={};
@@ -1919,8 +2015,15 @@ function gameActionPower(b,ctx,opponent){
   const unit=ctx.actor,clash=!!opponent;
   const target=opponent||ctx.targets[0];
   const powers=ctx.card.id==='conceptStitchSeam'?Array(Math.max(1,Math.min(7,target?.stacks['바늘땀']||0))).fill(ctx.card.power):cardHitPowers(ctx.card);
+  const rim=target&&target.guestRim>=b.round;
+  if(rim)delete target.guestRim;
   const rolls=powers.map(gameRollPower);
   gameRerollLow(b,unit,rolls);
+  for(const roll of rolls){
+    if(rim)roll.faces=roll.faces.map(face=>Math.min(face,Math.max(1,Math.floor(roll.sides/2))));
+    if(unit.guestPenalty?.card===ctx.card.id&&unit.guestPenalty.through>=b.round)
+      roll.faces=roll.faces.map(face=>Math.min(face,gameRoll(roll.sides)));
+  }
   ctx.diceRolls=rolls.map(roll=>roll.faces.length?roll.faces.reduce((sum,face)=>sum+face,0):null);
   ctx.rawHitRolls=rolls.map((result,index)=>result.bonus+(ctx.diceRolls[index]??0));
   if(ctx.card.effects.some(effect=>effect.when==='roll'||Object.hasOwn(diceConditions,effect.condition))){
@@ -1943,8 +2046,12 @@ function gameActionPower(b,ctx,opponent){
   if(clash)delete unit.clashMemory;
   const formulas=powers;
   const judgeAxe=gameIsJudge(b)&&ctx.card.id==='judgeAxe';
-  const modifier=ctx.mod+(judgeAxe?Math.max(0,unit.nextPower||0):unit.nextPower||0)+memory+awakening;
-  const percent=(ctx.powerPercent||0)+(unit.nextPowerPercent||0);
+  const blind=ctx.card.id==='conceptBlindJudge';
+  const pending=unit.nextPower||0;
+  const modifier=ctx.mod+(judgeAxe||blind?Math.max(0,pending):pending)+memory+awakening+(unit.stacks[redItch]||0)+
+    (blind&&target?Math.min(16,4*(gameJudgeDebuffKinds(target).length+Number(!!target.redBleed))):0);
+  const nextPercent=unit.nextPowerPercent||0;
+  const percent=(ctx.powerPercent||0)+(blind?Math.max(0,nextPercent):nextPercent);
   const stages={};
   for(const key of stagedPowerEffects.flatMap(kind=>[kind,kind+'Percent'])){
     stages[key]=(ctx[key]||0)+(unit.nextPowerStages?.[key]||0);
@@ -2062,6 +2169,7 @@ function gameNext(b) {
     b.result=!peaceful&&foes.length?'패배':'승리';
     for(const unit of Object.values(b.units)){
       delete unit.lifeSteal;
+      delete unit.redBleed;
       if(gameIsBright(b))delete unit.stacks[brightLight];
       delete unit.queuedShields;delete unit.nextShield;
       if(unit.shield)gameExpireShields(unit,()=>true);
@@ -2133,6 +2241,7 @@ function gameNext(b) {
   }
   gameDeckEffects(b,'turnStart');
   gameFieldRound(b,'turnStart');
+  for(const unit of Object.values(b.units).filter(gameAlive))gameItchRound(b,unit,'turnStart');
   if(!gameIsFirstStop(b)&&!gameIsRail(b))b.intent.reachable=b.intent.reachable&&gameActionLimit(enemy)>0&&
     gameReach(b,b.intent.card,enemy,b.units[b.intent.target]);
   if(!foes.some(gameAlive)||!party.some(gameAlive))gameNext(b);
@@ -2276,7 +2385,7 @@ const gameNormalCard=card=>card&&!card.concept&&cardState(card.requiredState)===
 function gameCampaignDeck(state,id,collection){
   const campaign=state.campaign;
   const party=campaign?.loopCount?campaign.party.find(unit=>unit.id===id):null;
-  const owned=[...gameCatalogue,...defenseGenerated,...fieldGenerated,...gameUnlockedCards(state.profiles[id]),...collection.cards,...Object.values(campaign?.definitions||{})];
+  const owned=[...gameCatalogue,...defenseGenerated,...fieldGenerated,guestGenerated,...gameUnlockedCards(state.profiles[id]),...collection.cards,...Object.values(campaign?.definitions||{})];
   if(!party)return {owned,cards:gameDeck(owned,collection.deck)};
   const cards=party.deck.map(cardId=>owned.find(card=>card.id===cardId));
   if(cards.length!==deckSize||cards.some(card=>!card))gameFail('소실된 덱의 빈자리를 새 카드로 채운 뒤 출발하세요.');
@@ -3279,6 +3388,10 @@ function gameApplyVisibleEffect(b,ctx,when,target,depth,effect,u,applied,consume
     }
   }
   const {actor,card}=ctx;
+  if(b.guestActions&&!ctx.guestReplayed&&!card.passive&&!effect.gmOnly&&['hit','use'].includes(when)&&replayableGuestEffects.has(effect.kind)){
+    (ctx.guestEffects??=[]).push({...effect,condition:'',amountExpr:undefined,numberExprs:undefined});
+  }
+  if(effect.kind.startsWith('guest:')){gameGuestEffect(b,ctx,u,effect.kind.slice(6));return;}
   if(effect.kind.startsWith('field:')){gameFieldEffect(b,ctx,u,effect.kind.slice(6));return;}
   if(effect.kind.startsWith('defense:')){gameDefenseEffect(b,ctx,u,effect.kind.slice(8));return;}
   if(effect.kind.startsWith('bright:')){gameBrightHit(b,ctx,u,effect.kind.slice(7));return;}
@@ -3891,6 +4004,7 @@ function gameEnemyAction(b,actor,target,card=b.intent.card){
   const intent=b.intentQueue?.find(entry=>entry.attacker===actor.id)||b.intent;
   const effective=card.splash&&(intent?.noSplash||target.defenseSplashCut===b.round)?{...card,splash:null}:card;
   const ctx=gameContext(actor,effective,[target]);
+  gameCountCardUse(ctx);
   if(gameIsRail(b)){
     if(actor.id!=='enemy'&&b.encounter.leaderDownRound<b.round)ctx.mod-=3;
     if(actor.scope?.round===b.round&&actor.scope.target===target.id)ctx.mod+=3;
@@ -3906,6 +4020,7 @@ function gameEnemyAction(b,actor,target,card=b.intent.card){
   return ctx;
 }
 function gameFinishCard(b,ctx){
+  gameRecordGuestAction(b,ctx);
   gameTriggers(b,ctx,'end',ctx.targets[0]||ctx.actor);
   gamePassives(b,ctx.actor,'end',ctx.targets[0]||ctx.actor,ctx);
   const u=ctx.actor,id=ctx.originId||ctx.card.id;
@@ -3953,6 +4068,7 @@ function gameClashEffects(b,left,right){
 function gameStrike(b,ctx,target,roll){
   gamePose(b,ctx.actor,'attack');
   const actor=ctx.actor;
+  const blind=ctx.card.id==='conceptBlindJudge';
   if(actor.enemy!==target.enemy)actor.fieldAttackRound=b.round;
   if(ctx.card.id==='conceptSnailRoll')roll=0;
   if(ctx.card.id===darkForgive.id&&ctx.card.targetSide==='any'&&target===b.units.enemy)return 0;
@@ -3968,7 +4084,7 @@ function gameStrike(b,ctx,target,roll){
   if(b.encounter&&b.zones.includes(actor.pos))roll=Math.max(0,roll-3);
   const held=gameHeldModifiers(b,actor,target);
   const chance=bounded((actor.critChance||0)+(actor.critStacks||0)*5+(held.critChance||0)+Math.min(100,stackPotency(actor,'집중')),0,100);
-  ctx.critical=roll>0&&(ctx.fieldCrit!==undefined||actor.critCharges>0||chance>0&&gameRoll(100)<=chance);
+  ctx.critical=!blind&&roll>0&&(ctx.fieldCrit!==undefined||actor.critCharges>0||chance>0&&gameRoll(100)<=chance);
   if(ctx.critical){
     if(actor.critCharges>0&&ctx.fieldCrit===undefined)actor.critCharges--;
     ctx.anyCritical=true;
@@ -3980,7 +4096,7 @@ function gameStrike(b,ctx,target,roll){
   const faces=ctx.card.id==='conceptTrifaceBloom'?gameClosedFaces(b,target):0;
   if(ctx.fieldStraight)roll=Math.floor(roll*1.5);
   if(faces>=3)roll*=faces===4?8:4;
-  const origin={kind:'strike',ignoreReduction:plummet||faces>=3,doubleShield:ctx.card.id==='conceptStitchSeam'};
+  const origin={kind:'strike',ignoreReduction:plummet||faces>=3,doubleShield:ctx.card.id==='conceptStitchSeam',ignoreOutgoingCuts:blind};
   let dealt;
   if(gameIsJudge(b)&&actor.enemy){
     const id=ctx.card.id;
@@ -4011,6 +4127,12 @@ function gameStrike(b,ctx,target,roll){
       }
     }
   }else dealt=gameDamage(b,target,roll,actor,ctx.card.id==='railPierce'||plummet||faces>=3,true,false,origin);
+  if(blind&&ctx.diceRolls?.[(ctx.hitIndex||1)-1]%2===1){
+    for(const near of Object.values(b.units).filter(unit=>unit!==target&&gameAlive(unit)&&gameDistance(unit,target)===1)){
+      gameDamage(b,near,Math.floor(roll*0.3),actor,false,false,false,{kind:'card',ignoreOutgoingCuts:true});
+    }
+  }
+  gameItchHit(b,actor,target);
   const stitches=target.stacks['바늘땀']||0;
   if(stitches&&gameAlive(target)&&actor.enemy!==target.enemy){
     if(ctx.card.id==='conceptStitchSeam'){
@@ -4253,6 +4375,7 @@ function gameUnopposedAttack(b,ctx){
     }
   }
   gameHit(b,ctx,gameActionPower(b,ctx));
+  gameRecordGuestAction(b,ctx);
 }
 function gameCover(b,attacker,target,attackCard=b.intent.card){
   if(attackCard.unredirectable)return false;
@@ -4369,6 +4492,7 @@ function gamePrepareAction(b,u,plan,moved){
   gameCollectorUse(b,u);
   if(card.cost){gameMental(b,u,-card.cost,true);gameLog(b,u.name+(card.concept?' 개념구':card.refill?' 재작성 카드':' 혹사')+' · 정신력 -'+card.cost);}
   const ctx=gameContext(u,card,targets,moved);
+  gameCountCardUse(ctx);
   ctx.waitingPlan=plan;
   waiting?.set(plan,ctx);
   if(card.effects.some(effect=>effect.reactionRounds||effect.numberExprs?.reactionRounds)&&u.library[card.id]===card){
@@ -4525,7 +4649,8 @@ function gameResolveWave(b,contexts,countered){
     gameResolveClash(b,duelist,enemy,target,b.intent.card);
     countered=true;
   }
-  for(const ctx of contexts.filter(c=>!c.done&&!(gameIsRail(b)&&c.clash)&&!['guard','assist','counter'].includes(c.card.role))){
+  const penalized=ctx=>Number(ctx.actor.guestPenalty?.card===ctx.card.id&&ctx.actor.guestPenalty.through>=b.round);
+  for(const ctx of contexts.filter(c=>!c.done&&!(gameIsRail(b)&&c.clash)&&!['guard','assist','counter'].includes(c.card.role)).sort((a,c)=>penalized(a)-penalized(c))){
     if(!gameAlive(ctx.actor))continue;
     if(ctx.actor.collapsed&&ctx.card.target!=='tile')resolveCollapseCard(ctx);
     b.shock={};gameUnopposedAttack(b,ctx);
@@ -4589,6 +4714,7 @@ function gameResolve(b) {
   b.proofs=new Set();
   b.moved=new Set();
   b.fieldPaths=new Map();
+  b.guestActions=[];
   b.exposedToAttack=new Set();
   b.poses=[];
   for(const unit of Object.values(b.units))unit.pose=unit.hp?'idle':'down';
@@ -4679,6 +4805,7 @@ function gameResolve(b) {
   }
   gameDeckEffects(b,'turnEnd');
   gameFieldRound(b,'turnEnd');
+  for(const unit of Object.values(b.units).filter(gameAlive))gameItchRound(b,unit,'turnEnd');
   if(enemy.defenseSkip>0)enemy.defenseSkip--;
   if(gameIsRail(b)){
     const alive=party.filter(gameAlive);
@@ -4797,6 +4924,7 @@ function gameResolve(b) {
   delete b.proofs;
   delete b.moved;
   delete b.fieldPaths;
+  delete b.guestActions;
   delete b.exposedToAttack;
   for(const unit of Object.values(b.units))if(unit.lifeSteal){
     for(const [key,rule] of Object.entries(unit.lifeSteal))if(rule.through!=null&&rule.through<=b.round)delete unit.lifeSteal[key];
@@ -4850,7 +4978,7 @@ function gameView(state,revision,actor,manager,members) {
     ...(b.encounter?{encounter:{id:b.encounter.id,name:b.encounter.name,peace:b.encounter.peace,peaceOpen:b.encounter.peaceOpen,
       deckSize:b.foeDeck.cards.length,subdueOrder:b.encounter.subdueOrder,rank:b.encounter.rank,negotiating:b.encounter.breakRound===b.round,...(gameIsBright(b)&&(manager||b.encounter.stage>1)?{stage:b.encounter.stage}:{})},zones:b.zones,outcome:b.outcome}:{}),log:gameVisibleLog(b.log,manager),walls:b.walls,extraWalls:b.extraWalls,tiles:b.tiles,poses:b.poses||[],
     awaiting:gameActive(b)?gameAwaiting(b,members).map(u=>u.name):[],clashActor:Object.keys(b.plans||{}).find(id=>gameHasClash(b.plans[id])),
-    units:Object.values(b.units).map(({library,hand,deck,grave,exile,cover,effectUsage,passives,cardMarks,configuredDeck,lifeSteal,poisonSources,shieldSlots,queuedShields,activityLocations,locationTags,stackTraits,stackDefinitions,sealedHighest,stackRuns,damageDebt,damageOverTime,delayedStrike,controlledIndex,controlledPower,...unit})=>({
+    units:Object.values(b.units).map(({library,hand,deck,grave,exile,cover,effectUsage,passives,cardMarks,configuredDeck,lifeSteal,poisonSources,shieldSlots,queuedShields,activityLocations,locationTags,stackTraits,stackDefinitions,sealedHighest,stackRuns,damageDebt,damageOverTime,delayedStrike,controlledIndex,controlledPower,cardUseCounts,...unit})=>({
       ...unit,
       ...(!unit.enemy||manager||b.intel?.[unit.id]?.tier===3?{stackTraits,stackDefinitions}:{}),
       ...(unit.enemy?{

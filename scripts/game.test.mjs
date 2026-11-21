@@ -2537,9 +2537,9 @@ test('arithmetic supports extra terms in effects and comparison operands',async(
 test('concept cards are stronger catalogue choices and pay mental cost once on use',async()=>{
   const f=await fixture();
   const allConcepts=f.state.defaults.filter(card=>card.concept);
-  assert.equal(allConcepts.length,17);
-  const concepts=allConcepts.filter(card=>!['conceptVaultStart','conceptSnailStart','conceptSafeStart','conceptPlummetStart','conceptTrifaceStart','conceptStitchSeam','conceptHeronSpring'].includes(card.id));
-  assert.equal(f.state.profile.conceptStackTraits.length,17);
+  assert.equal(allConcepts.length,20);
+  const concepts=allConcepts.filter(card=>!['conceptVaultStart','conceptSnailStart','conceptSafeStart','conceptPlummetStart','conceptTrifaceStart','conceptStitchSeam','conceptHeronSpring','conceptFleshNails','conceptBlindJudge','conceptGuestStart'].includes(card.id));
+  assert.equal(f.state.profile.conceptStackTraits.length,18);
   const {parsePower}=await import('../public/rules.js');
   const average=card=>(card.hitPowers??[card.power]).reduce((sum,value)=>{const power=parsePower(value);return sum+power.bonus+power.count*(power.sides+1)/2;},0);
   const baseline=Math.max(...f.state.defaults.filter(card=>['strike','hold','shot','rush','trace'].includes(card.id)).map(average));
@@ -3553,4 +3553,78 @@ test('triface gathers a stack and consumes it with the generated bloom',async()=
   await f.act('round');
   assert.equal(livingForm(f,'enemy').stacks['삼면점']||0,0);
   assert.equal(livingForm(f,'enemy').rooted,true);
+});
+
+test('red itch grows, supports bleed survival, and transfers bleed on hit',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:17,mind:80,hp:2,hand:['conceptFleshNails']});
+    Object.assign(b.units.enemy,{pos:18,hp:999,maxHp:999,blockedRounds:3});
+    b.walls=[];
+  });
+  await f.act('plan',{card:'conceptFleshNails'});
+  await f.act('round');
+  assert.equal(livingForm(f).stacks['붉은 소양감'],2);
+  assert.deepEqual(livingForm(f).redBleed,{power:4,count:2});
+  await f.act('plan',{cards:[]});
+  await f.act('round');
+  assert.equal(livingForm(f).hp,1);
+  configureBattle(f,(b,self)=>{self.hand=['strike'];});
+  await f.act('plan',{card:'strike',targets:['enemy']});
+  await f.act('round');
+  assert.ok(livingForm(f,'enemy').redBleed.power>=4);
+});
+test('blind scales preserve a guaranteed crit charge and ignore outgoing damage cuts',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:17,mind:80,nextPower:-99,outgoingDamagePercent:-100,critCharges:1,hand:['conceptBlindJudge']});
+    Object.assign(b.units.enemy,{pos:18,hp:999,maxHp:999,blockedRounds:2});
+    b.walls=[];
+  });
+  await f.act('plan',{card:'conceptBlindJudge',targets:['enemy']});
+  await f.act('round');
+  assert.ok(livingForm(f,'enemy').hp<980);
+  assert.equal(livingForm(f).critCharges,1);
+  assert.ok(!f.state.battle.log.some(line=>line.includes('치명타 (')));
+});
+test('guest prepares a generated follow-up and protects its isolated caster',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:17,mind:80,hand:['conceptGuestStart']});
+    Object.assign(b.units.enemy,{pos:18,hp:999,maxHp:999,blockedRounds:2,cardUseCounts:{execute:3}});
+    b.walls=[];
+  });
+  await f.act('plan',{card:'conceptGuestStart',targets:['enemy']});
+  await f.act('round');
+  assert.ok(livingForm(f).hand.some(card=>card.id==='conceptGuestAgain'));
+  assert.ok(livingForm(f).guestRim>=f.state.battle.round);
+  await f.act('plan',{card:'conceptGuestAgain',targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').guestPenalty.card,'execute');
+  assert.ok(livingForm(f).guestMelee>=f.state.battle.round);
+  assert.ok(!livingForm(f).hand.some(card=>card.id==='conceptGuestAgain'));
+});
+
+test('guest replays the previous other unit card effect onto its own target',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:1});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:17,mind:80,baseActions:2,hand:['strike','conceptGuestStart']});
+    const bot=b.units.bot0;
+    bot.pos=9;
+    bot.hand=['hold'];
+    bot.library.hold={...bot.library.hold,role:'normal',target:'self',range:'0',effects:[
+      {when:'use',kind:'shield',amount:12,to:'self'}
+    ]};
+    b.plans.bot0={pos:9,card:'hold',targets:[],discard:[]};
+    Object.assign(b.units.enemy,{pos:18,hp:999,maxHp:999,blockedRounds:2});
+    b.walls=[];
+  });
+  await f.act('plan',{cards:[{card:'strike',targets:['enemy']},{card:'conceptGuestStart',targets:['enemy']}]});
+  await f.act('round');
+  assert.ok(f.state.battle.log.some(line=>line.includes('1개 부가 효과 받아 적음')));
+  assert.equal(livingForm(f,'enemy').shield,12);
 });

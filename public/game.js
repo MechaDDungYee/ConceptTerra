@@ -1918,6 +1918,7 @@ function battlePanel(){
   for(const u of b.units){
     const chips=el('div',undefined,{class:'chips'});
     const tags=['체력 '+u.hp+'/'+u.maxHp];
+    if(u.redBleed)tags.push('출혈 · 위력 '+u.redBleed.power+' · 횟수 '+u.redBleed.count);
     if(!u.enemy)tags.push('정신력 '+u.mind+' · 위력 '+signed(mentalPower(u.mind)),'행동량 '+(u.actionLimit??baseActions));
     if(u.coverCount)tags.push('원호 방어 '+u.coverCount);
     for(const name of u.passiveNames||[])tags.push('패시브 · '+name);

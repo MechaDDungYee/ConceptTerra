@@ -2465,6 +2465,14 @@ function battlePanel(){
     scheduleLinks();
   }
   const dropTargets=new WeakMap();
+  let lastDrop=null;
+  board.addEventListener('click',event=>{
+    const target=event.target.closest('[data-intent-id],[data-unit-id],[data-tile]');
+    if(lastDrop&&target===lastDrop.target&&performance.now()-lastDrop.at<150){
+      event.preventDefault();event.stopImmediatePropagation();
+    }
+    lastDrop=null;
+  },true);
   board.addEventListener('dragover',event=>{
     if(event.dataTransfer.types.includes('application/x-conceptterra-action')&&event.target.closest('[data-tile]')){
       event.preventDefault();event.dataTransfer.dropEffect='link';
@@ -2473,7 +2481,11 @@ function battlePanel(){
   board.addEventListener('drop',event=>{
     if(!event.dataTransfer.getData('application/x-conceptterra-action'))return;
     const target=event.target.closest('[data-intent-id],[data-unit-id],[data-tile]');
-    if(target){event.preventDefault();dropTargets.get(target)?.();}
+    if(target){
+      event.preventDefault();
+      lastDrop={target,at:performance.now()};
+      dropTargets.get(target)?.();
+    }
   });
 
   function refresh(){

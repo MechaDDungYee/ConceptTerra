@@ -596,7 +596,11 @@ function readEffect(row){
   const {scaleBy,scaleCostMode,scaleCostAmount,scaleHealthBasis,limitPeriod,limitCount,...effect}=Object.fromEntries(controls.map(x=>[x.name,x.type==='number'?Number(x.value):x.value]));
   if(effect.to==='keywordHolders')effect.recipientKeyword={tag:effect.recipientKeywordTag,scope:effect.recipientKeywordScope,zone:effect.recipientKeywordZone,mode:effect.recipientKeywordMode,minimum:effect.recipientKeywordMinimum,names:effect.recipientKeywordNames};
   for(const key of Object.keys(effect))if(key.startsWith('recipientKeyword')&&key!=='recipientKeyword')delete effect[key];
-  effect.stackAxes=row.querySelector('[name=stackAxes]')?.checked===true;
+  effect.stackAxes=!!row.axesEdited&&effect.consumeAmount!=='all';
+  for(const axis of ['axisPower','axisCount'])if(!effect.stackAxes||effect[axis+'Mode']!=='percent'){
+    delete effect[axis+'Mode'];delete effect[axis+'Basis'];delete effect[axis+'Tag'];
+  }
+  if(!effect.ratioBasis?.includes('Stack'))delete effect.ratioStackTag;
   for(const key of ['axisPower','axisCount'])if(!effect.stackAxes||!effect[key])delete effect[key];
   const all=effect.kind==='consume'&&effect.consumeAmount==='all';
   if(all||unnumberedEffects.includes(effect.kind))effect.amount=1;
@@ -737,18 +741,28 @@ function effectRow(row,refresh,scoped,passive,stack){
   const priorityField=field('어느 적을 우선할까?',consumePriority);
   const totalHelp=note('우선 대상부터 중첩을 소모해요. ‘중첩 소모 시 → 카드 대상’ 효과는 소모한 총량을 기준으로 우선 대상에게 한 번 적용돼요.');
   const consumeFields=consuming?[field('얼마나?',consumeAmount),scopeField,priorityField,totalHelp]:[];
-  const axesToggle=input('stackAxes','1','checkbox',{checked:row.stackAxes??false});
-  const axesPower=input('axisPower',row.axisPower??'','number',{min:1,max:maxStackPotency,placeholder:'비워두면 유지'});
-  const axesCount=input('axisCount',row.axisCount??'','number',{min:1,max:maxStatusStacks,placeholder:'비워두면 유지'});
+  const dualAxes=['stack','consume','remove'].includes(row.kind);
+  x.axesEdited=row.stackAxes===true;
+  const axesPower=input('axisPower',row.axisPower??(row.kind==='stack'&&row.amountMode!=='percent'?(row.amount??1)*(row.stackPower??1):''),'number',{min:1,max:maxStackPotency,placeholder:'비워두면 유지'});
+  const axesCount=input('axisCount',row.axisCount??(!row.stackAxes?row.amount??1:''),'number',{min:1,max:maxStatusStacks,placeholder:'비워두면 유지'});
   const axisFields=el('div',undefined,{class:'stack'});
-  axisFields.append(field('중첩 위력 합계',axesPower),field('중첩 횟수',axesCount));
-  const axisToggleField=field('위력과 횟수를 따로 지정',axesToggle,'inline');
-  const axisControls=['stack','consume','remove'].includes(row.kind)?[axisToggleField,axisFields]:[];
+  const axisParts=[];
+  for(const [control,label] of [[axesPower,'중첩 위력 합계'],[axesCount,'중첩 횟수']]){
+    const key=control.name;
+    const unit=select(key+'Mode',[['fixed','고정값'],['percent','비율 (%)']],row[key+'Mode']||(key==='axisCount'?row.amountMode:'')||'fixed');
+    const basis=select(key+'Basis',Object.entries(stackRatioBases),row[key+'Basis']||row.ratioBasis||'ownStackCurrent');
+    const basisTag=stackSelect(row[key+'Tag']||row.ratioStackTag||'',undefined,key+'Tag');
+    const ratioOptions=el('div',undefined,{class:'stack'});
+    ratioOptions.append(field('비율 계산 기준',basis),searchableSelect('비율 기준 중첩',basisTag));
+    const part=el('fieldset',undefined,{class:'effect-block effect-amount-part','data-part':'amount'});
+    const legend=el('legend',label);
+    part.append(legend,field('수치 단위',unit),field(label,control),ratioOptions);
+    axisParts.push({part,legend,label,unit,ratioOptions});
+    axisFields.append(part);
+  }
   const capFields=stackGrantEffects.includes(row.kind)
     ?[
-      field('중첩 위력 (1회당)',input('stackPower',row.stackPower??'','number',{
-        min:1,max:maxStackPotency,placeholder:row.kind==='stack'?'기본 1':'원래 위력 유지'
-      })),
+      ...(!dualAxes?[field('중첩 위력',input('stackPower',row.stackPower??'','number',{min:1,max:maxStackPotency}))]:[]),
       field('중첩 위력 한도 (1회당)',input('stackPowerCap',row.stackPowerCap??'','number',{min:1,max:maxStackPotency,placeholder:'기본 '+maxStackPotency})),
       field('중첩 횟수 한도',input('stackCap',row.stackCap??'','number',{min:1,max:maxStatusStacks,placeholder:'기본 '+maxStatusStacks})),
       stackGainFields(row),
@@ -768,6 +782,8 @@ function effectRow(row,refresh,scoped,passive,stack){
   const stackRatio=stackRatioEffects.includes(row.kind);
   const bases=Object.entries(effectRatioBases).filter(([key])=>Object.hasOwn(stackRatioBases,key)===stackRatio);
   const ratioBasis=select('ratioBasis',[...(stackRatio?[]:[['','기본 계산 방식']]),...bases],row.ratioBasis||(stackRatio?'ownStackCurrent':''));
+  const ratioStackTag=stackSelect(row.ratioStackTag||'',undefined,'ratioStackTag');
+  const ratioStackField=searchableSelect('비율 기준 중첩',ratioStackTag);
   const ratioBasisField=field('비율 계산 기준',ratioBasis);
   const basis=el('small','',{class:'minor'});
   basis.hidden=true;
@@ -927,11 +943,15 @@ function effectRow(row,refresh,scoped,passive,stack){
     conditionStack.hidden=conditionStackControl.disabled=e.condition!=='stack';
     tagHelp.textContent=basicStacks[e.tag]?basicStackInfo(basicStacks[e.tag]).join(" · "):conceptStacks[e.tag]?.description||'';
     threshold.style.display=e.condition&&!flagConditions.includes(e.condition)?'':'none';
-    axisToggleField.hidden=all;
-    axisFields.hidden=all||!axesToggle.checked;
-    axesPower.disabled=axesCount.disabled=axisFields.hidden;
-    amountLabel.hidden=axisControls.length>0&&axesToggle.checked&&!all;
-    if(x.amountPart){
+    axisFields.hidden=all;
+    ratioStackField.hidden=mode.value!=='percent'||!Object.hasOwn(stackRatioBases,ratioBasis.value);
+    for(const {part,legend,label,unit,ratioOptions} of axisParts){
+      const percent=unit.value==='percent';
+      part.dataset.unit=percent?'percent':'fixed';
+      legend.textContent=label+' · '+(percent?'비율값 파츠':'고정값 파츠');
+      ratioOptions.hidden=!percent;
+    }
+    if(x.amountPart&&!dualAxes){
       x.amountPart.hidden=all;
       const isPercent=mode.value==='percent'||['percent','healPercent','healMissing','healCut','hitLeech'].includes(e.kind);
       x.amountPart.dataset.unit=isPercent?'percent':'fixed';
@@ -947,8 +967,16 @@ function effectRow(row,refresh,scoped,passive,stack){
   };
   if(unnumberedEffects.includes(row.kind))amount.type='hidden';
   else{
-    const partNode=part('수치 파츠','amount',modeLabel,amountLabel,ratioBasisField,healthField,basis);
-    partNode.classList.add('effect-amount-part');
+    const partNode=dualAxes?axisFields:part('수치 파츠','amount',modeLabel,amountLabel,ratioBasisField,ratioStackField,healthField,basis);
+    if(dualAxes){
+      const legacy=el('div',undefined,{hidden:true});
+      legacy.append(modeLabel,amountLabel,ratioBasisField,ratioStackField,healthField,basis);
+      partNode.append(legacy);
+      x.dualAxes=true;
+      partNode.addEventListener('input',()=>{x.axesEdited=true;});
+      partNode.addEventListener('change',()=>{x.axesEdited=true;});
+    }
+    if(!dualAxes)partNode.classList.add('effect-amount-part');
     partNode.expressionSlot=el('div');
     partNode.append(partNode.expressionSlot);
     partNode.setUnit=unit=>{
@@ -968,7 +996,7 @@ function effectRow(row,refresh,scoped,passive,stack){
     zoneFields,part('대상','target',field(leech?'누가 피해를 줄 때?':replace?'조건을 확인할 대상':'누구에게?',to),recipientFields),
     ...(row.kind==='stack'?[part('중첩 부여','effect',tag)]:[]),
     part('효과 옵션','effect',...replacementFields,...consumeFields,...(row.kind==='giveCard'?[giveField]:[]),
-      ...axisControls,...capFields,...ampFields,...shieldFields,...leechFields,...duration,...settings,durationPolicyField,durationCapField,...stackScale,reactionField,...(row.kind==='stack'?[]:[tag]),fixedField),
+      ...(dualAxes&&stackGrantEffects.includes(row.kind)?[input('stackPower',row.stackPower??'','hidden')]:[]),...capFields,...ampFields,...shieldFields,...leechFields,...duration,...settings,durationPolicyField,durationCapField,...stackScale,reactionField,...(row.kind==='stack'?[]:[tag]),fixedField),
     field('효과 플레이버 텍스트',area('flavor',row.flavor||'',180),'full'),
     part('대가와 발동 제한','limit',field('발동 제한',limit),limitCountField,scaleField,scaleModeField,scaleAmountField,scaleBasisField));
   if(state.manager){

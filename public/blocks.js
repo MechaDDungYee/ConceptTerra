@@ -449,16 +449,18 @@ export function blockWorkspace(config){
       card.append(header);
       if(isAction(node)){
         card.append(node.widget);
-        for(const control of node.widget.querySelectorAll('input[type=number][name]:not([name=amount])')){
+        for(const control of [...node.widget.querySelectorAll('input[type=number][name]:not([name=amount])'),...node.widget.amountPart?.querySelectorAll('[name=axisPower],[name=axisCount]')||[]]){
           const label=control.closest('label');
           if(!label)continue;
           label.nextElementSibling?.classList.contains('block-number-socket')&&label.nextElementSibling.remove();
           const socket=numberSocket(control,node.numberExprs[control.name],expr=>{
             if(expr)node.numberExprs[control.name]=expr;else delete node.numberExprs[control.name];
+            if(control.name.startsWith('axis'))node.widget.axesEdited=true;
           });
           label.after(socket);
         }
-        if(node.widget.amountPart){
+        if(node.widget.dualAxes)card.append(node.widget.amountPart);
+        else if(node.widget.amountPart){
           const part=node.widget.amountPart,socket=part.expressionSlot;
           const update=nodeValue=>{node.expr=nodeValue;part.setExpression(!!nodeValue);};
           update(node.expr);

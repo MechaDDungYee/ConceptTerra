@@ -270,6 +270,15 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
     }
     const consumeAll=consuming&&consumeAmount==='all';
     const independent=row.stackAxes===true&&['stack','consume','remove'].includes(row.kind)&&!consumeAll;
+    const axisOptions={};
+    const ratioStackTag=gameText(row.ratioStackTag,maxStackNameLength);
+    if(independent)for(const key of ['axisPower','axisCount']){
+      if(row[key+'Mode']!=='percent')continue;
+      const basis=row[key+'Basis'];
+      if(!Object.hasOwn(stackRatioBases,basis))gameFail('중첩 비율 기준을 확인하세요.');
+      axisOptions[key+'Mode']='percent';axisOptions[key+'Basis']=basis;
+      axisOptions[key+'Tag']=gameText(row[key+'Tag'],maxStackNameLength);
+    }
     const axisPower=independent?row.axisPower:undefined,axisCount=independent?row.axisCount:undefined;
     if(independent&&([axisPower,axisCount].every(value=>value==null)&&!row.numberExprs?.axisPower&&!row.numberExprs?.axisCount||axisPower!=null&&!gameInt(axisPower,1,maxStackPotency)||axisCount!=null&&!gameInt(axisCount,1,maxStatusStacks)))gameFail('중첩 위력 또는 횟수를 입력하세요.');
     const amount=consumeAll||independent?1:row.amount;
@@ -348,7 +357,7 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
       numberExprs[key]=gameExpression(expr);
     }
     const recipientKeyword=row.to==='keywordHolders'?gameFlowTest({...row.recipientKeyword,type:'condition',condition:'keywordOwned'},row,id,owned):null;
-    return {...(independent?{stackAxes:true,...(axisPower!=null?{axisPower}:{}),...(axisCount!=null?{axisCount}:{})}:{}),...(recipientKeyword?{recipientKeyword}:{}),...settings,...gainLimits,...gameVisibility(row),...(Object.keys(numberExprs).length?{numberExprs}:{}),...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
+    return {...axisOptions,...(ratioStackTag?{ratioStackTag}:{}),...(independent?{stackAxes:true,...(axisPower!=null?{axisPower}:{}),...(axisCount!=null?{axisCount}:{})}:{}),...(recipientKeyword?{recipientKeyword}:{}),...settings,...gainLimits,...gameVisibility(row),...(Object.keys(numberExprs).length?{numberExprs}:{}),...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
       ...(grantsShield?{shieldDuration,shieldCap,stackMode,...(shieldSource?{shieldSource}:{}),
         ...(row.refreshDuration===false?{refreshDuration:false}:{})}:{}),
       ...(durationPolicy!=='default'?{durationPolicy}:{}),...(durationCap?{durationCap}:{}),
@@ -3266,8 +3275,12 @@ function gameRemovePoison(unit,amount){
 function gameEffectBasis(ctx,unit,basis,effect){
   if(effect&&Object.hasOwn(stackRatioBases,basis)){
     const subject=basis.startsWith('own')?ctx.actor:unit;
-    const {tag}=effect;
-    const current=subject.stacks[tag]||0;
+    const tag=effect.ratioStackTag||effect.tag;
+    const current=effect.ratioPower?stackPotency(subject,tag):subject.stacks[tag]||0;
+    if(effect.ratioPower){
+      const cap=subject.stackTraits?.[tag]?.holdPower??subject.stackDefinitions?.[tag]?.holdPower??conceptStacks[tag]?.holdPower??maxStackPotency;
+      return /Current$/.test(basis)?current:/Missing$/.test(basis)?Math.max(0,cap-current):cap;
+    }
     const cap=Math.min(effect.stackCap??subject.stackCaps?.[tag]??maxStatusStacks,
       (!basicStacks[tag]?.sub?basicStacks[tag]?.cap:subject.stackDefinitions?.[tag]?undefined:basicStacks[tag]?.cap)??maxStatusStacks,subject.stackTraits?.[tag]?.cap??conceptStacks[tag]?.cap??maxStatusStacks,
       subject.stackTraits?.[tag]?.holdCount??maxStatusStacks,subject.stackDefinitions?.[tag]?.holdCount??maxStatusStacks);
@@ -3765,12 +3778,19 @@ function gameApplyVisibleEffect(b,ctx,when,target,depth,effect,u,applied,consume
     effect={...effect};
     for(const [key,expr] of Object.entries(effect.numberExprs)){
       const bounds=effectNumberBounds(effect.kind,key,effect.hitIndex,cardHitPowers(ctx.card).length,Object.hasOwn(diceConditions,effect.condition));
-      const percentMode={healCap:effect.capMode,mindAmount:effect.mindMode,mindCap:effect.mindCapMode}[key]==='percent';
+      const percentMode={healCap:effect.capMode,mindAmount:effect.mindMode,mindCap:effect.mindCapMode,axisPower:effect.axisPowerMode,axisCount:effect.axisCountMode}[key]==='percent';
       const evaluated=percentMode&&expr.type==='percent'?expr.value:gameFlowValue(b,ctx,u,expr,effect.hitIndex);
       const value=bounded(Math.trunc(evaluated),...bounds);
       if(key==='limitCount'){if(effect.limit)effect.limit={...effect.limit,count:value};}
       else if(key==='scaleCostAmount'){if(effect.scaleCost)effect.scaleCost={...effect.scaleCost,amount:value};}
       else effect[key]=value;
+    }
+  }
+  if(effect.stackAxes){
+    effect={...effect};
+    for(const key of ['axisPower','axisCount'])if(effect[key]!=null&&effect[key+'Mode']==='percent'){
+      const basis=gameEffectBasis(ctx,u,effect[key+'Basis'],{tag:effect.tag,ratioStackTag:effect[key+'Tag'],ratioPower:key==='axisPower'});
+      effect[key]=Math.floor(basis*effect[key]/100);
     }
   }
   const {actor,card}=ctx;

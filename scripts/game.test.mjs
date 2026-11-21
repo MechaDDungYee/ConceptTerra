@@ -3920,3 +3920,21 @@ test('dialogue is shared in order before battle and standing art is available to
   assert.equal(art.status,200);
   assert.equal(art.headers.get('content-type'),'image/png');
 });
+
+test('stack axes can take percentages from another named stack',async()=>{
+  const f=await fixture();
+  const name='비율 시험';
+  await f.act('card',{card:{name,power:'0',target:'self',range:'0',role:'normal',effects:[
+    {when:'use',kind:'stack',to:'self',tag:'원본',amount:4,stackPower:5},
+    {when:'use',kind:'stack',to:'self',tag:'결과',stackAxes:true,
+      axisPower:50,axisPowerMode:'percent',axisPowerBasis:'ownStackCurrent',axisPowerTag:'원본',
+      axisCount:50,axisCountMode:'percent',axisCountBasis:'ownStackCurrent',axisCountTag:'원본'}
+  ]}});
+  const id=f.state.profile.cards.at(-1).id;
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{self.hand=[id];b.units.enemy.blockedRounds=2;});
+  await f.act('plan',{card:id});await f.act('round');
+  const unit=livingForm(f);
+  assert.equal(unit.stacks['결과'],2);
+  assert.equal(unit.stackRuns['결과'].reduce((sum,run)=>sum+run.count*run.power,0),10);
+});

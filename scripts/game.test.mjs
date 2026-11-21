@@ -3076,3 +3076,21 @@ test('GM-only effect contents are removed from shared cards and only the public 
   assert.deepEqual(card.publicHints,['기묘한 잔향']);
   assert.ok(!JSON.stringify(publicResponse.body).includes('숨겨진 원문'));
 });
+
+test('activity locations seed enemy intel and server keeps unknown enemy power out of guest state',async()=>{
+  for(const [activityLocations,progress] of [[[],0],[['제6국','제6국','제6국 외곽'],25]]){
+    const f=await fixture();
+    const guest=await f.send(f.room+'/join',{name:'정보 수집가'});
+    await f.send(f.room+'/seat',{id:f.state.me,seat:1},f.host.cookie);
+    await f.send(f.room+'/seat',{id:guest.body.me,seat:2},f.host.cookie);
+    await f.act('profile',{name:'카이',country:'제6국',status:'하위층 시민',stats:[50,50,50,50,50,50],activityLocations});
+    await f.act('start',{bots:0});
+    const view=(await f.send(f.endpoint,undefined,guest.cookie)).body;
+    const foe=view.battle.units.find(unit=>unit.enemy);
+    assert.equal(foe.intelProgress,progress);
+    assert.equal(foe.overlapCount,progress?1:0);
+    assert.equal(view.battle.intent.card.power,progress?'2d+2':undefined);
+    assert.equal(f.state.battle.intent.card.power,'2d+2');
+    assert.ok(!view.battle.units.some(unit=>Object.hasOwn(unit,'activityLocations')));
+  }
+});

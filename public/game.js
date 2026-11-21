@@ -2,7 +2,7 @@ import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
 import {accountPanel} from './account.js';
 import {gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridCardInRange,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
-import {stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
+import {stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTagGroups,maxActivityLocations,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
 const studio=location.pathname==='/studio';
 const code=location.pathname.split('/')[2], endpoint=studio?'/api/studio':'/api/rooms/'+code+'/game';
@@ -188,7 +188,7 @@ function stackManager(){
 }
 function character(){
   const p=state.profile;
-  const form=formFor('profile',(_,data)=>({...Object.fromEntries(data),stats:statNames.map((_,i)=>Number(data.get('stat'+i)))}));
+  const form=formFor('profile',(_,data)=>({...Object.fromEntries(data),activityLocations:data.getAll('activityLocations'),stats:statNames.map((_,i)=>Number(data.get('stat'+i)))}));
   const status=select('status',opts(statuses),p.status);
   const wall=field('살아온 장벽',select('wall',opts(countryNames.slice(4,9)),p.wall||'제4국'));
   const check=()=>{wall.hidden=status.value!=='월정커';wall.style.display=wall.hidden?'none':'';};
@@ -200,7 +200,22 @@ function character(){
   const legend=el('legend');const total=()=>{legend.textContent='능력치 '+[...list.querySelectorAll('input')].reduce((sum,x)=>sum+Number(x.value),0)+' / 300';};
   statNames.forEach((name,i)=>list.append(field(name,input('stat'+i,p.stats[i],'number',{min:0,max:100,required:true}))));
   list.addEventListener('input',total);total();
-  stats.append(legend,list);form.append(stats,submit('캐릭터 저장'));
+  const locations=el('select',undefined,{name:'activityLocations',multiple:true,size:6});
+  for(const [label,tags] of Object.entries(locationTagGroups)){
+    const group=el('optgroup',undefined,{label});
+    for(const tag of tags){
+      const option=el('option',tag,{value:tag});
+      option.selected=(p.activityLocations||[]).includes(tag);
+      group.append(option);
+    }
+    locations.append(group);
+  }
+  locations.onchange=()=>{
+    if([...locations.selectedOptions].some(option=>option.value==='전 구역'))
+      for(const option of locations.options)option.selected=option.value==='전 구역';
+    locations.setCustomValidity(locations.selectedOptions.length>maxActivityLocations?'활동지는 최대 6곳까지 선택할 수 있어요.':'');
+  };
+  stats.append(legend,list);form.append(field('활동지 (최대 6곳)',locations,'full'),stats,submit('캐릭터 저장'));
   const editor=section('캐릭터 시트',form);
   editor.classList.add('full');
   const sheet=group(editor);
@@ -1615,7 +1630,12 @@ function actionPanel(title,card,unit,art){
   const side=el('aside',undefined,{class:'battle-card-detail stack','aria-label':title});
   side.append(el('h3',title));
   if(!card){side.append(note('손패에서 행동 카드를 선택하세요.'));return side;}
-  const [min,max]=powerBounds(card,(unit.enemy?0:mentalPower(Math.max(0,unit.mind-card.cost)))+(unit.nextPower||0)+(unit.awakening?awakeningPower:0)).map(value=>applyPowerRatio(value,unit.nextPowerPercent||0));
+  const hidden=card.revealHidden||[];
+  if(unit.enemy&&unit.revealTier!=null){
+    side.dataset.revealTier=unit.revealTier;
+    side.append(note(state.manager?'GM · 전체 공개':'관찰 '+unit.revealTier+'단계 · '+unit.intelProgress+'/'+unit.revealNext));
+  }
+  const [min,max]=hidden.includes('power')?['???','???']:powerBounds(card,(unit.enemy?0:mentalPower(Math.max(0,unit.mind-card.cost)))+(unit.nextPower||0)+(unit.awakening?awakeningPower:0)).map(value=>applyPowerRatio(value,unit.nextPowerPercent||0));
   const values=el('div',undefined,{class:'battle-power-preview'});
   for(const [key,value] of [['최소 위력',min],['최대 위력',max]]){
     const item=el('span',key);item.append(el('b',value));values.append(item);
@@ -1628,6 +1648,7 @@ function actionPanel(title,card,unit,art){
   if(card.splash)side.append(note((card.target==='tile'?'선택한 칸 주변 · ':card.hitTargets?'부 대상 범위 · ':'주 대상 적중 시 · 주변 ')+gridCardRangeLabel(card.splash)));
   if(art)side.append(el('img',undefined,{src:art,alt:'',class:'battle-action-art'}));
   for(const hint of card.publicHints||[])side.append(note(hint));
+  if(hidden.includes('effects'))side.append(note('효과는 관찰이 쌓이면 열립니다.'));
   for(const effect of card.effects)side.append(note(effectConditionText(effect)+effectTiming(effect)+' · '+effectSentence(effect)));
   if(card.cost)side.append(note('정신력 −'+card.cost));
   if(card.notes)side.append(note(card.notes));

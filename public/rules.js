@@ -298,6 +298,17 @@ export const effectConditions = {
   shielded:'보호막 보유',unshielded:'보호막 없음',noMove:'이동하지 않음'
 };
 export const flagConditions = ['primaryTarget','secondaryTarget','cardUsed','bossTarget','bossPresent','allyHit','criticalHit','healthPaid','mindPaid','bothPaid','discardPaid','targeted','notTargeted','priorOverload','priorGuard','awakeningAtLeast','collapseCrisis','queuedStrike','foeDown','poisoned','brokeShield','hasDebt','shielded','unshielded','noMove'];
+export const locationTagGroups={
+  중앙:['중앙국'],
+  국가:['화란','아람','마카노스','아이젠베르크','가푸라','루스','카예트','작선','미요라'].map((name,i)=>'제'+(i+1)+'국 '+name),
+  외곽:Array.from({length:9},(_,i)=>'제'+(i+1)+'국 외곽'),
+  '방벽 너머':Array.from({length:9},(_,i)=>'제'+(i+1)+'국 방벽 너머'),
+  전체:['전 구역']
+};
+export const locationTags=Object.values(locationTagGroups).flat();
+export const locationTagAliases=Object.fromEntries(locationTagGroups.국가.map((tag,i)=>['제'+(i+1)+'국',tag]));
+export const revealThresholds=[25,50,100];
+export const maxActivityLocations=6;
 export const maxStatusStacks = 999;
 const basicStackDefinitions = {
   '침식':{when:'turnEnd',damage:'physical',description:'턴 종료마다 총 중첩 위력만큼 물리 피해를 받습니다.'},

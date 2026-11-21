@@ -2,7 +2,7 @@ import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
 import {accountPanel} from './account.js';
 import {gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridLineOfSight,gridCardInRange,gridCardHasReach,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
-import {keywordOwnedZones,keywordScanModes,stackScanScopes,maxConceptTools,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTagGroups,maxActivityLocations,characterMaxHp,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
+import {keywordOwnedZones,keywordScanModes,stackScanScopes,maxConceptTools,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTagGroups,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
 const studio=location.pathname==='/studio';
 const code=location.pathname.split('/')[2], endpoint=studio?'/api/studio':'/api/rooms/'+code+'/game';
@@ -200,27 +200,34 @@ function character(){
   const stats=el('fieldset',undefined,{class:'full'}), list=el('div',undefined,{class:'stats'});
   const legend=el('legend'),hp=el('output');
   const total=()=>{
-    legend.textContent='능력치 '+[...list.querySelectorAll('input')].reduce((sum,x)=>sum+Number(x.value),0)+' / 300';
-    hp.textContent='최대 체력 '+characterMaxHp(Number(list.querySelector('[name=stat2]').value));
+    const values=[...list.querySelectorAll('input')].map(x=>Number(x.value));
+    legend.textContent='능력치 '+values.reduce((sum,value)=>sum+value,0)+' / 300';
+    const combat=characterCombatStats(values);
+    hp.textContent='최대 체력 '+combat.maxHp+' · 이동력 '+combat.movement+' · 턴당 행동 '+combat.actions+
+      ' · 공격 위력 '+signed(combat.attackPower)+' · 손패 보충 목표 '+combat.handSize+
+      ' · 치명타 확률 +'+combat.critChance+'%p · 정신 피해 저항 '+combat.mindGuard+'%';
   };
   statNames.forEach((name,i)=>list.append(field(name,input('stat'+i,p.stats[i],'number',{min:0,max:100,required:true}))));
   list.addEventListener('input',total);total();
-  const locations=el('select',undefined,{name:'activityLocations',multiple:true,size:6});
+
+  const locations=el('fieldset',undefined,{class:'full activity-locations'});
+  const locationCount=el('legend','활동지');
+  locations.append(locationCount);
   for(const [label,tags] of Object.entries(locationTagGroups)){
-    const group=el('optgroup',undefined,{label});
+    const group=el('fieldset');
+    group.append(el('legend',label));
     for(const tag of tags){
-      const option=el('option',tag,{value:tag});
-      option.selected=(p.activityLocations||[]).includes(tag);
-      group.append(option);
+      group.append(field(tag,input('activityLocations',tag,'checkbox',{checked:(p.activityLocations||[]).includes(tag)}),'inline'));
     }
     locations.append(group);
   }
-  locations.onchange=()=>{
-    if([...locations.selectedOptions].some(option=>option.value==='전 구역'))
-      for(const option of locations.options)option.selected=option.value==='전 구역';
-    locations.setCustomValidity(locations.selectedOptions.length>maxActivityLocations?'활동지는 최대 6곳까지 선택할 수 있어요.':'');
+  const updateLocations=()=>{
+    const selected=locations.querySelectorAll('input:checked');
+    locationCount.textContent='활동지 · '+selected.length+'곳 선택';
   };
-  stats.append(legend,list,hp);form.append(field('활동지 (최대 6곳)',locations,'full'),stats,submit('캐릭터 저장'));
+  locations.addEventListener('change',updateLocations);
+  updateLocations();
+  stats.append(legend,list,hp);form.append(locations,stats,submit('캐릭터 저장'));
   const editor=section('캐릭터 시트',form);
   editor.classList.add('full');
   const sheet=group(editor);

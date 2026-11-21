@@ -343,3 +343,7 @@ body:has(.battle-dummy) > main > :is(#error,#feedback):not(:empty){
 .battle-cell.spring-tile { box-shadow: inset 0 0 0 3px #64b4c6; }
 
 .battle-cell.temporary-wall { outline: 2px dashed #c4a0ed; outline-offset: -4px; }
+
+.activity-locations { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,145px),1fr)); gap: 8px; }
+.activity-locations fieldset { display: grid; align-content: start; gap: 5px; }
+.activity-locations label { min-height: 28px; }

@@ -311,11 +311,23 @@ export const locationTagGroups={
 export const locationTags=Object.values(locationTagGroups).flat();
 export const locationTagAliases=Object.fromEntries(locationTagGroups.국가.map((tag,i)=>['제'+(i+1)+'국',tag]));
 export const revealThresholds=[25,50,100];
-export const maxActivityLocations=6;
 export const trainReturnMind=25;
 export const baseHp=100;
 export const maxHpBounds=[60,150];
 export const characterMaxHp=stamina=>Math.min(maxHpBounds[1],Math.max(maxHpBounds[0],baseHp+(stamina??50)-50));
+export function characterCombatStats(stats=[]){
+  const [strength=50,agility=50,stamina=50,intellect=50,sense=50,will=50]=stats;
+  return {
+    maxHp:characterMaxHp(stamina),
+    attackPower:Math.trunc((strength-50)/10),
+    movement:agility>=90?4:agility>=70?3:agility<30?1:2,
+    actions:agility>=95?3:agility>=75?2:baseActions,
+    handSize:intellect>=75?5:intellect<25?3:4,
+    critChance:Math.max(0,Math.floor((sense-50)/2)),
+    mindGuard:Math.max(0,Math.floor((will-50)/2))
+  };
+}
+
 export const maxStatusStacks = 999;
 const basicStackDefinitions = {
   '침식':{when:'turnEnd',damage:'physical',description:'턴 종료마다 총 중첩 위력만큼 물리 피해를 받습니다.'},

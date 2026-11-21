@@ -3858,3 +3858,26 @@ test('keyword-holder effects apply only to qualifying units in the chosen card z
   assert.equal(livingForm(f,'bot1').shield,0);
   assert.equal(livingForm(f).shield,0);
 });
+
+test('all activity locations persist and allocations set combat attributes',async()=>{
+  const f=await fixture();
+  const {locationTags,characterCombatStats}=await import('../public/rules.js');
+  const stats=[60,95,40,75,10,20];
+  await f.act('profile',{name:'기동 승객',country:'제4국',status:'하위층 시민',stats,activityLocations:locationTags});
+  assert.deepEqual(f.state.profile.activityLocations,locationTags);
+  await f.act('start',{solo:true,bots:0});
+  let unit=livingForm(f);
+  assert.deepEqual(unit.combat,characterCombatStats(stats));
+  assert.equal(unit.hp,90);
+  assert.equal(unit.move,4);
+  assert.equal(unit.actionLimit,3);
+  assert.equal(unit.handCount,5);
+  configureBattle(f,b=>{b.units.enemy.blockedRounds=2;});
+  await f.act('plan',{cards:[],pos:unit.pos});await f.act('round');
+  unit=livingForm(f);
+  assert.equal(unit.move,4);
+  assert.equal(unit.handCount,5);
+  const guarded=characterCombatStats([5,5,50,40,100,100]);
+  assert.equal(guarded.critChance,25);
+  assert.equal(guarded.mindGuard,25);
+});

@@ -3,7 +3,7 @@ import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
 import {accountPanel} from './account.js';
 import {gridCanAimTile,gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridLineOfSight,gridCardInRange,gridCardHasReach,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
-import {maxPortraitDataLength,maxPortraitSide,keywordOwnedZones,keywordScanModes,stackScanScopes,maxConceptTools,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTagGroups,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
+import {instantMoveModes,instantMoveDirections,instantMoveOffsets,instantMoveAnchors,instantMoveOrders,instantMoveStackTests,instantMoveStackMetrics,maxPortraitDataLength,maxPortraitSide,keywordOwnedZones,keywordScanModes,stackScanScopes,maxConceptTools,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTagGroups,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
 const studio=location.pathname==='/studio';
 const code=location.pathname.split('/')[2], endpoint=studio?'/api/studio':'/api/rooms/'+code+'/game';
@@ -494,6 +494,17 @@ function effectSentence(e,extra=[]){
       (e.to==='target'?' · 원래 대상 기준':'')+(e.limit?' · '+effectLimitPeriods[e.limit.period]+' '+e.limit.count+'회':'');
   }
   const expression=e.amountExpr?describeValue(e.amountExpr):null;
+  if(e.kind==='move'&&e.moveMode&&e.moveMode!=='approach'){
+    const amount=expression||e.amount;
+    if(e.moveMode==='choose')return '즉시 이동력 '+amount+' 획득 · 칸 직접 선택';
+    if(e.moveMode==='direction')return instantMoveDirections[e.moveDirection]+'쪽으로 최대 '+amount+'칸 즉시 이동';
+    const filter=e.moveTest&&e.moveTest!=='any'
+      ?' · '+e.moveTag+' '+(['inside','outside'].includes(e.moveTest)
+        ?(instantMoveStackMetrics[e.moveMetric]||'횟수')+' '+e.moveMin+'~'+e.moveMax+' '+instantMoveStackTests[e.moveTest]
+        :instantMoveStackTests[e.moveTest]):'';
+    return (instantMoveAnchors[e.moveAnchor]||'적')+' · '+(instantMoveOrders[e.moveOrder]||'가장 가까운 대상')+filter+
+      ' · '+(instantMoveOffsets[e.moveOffset]||'대상 뒤')+' '+amount+'칸으로 이동';
+  }
   if(e.kind==='giveCard'){
     const card=effectCards(extra).find(card=>card.id===e.givenCardId);
     return (effectRecipients[e.to]||'자신')+'에게 「'+(card?.name||'지정 카드')+'」 '+(expression||e.amount)+'장 지급'+(e.limit?' · '+effectLimitPeriods[e.limit.period]+' '+e.limit.count+'회':'');
@@ -712,6 +723,37 @@ function effectRow(row,refresh,scoped,passive,stack){
     :[];
   const settings=Object.entries(effectSettings[row.kind]||{}).map(([key,[label,defaultValue,min,max]])=>
     field(label,input(key,row[key]??defaultValue,'number',{min,max,required:true})));
+  const moveFields=[];
+  let syncMoveFields=()=>{};
+  if(row.kind==='move'){
+    const menu=(name,options,fallback)=>select(name,Object.entries(options),row[name]||fallback);
+    const moveMode=menu('moveMode',instantMoveModes,'approach');
+    const direction=field('전장 기준 이동 방향',menu('moveDirection',instantMoveDirections,'e'));
+    const order=menu('moveOrder',instantMoveOrders,'nearest');
+    const test=menu('moveTest',instantMoveStackTests,'any');
+    const tag=stackSelect(row.moveTag||'',undefined,'moveTag');
+    const tagField=searchableSelect('기준 중첩',tag);
+    const metric=field('중첩 수치 기준',menu('moveMetric',instantMoveStackMetrics,'count'));
+    const minimum=field('중첩 최소값',input('moveMin',row.moveMin??1,'number',{min:0,max:9999}));
+    const maximum=field('중첩 최대값',input('moveMax',row.moveMax??999,'number',{min:0,max:9999}));
+    const relative=group(field('어떤 유닛을 기준으로?',menu('moveAnchor',instantMoveAnchors,'enemy')),
+      field('후보 중 우선순위',order),field('기준 유닛의 어느 쪽?',menu('moveOffset',instantMoveOffsets,'behind')),
+      field('중첩 필터',test),tagField,metric,minimum,maximum,
+      note('앞·뒤·왼쪽·오른쪽은 이동 유닛에서 기준 유닛을 향하는 방향 기준이에요. 수치는 기준 유닛과 떨어질 칸 수예요.'));
+    const choosing=note('라운드 처리 중 얻은 이동력은 다음 행동 입력 전에 사용해요. 칸을 누를 때마다 걸은 거리만큼 차감돼요.');
+    syncMoveFields=()=>{
+      direction.hidden=moveMode.value!=='direction';
+      relative.hidden=moveMode.value!=='relative';
+      const range=['inside','outside'].includes(test.value);
+      const stackOrder=['mostStacks','fewestStacks'].includes(order.value);
+      tagField.hidden=test.value==='any'&&!stackOrder;
+      tag.required=!relative.hidden&&!tagField.hidden;
+      metric.hidden=!range&&!stackOrder;
+      minimum.hidden=maximum.hidden=!range;
+      choosing.hidden=moveMode.value!=='choose';
+    };
+    moveFields.push(field('즉시 이동 방식',moveMode),direction,relative,choosing);
+  }
   const shieldConversion=row.kind==='shieldConversion';
   const leech=shieldConversion||row.kind==='lifeSteal';
   const leechResource=leech&&!shieldConversion?select('leechResource',Object.entries(lifeStealDamageResources),row.leechResource||'hp'):null;
@@ -878,6 +920,7 @@ function effectRow(row,refresh,scoped,passive,stack){
   if(isCost){when.disabled=true;condition.disabled=true;}
   if(staged||amplify||isCost||row.kind==='replayHit'||copyEffects.includes(row.kind)||teamEffects.includes(row.kind))to.disabled=true;
   const show=()=>{
+    syncMoveFields();
     const timed=grantsShield||durationPolicyKinds.includes(row.kind)||!passive&&!scoped&&['struck','hurt'].includes(when.value);
     durationPolicyField.hidden=durationCapField.hidden=!timed;
     if(leech){
@@ -1012,7 +1055,7 @@ function effectRow(row,refresh,scoped,passive,stack){
     zoneFields,part('대상','target',field(leech?'누가 피해를 줄 때?':replace?'조건을 확인할 대상':'누구에게?',to),recipientFields),
     ...(row.kind==='stack'?[part('중첩 부여','effect',tag)]:[]),
     part('효과 옵션','effect',...replacementFields,...consumeFields,...(row.kind==='giveCard'?[giveField]:[]),
-      ...(dualAxes&&stackGrantEffects.includes(row.kind)?[input('stackPower',row.stackPower??'','hidden')]:[]),...capFields,...ampFields,...shieldFields,...leechFields,...duration,...settings,durationPolicyField,durationCapField,...stackScale,reactionField,...(row.kind==='stack'?[]:[tag]),fixedField),
+      ...(dualAxes&&stackGrantEffects.includes(row.kind)?[input('stackPower',row.stackPower??'','hidden')]:[]),...capFields,...ampFields,...shieldFields,...leechFields,...duration,...settings,...moveFields,durationPolicyField,durationCapField,...stackScale,reactionField,...(row.kind==='stack'?[]:[tag]),fixedField),
     field('효과 플레이버 텍스트',area('flavor',row.flavor||'',180),'full'),
     part('대가와 발동 제한','limit',field('발동 제한',limit),limitCountField,scaleField,scaleModeField,scaleAmountField,scaleBasisField));
   if(state.manager){
@@ -2330,6 +2373,21 @@ function battlePanel(){
   board.addEventListener('pointermove',scheduleLinks);
   board.addEventListener('wheel',scheduleLinks);
   fieldView.tools.addEventListener('click',scheduleLinks);
+  if(b.phase==='planning'&&self?.hp&&self.instantMove>0){
+    const barriers=new Set([...occupied,...(b.extraWalls||[]).filter(wall=>wall.ownerSide!==self.enemy).map(wall=>wall.index)]);
+    const routes=self.rooted||self.blockedRounds?new Map():gridPaths(self.pos,self.instantMove,barriers);
+    status.textContent='즉시 이동력 '+self.instantMove+' · 이동할 칸을 누르거나 남은 이동력을 넘기세요.';
+    controls.append(button('남은 즉시 이동력 넘기기',()=>send('instantMove',{skip:true})));
+    for(const [pos,path] of routes){
+      if(!path.length)continue;
+      const tile=fieldView.tiles[pos];
+      tile.classList.add('instant-move-tile');
+      tile.setAttribute('aria-label','즉시 이동 · 이동력 '+path.length+' 사용');
+      tile.onclick=()=>{battleDraft=null;send('instantMove',{pos});};
+    }
+    scheduleLinks();
+    return board;
+  }
   if(!active){
     fieldView.overlay.replaceChildren();scheduleLinks();
     fieldView.tiles.forEach((tile,i)=>{const u=unitAt(i);tile.setAttribute('aria-disabled',String(!u));if(u)tile.onclick=()=>inspect(u);});

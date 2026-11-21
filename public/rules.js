@@ -197,6 +197,14 @@ export const temptationStrain = 15;
 export const mentalCrisisThreshold = 25;
 export const awakeningPower = 2;
 export const crisisRecovery = 25;
+export const instantMoveModes={approach:'기존 방식 · 대상에게 접근',direction:'전장 팔방으로 이동',relative:'기준 유닛 주변으로 이동',choose:'이동력을 얻고 직접 칸 선택'};
+export const instantMoveDirections={n:'북',ne:'북동',e:'동',se:'남동',s:'남',sw:'남서',w:'서',nw:'북서'};
+export const instantMoveOffsets={behind:'대상 뒤',front:'대상 앞',left:'대상 왼쪽',right:'대상 오른쪽',...instantMoveDirections};
+export const instantMoveAnchors={target:'효과가 감지한 전투 상대',source:'효과 시전자',enemy:'적',ally:'아군',all:'모든 유닛'};
+export const instantMoveOrders={nearest:'가장 가까운 대상',farthest:'가장 먼 대상',lowestHp:'현재 체력 최저',highestHp:'현재 체력 최고',lowestRatio:'체력 비율 최저',highestRatio:'체력 비율 최고',mostStacks:'중첩 수 최다',fewestStacks:'중첩 수 최소'};
+export const instantMoveStackTests={any:'중첩 필터 없음',present:'보유 중',absent:'보유하지 않음',inside:'수치가 범위 안',outside:'수치가 범위 밖'};
+export const instantMoveStackMetrics={count:'횟수',power:'위력 합계'};
+export const maxInstantMove=12;
 export const effectSettings = {
   ...Object.fromEntries(['lifeSteal','shieldConversion'].map(kind=>[kind,{
     duration:['유지 라운드 (0은 전투 종료까지)',1,0,10],
@@ -522,7 +530,7 @@ export const passiveEffectKinds = [
   'rerollLow','hitLeech','damage','bossDamage','pierce','fixedDamage','piercingFixedDamage','drainLife','lifeSteal','shieldConversion','stack','consume','remove','doubleStack','stealStack',
   'stackDamage','poison','mind','drain','mindTransfer','cleanseStacks','purgePoison','recoverMindFloor','focusClash',
   'bossOutgoingDamage','bossIncomingDamage','outgoingDamage','incomingDamage','damageDebt','eraseDebt','barrierBurst','thorns',
-  'critChance','critCharges','critStacks','critRemove','critMultiplier','draw','recover','lateDraw','extraAction','blockAction','unblockAction','reduceActions','nextMove','nextSlow'
+  'critChance','critCharges','critStacks','critRemove','critMultiplier','draw','recover','lateDraw','extraAction','blockAction','unblockAction','reduceActions','move','nextMove','nextSlow'
 ];
 export function passiveTimingsFor(kind){
   if(kind==='replaceCard')return ['replace'];

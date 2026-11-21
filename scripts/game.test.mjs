@@ -4061,3 +4061,53 @@ test('only a GM can speak as an enemy and participants receive the selected port
   assert.equal(response.status,200);
   assert.equal(response.headers.get('content-type'),'image/png');
 });
+
+test('instant movement walks in eight directions and spends its own clicked movement points',async()=>{
+  const f=await fixture();
+  const move=(amount,options)=>({kind:'move',when:'use',to:'self',amount,...options});
+  await f.act('card',{card:{name:'방향과 이동력',power:'0',target:'self',range:'0',role:'normal',effects:[
+    move(2,{moveMode:'direction',moveDirection:'ne'}),
+    move(3,{moveMode:'choose'})
+  ]}});
+  const {id}=f.state.profile.cards[0];
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:26,hand:[id]});
+    b.walls=[12];b.units.enemy.pos=39;b.units.enemy.blockedRounds=1;
+  });
+  await f.act('plan',{card:id,targets:[]});
+  await f.act('round');
+  assert.equal(livingForm(f).pos,19,'diagonal stops at a wall after its first step');
+  assert.equal(livingForm(f).instantMove,3);
+  const rejected=await f.send(f.endpoint,{action:'instantMove',revision:f.state.revision,pos:12},f.host.cookie);
+  assert.equal(rejected.status,400);
+  const normalMove=livingForm(f).move;
+  await f.act('instantMove',{pos:17});
+  assert.equal(livingForm(f).pos,17);
+  assert.equal(livingForm(f).instantMove,1);
+  assert.equal(livingForm(f).move,normalMove);
+  await f.act('instantMove',{skip:true});
+  assert.equal(livingForm(f).instantMove,undefined);
+});
+
+test('target-relative instant movement ranks the enemies matching the stack range',async()=>{
+  for(const [moveTest,destination] of [['inside',5],['outside',13]]){
+    const f=await fixture();
+    await f.act('card',{card:{name:'기준 대상 이동',power:'0',target:'self',range:'0',role:'normal',effects:[
+      {kind:'move',when:'use',to:'self',amount:1,moveMode:'relative',moveAnchor:'enemy',moveOrder:'lowestHp',
+        moveOffset:'left',moveTest,moveTag:'집중',moveMetric:'count',moveMin:2,moveMax:5}
+    ]}});
+    const {id}=f.state.profile.cards[0];
+    await f.act('start',{solo:true,bots:0,encounter:'railguard01'});
+    configureBattle(f,(b,self)=>{
+      Object.assign(self,{pos:17,hand:[id]});
+      b.walls=[];b.aimLine=null;
+      Object.assign(b.units.enemy,{pos:21,hp:10,blockedRounds:1,stacks:{'집중':1}});
+      Object.assign(b.units.railShield,{pos:14,hp:20,blockedRounds:1,stacks:{'집중':3}});
+      Object.assign(b.units.railSniper,{pos:23,hp:30,blockedRounds:1,stacks:{'집중':4}});
+    });
+    await f.act('plan',{card:id,targets:[]});
+    await f.act('round');
+    assert.equal(livingForm(f).pos,destination,moveTest);
+  }
+});

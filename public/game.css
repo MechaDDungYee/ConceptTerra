@@ -390,3 +390,5 @@ body:has(.battle-dummy) > main > :is(#error,#feedback):not(:empty){
 .enemy-intel-gauge{display:grid;grid-template-columns:auto minmax(55px,1fr);gap:7px;align-items:center}.enemy-intel-gauge progress{width:100%;accent-color:#c5e587}.enemy-intel-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:10px}.enemy-intel-cards .forge-preview{width:100%;align-self:start}.enemy-intel-cards .forge-art{min-height:62px}.enemy-intel-cards .forge-art span{font-size:2.2rem}
 
 .dialogue-compose{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start}.dialogue-compose:has(.dialogue-gm-controls[hidden]){grid-template-columns:1fr}.dialogue-gm-controls{display:grid;gap:6px;width:min(260px,36vw)}.dialogue-gm-controls[hidden],.dialogue-gm-controls [hidden]{display:none}.dialogue-gm-controls select,.dialogue-gm-controls input{width:100%}@media(max-width:620px){.dialogue-compose{grid-template-columns:1fr}.dialogue-gm-controls{width:100%}}
+
+.battle-cell.instant-move-tile { outline: 2px solid #70eac3; outline-offset: -4px; cursor: pointer; }

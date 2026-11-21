@@ -1,5 +1,5 @@
 import {gridCanAimTile,gridIndex,gridValid, gridSize, gridTileGroups, gridDistance, gridPoint, gridLineOfSight, gridPaths, gridDisplacement, gridCardInRange,gridCardHasReach, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
-import {maxPortraitDataLength,maxConceptTools,keywordOwnedZones,keywordScanModes,keywordScanPeriods,stackScanScopes,stackScanMetrics,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,trainReturnMind,baseHp,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, effectiveCardCost, applauseAttack, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
+import {instantMoveModes,instantMoveDirections,instantMoveOffsets,instantMoveAnchors,instantMoveOrders,instantMoveStackTests,instantMoveStackMetrics,maxInstantMove,maxPortraitDataLength,maxConceptTools,keywordOwnedZones,keywordScanModes,keywordScanPeriods,stackScanScopes,stackScanMetrics,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,trainReturnMind,baseHp,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, effectiveCardCost, applauseAttack, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
 class GameInputError extends Error {}
@@ -345,6 +345,24 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
       const value=row[key]??defaultValue;
       if(!gameInt(value,min,max))gameFail(label+' 값은 '+min+'~'+max+'로 설정하세요.');
       settings[key]=value;
+    }
+    if(row.kind==='move'){
+      const choices={moveMode:instantMoveModes,moveDirection:instantMoveDirections,moveOffset:instantMoveOffsets,
+        moveAnchor:instantMoveAnchors,moveOrder:instantMoveOrders,moveTest:instantMoveStackTests,moveMetric:instantMoveStackMetrics};
+      for(const [key,options] of Object.entries(choices)){
+        if(row[key]==null)continue;
+        if(!Object.hasOwn(options,row[key]))gameFail('즉시 이동 옵션을 확인하세요.');
+        settings[key]=row[key];
+      }
+      if(settings.moveMode==='relative'){
+        const tag=gameText(row.moveTag,maxStackNameLength);
+        if((settings.moveTest&&settings.moveTest!=='any'||['mostStacks','fewestStacks'].includes(settings.moveOrder))&&
+          (!tag||Object.hasOwn(Object.prototype,tag)))gameFail('즉시 이동의 기준 중첩을 선택하세요.');
+        if(tag)settings.moveTag=tag;
+        const minimum=row.moveMin??1,maximum=row.moveMax??maxStatusStacks;
+        if(!gameInt(minimum,0,9999)||!gameInt(maximum,minimum,9999))gameFail('중첩 수치의 최소값과 최대값을 확인하세요.');
+        settings.moveMin=minimum;settings.moveMax=maximum;
+      }
     }
     const flow=gameNormalizeFlow(row,id,owned);
     const amountExpr=row.amountExpr!=null&&!unnumberedEffects.includes(row.kind)?gameExpression(row.amountExpr):undefined;
@@ -2380,6 +2398,9 @@ function gameMove(b,u,goal,limit,approach=false) {
   const paths=gridPaths(u.pos,limit,gameBlocked(b,u));
   const closest=[...paths.keys()].sort((a,c)=>gridDistance(a,goal)-gridDistance(c,goal)||paths.get(a).length-paths.get(c).length)[0];
   const path=paths.get(goal)??(approach?paths.get(closest):[]);
+  return gameFollowPath(b,u,path);
+}
+function gameFollowPath(b,u,path) {
   const origin=u.pos;
   if(path.length){
     u.pos=path.at(-1);
@@ -2403,6 +2424,75 @@ function gameMove(b,u,goal,limit,approach=false) {
   }
   if(path.length)gameWhiteMazeMove(b,u);
   return path.length;
+}
+const instantMoveVectors={n:[0,-1],ne:[1,-1],e:[1,0],se:[1,1],s:[0,1],sw:[-1,1],w:[-1,0],nw:[-1,-1]};
+function gameInstantMoveAnchor(b,actor,u,target,effect){
+  const {moveAnchor,moveOrder,moveTest,moveTag,moveMetric,moveMin,moveMax}=effect;
+  const value=unit=>moveMetric==='power'?stackPotency(unit,moveTag):unit.stacks?.[moveTag]||0;
+  const eligible=unit=>{
+    if(!gameAlive(unit)||unit===u)return false;
+    if(moveTest==='present')return gameStackActive(unit,moveTag);
+    if(moveTest==='absent')return !gameStackActive(unit,moveTag);
+    if(moveTest==='inside'||moveTest==='outside'){
+      const count=value(unit),inside=count>=moveMin&&count<=moveMax;
+      return moveTest==='inside'?inside:!inside;
+    }
+    return true;
+  };
+  if(moveAnchor==='target'||moveAnchor==='source'){
+    const anchor=moveAnchor==='source'?actor:target;
+    return anchor&&eligible(anchor)?anchor:null;
+  }
+  const candidates=Object.values(b.units).filter(unit=>eligible(unit)&&
+    (moveAnchor==='all'||(moveAnchor==='ally')===(unit.enemy===u.enemy)));
+  const distance=unit=>gridDistance(u.pos,unit.pos);
+  const score={
+    nearest:distance,farthest:unit=>-distance(unit),lowestHp:unit=>unit.hp,highestHp:unit=>-unit.hp,
+    lowestRatio:unit=>unit.hp/unit.maxHp,highestRatio:unit=>-unit.hp/unit.maxHp,
+    mostStacks:unit=>-value(unit),fewestStacks:value
+  }[moveOrder]??distance;
+  return candidates.sort((a,c)=>score(a)-score(c)||distance(a)-distance(c)||a.pos-c.pos)[0];
+}
+function gameInstantMove(b,actor,u,target,effect,amount){
+  if(!gameAlive(u)||u.rooted||(u!==actor&&gameForcedMoveBlocked(b,u)))return;
+  const limit=bounded(Math.floor(amount),0,maxInstantMove);
+  if(!limit)return;
+  if(effect.moveMode==='choose'&&!u.bot&&!u.enemy){
+    u.instantMove=bounded((u.instantMove||0)+limit,0,maxInstantMove);
+    return;
+  }
+  if(effect.moveMode==='direction'){
+    const [dx,dy]=instantMoveVectors[effect.moveDirection]??instantMoveVectors.e;
+    const blocked=gameBlocked(b,u),path=[];
+    let {x,y}=gridPoint(u.pos);
+    for(let step=0;step<limit;step++){
+      const next=gridIndex(x+dx,y+dy);
+      if(!gridValid(next)||blocked.has(next)||
+        dx&&dy&&(blocked.has(gridIndex(x+dx,y))||blocked.has(gridIndex(x,y+dy))))break;
+      path.push(next);x+=dx;y+=dy;
+    }
+    gameFollowPath(b,u,path);
+    return;
+  }
+  const anchor=effect.moveMode==='relative'?gameInstantMoveAnchor(b,actor,u,target,effect):
+    (target&&target!==u?target:b.units.enemy);
+  if(!anchor||anchor===u)return;
+  if(effect.moveMode!=='relative'){
+    gameMove(b,u,anchor.pos,bounded(Math.floor(amount),0,gridSize),true);
+    return;
+  }
+  const {x,y}=gridPoint(anchor.pos),origin=gridPoint(u.pos);
+  const dx=Math.sign(x-origin.x),dy=Math.sign(y-origin.y);
+  const offset=effect.moveOffset;
+  const [ox,oy]=instantMoveVectors[offset]??{
+    behind:[dx,dy],front:[-dx,-dy],left:[dy,-dx],right:[-dy,dx]
+  }[offset]??[-1,0];
+  const blocked=gameBlocked(b,u);
+  const paths=gridPaths(u.pos,gridSize,blocked);
+  for(let step=limit;step>=1;step--){
+    const destination=gridIndex(x+ox*step,y+oy*step);
+    if(paths.has(destination)){gameFollowPath(b,u,paths.get(destination));return;}
+  }
 }
 function gameDeckEffects(b,when){
   for(const actor of Object.values(b.units)){
@@ -4233,11 +4323,7 @@ function gameApplyVisibleEffect(b,ctx,when,target,depth,effect,u,applied,consume
       case 'power': ctx.mod+=n; break;
       case 'movement': if(u.rooted)break;u.move=Math.min(7,u.move+n); if(u===actor&&ctx.goal!==undefined)u.move-=gameMove(b,u,ctx.goal,u.move); break;
       case 'nextMove': u.nextMove=Math.min(7,u.nextMove+n); break;
-      case 'move': {
-        const goal=target&&target!==u?target.pos: b.units.enemy.pos;
-        gameMove(b,u,goal,n,true);
-        break;
-      }
+      case 'move': gameInstantMove(b,actor,u,target,effect,n); break;
       case 'push':
       case 'pull': {
         if(actor.id===u.id||!gameAlive(u))break;
@@ -6052,8 +6138,23 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
         delete b.pendingEdits[edit.actor];
         break;
       }
+      case 'instantMove': {
+        const unit=b?.units[actor];
+        if(!gameActive(b)||!gameAlive(unit)||!unit.instantMove)gameFail('사용할 즉시 이동력이 없어요.');
+        if(input.skip===true){delete unit.instantMove;break;}
+        if(unit.rooted||unit.blockedRounds)gameFail('현재 상태에서는 이동할 수 없어요.');
+        const path=gridPaths(unit.pos,unit.instantMove,gameBlocked(b,unit)).get(input.pos);
+        if(!path?.length)gameFail('즉시 이동할 수 있는 칸을 선택하세요.');
+        unit.instantMove-=path.length;
+        if(!unit.instantMove)delete unit.instantMove;
+        gameFollowPath(b,unit,path);
+        delete b.plans[actor];
+        gameLog(b,unit.name+' · 즉시 이동 '+path.length+'칸');
+        break;
+      }
       case 'plan':
         if(!gameActive(b)||!gameCanPlan(b.units[actor]))gameFail('지금은 행동을 예약할 수 없어요.');
+        if(b.units[actor].instantMove)gameFail('즉시 이동력을 사용하거나 넘긴 후 행동을 확정하세요.');
         b.plans[actor]=gameSelectTurn(b,b.units[actor],input);
         break;
       case 'unplan':

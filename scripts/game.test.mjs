@@ -3938,3 +3938,20 @@ test('stack axes can take percentages from another named stack',async()=>{
   assert.equal(unit.stacks['결과'],2);
   assert.equal(unit.stackRuns['결과'].reduce((sum,run)=>sum+run.count*run.power,0),10);
 });
+
+test('a unit-centered splash card can instead strike an empty tile without a clash',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'빈 칸 포격',power:'12',range:'1~4',role:'normal',target:'splash',
+    splash:{range:'1'},clash:true,effects:[]}});
+  const id=f.state.profile.cards.at(-1).id;
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    self.pos=16;self.mind=50;self.hand=[id];
+    Object.assign(b.units.enemy,{pos:19,hp:99,maxHp:99,blockedRounds:2});b.walls=[];
+  });
+  await f.act('plan',{card:id,targetTile:18});
+  assert.equal(livingForm(f).plan.targetTile,18);
+  assert.equal(livingForm(f).plan.clash,false);
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').hp,87);
+});

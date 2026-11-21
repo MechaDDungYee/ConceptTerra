@@ -1,4 +1,4 @@
-import {gridIndex,gridValid, gridSize, gridTileGroups, gridDistance, gridPoint, gridLineOfSight, gridPaths, gridDisplacement, gridCardInRange,gridCardHasReach, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
+import {gridCanAimTile,gridIndex,gridValid, gridSize, gridTileGroups, gridDistance, gridPoint, gridLineOfSight, gridPaths, gridDisplacement, gridCardInRange,gridCardHasReach, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
 import {maxConceptTools,keywordOwnedZones,keywordScanModes,keywordScanPeriods,stackScanScopes,stackScanMetrics,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,trainReturnMind,baseHp,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, effectiveCardCost, applauseAttack, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
@@ -2882,10 +2882,10 @@ function gameSelect(b,u,input,ai=false) {
     gameFail('손패에서 복제할 카드를 선택하세요.');
   }
   const discard=gameDiscardSelection(u.hand.filter((_,index)=>index!==u.hand.indexOf(cardId)),input.discard,ai);
-  if(card?.target==='tile'){
+  if(card?.target==='tile'||input.targetTile!=null&&gridCanAimTile(card)&&!u.collapsed){
     if(!gridValid(input.targetTile)||b.walls.includes(input.targetTile)||!gridCardInRange(card,goal,input.targetTile))
       gameFail('기본 사거리 안에서 광역 중심 칸을 선택하세요.');
-    if(input.clash)gameFail('타일 지정 광역은 합을 걸 수 없어요.');
+    if(input.clash||['clash','intercept'].includes(input.stance))gameFail('칸을 지정한 행동은 합을 걸 수 없어요.');
     return {card:cardId,pos:goal,targetTile:input.targetTile,targets:[],clash:false,...(crisis?{vow}:{}),...(copyId?{copyId}:{}),discard};
   }
   // Collapse targets are calculated after movement. Ignore submitted target and clash choices.
@@ -4904,7 +4904,8 @@ function gamePrepareAction(b,u,plan,moved){
   const waiting=b.waitingCards?.get(u.id);
   waiting?.delete(plan);
   if(!plan?.card||!gameCanPlan(u))return;
-  const original=u.library[plan.card];
+  const baseCard=u.library[plan.card];
+  const original=plan.targetTile!=null&&gridCanAimTile(baseCard)&&baseCard.target!=='tile'?{...baseCard,target:'tile',clash:false}:baseCard;
   if(!cardUsable(u,original,b.round))return;
   if(u.defenseSkip>0&&!original.freeAction){u.defenseSkip--;gameLog(b,u.name+' · 구르기로 행동 1회 봉쇄');return;}
   const handIndex=gameHandCardIndex(u,original.id,b.round);
@@ -5129,7 +5130,7 @@ function gamePlanningEffects(b,party){
     const choices=gamePlannedCards(b.plans[unit.id]).flatMap(plan=>{
       const card=unit.library[plan.card];
       if(!cardUsable(unit,card))return [];
-      const targets=card.target==='tile'?gameGroupUnits(gameTileGroups(b,card,unit,plan.targetTile)):
+      const targets=card.target==='tile'||plan.targetTile!=null&&gridCanAimTile(card)?gameGroupUnits(gameTileGroups(b,card,unit,plan.targetTile)):
         card.target==='self'?[unit]:(plan.targets||[]).map(id=>b.units[id]).filter(gameAlive);
       return [{card,targets,targetTile:plan.targetTile}];
     });

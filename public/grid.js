@@ -87,6 +87,8 @@ export function gridCardRangeLabel(card){
   return '직접 지정 · 주변 '+shape.cells.length+'칸';
 }
 
+export const gridCanAimTile=card=>!!card&&(card.target==='tile'||!card.boardReach&&card.targetSide!=='ally'&&card.targetSide!=='any'&&
+  !['guard','counter'].includes(card.role)&&(card.target==='splash'||typeof card.target==='number'));
 export const gridTargetLimit=card=>card?.target==='splash'?1:typeof card?.target==='number'?card.target:0;
 export function gridSplashTargets(card,actor,primary,units){
   if(!card?.splash||!primary)return [];

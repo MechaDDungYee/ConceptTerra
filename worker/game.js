@@ -5420,6 +5420,26 @@ function gameReturnToTrain(b,state){
 function gameAwaiting(b,members){
   return Object.values(b.units).filter(u=>!u.bot&&gameCanPlan(u)&&!b.plans[u.id]&&members.some(m=>m.id===u.id));
 }
+
+function gameEnemyIntelDetail(b,unit,tier,manager,passives){
+  const detail={};
+  if(tier>=1)detail.stats={hp:unit.hp,maxHp:unit.maxHp,move:unit.move,actions:gameActionLimit(unit)};
+  if(tier>=2){
+    const deck=b.foeDecks?.[unit.id]||(unit.id==='enemy'?b.foeDeck:null);
+    const catalog=gameIsBright(b)?brightCards:gameIsJudge(b)?judgeCards:gameIsCollector(b)?collectorCards:gameIsRail(b)?railCards:firstStopCards;
+    const current=(b.intentQueue||[b.intent]).filter(intent=>(intent?.attacker||'enemy')===unit.id).map(intent=>intent?.card).filter(Boolean);
+    const cards=deck?deck.cards.map(id=>unit.library[id]||catalog[id]).filter(Boolean):
+      (unit.configuredDeck||[]).map(id=>unit.library[id]).filter(Boolean);
+    const unique=new Map([...cards,...current].map(card=>[card.id,card]));
+    detail.actions=[...unique.values()].filter(card=>manager||!card.gmOnly).map(card=>gameRevealCard(card,tier));
+  }
+  if(tier>=3){
+    detail.passives=(passives||[]).filter(passive=>manager||!passive.gmOnly);
+    // The combat engine currently does not apply mental resource changes to enemy units.
+    detail.mind={managed:false};
+  }
+  return detail;
+}
 function gameView(state,revision,actor,manager,members) {
   const b=state.battle;
   const revealIntent=entry=>({...entry,card:gameRevealCard(entry.card,manager?3:b.intel?.[entry.attacker||'enemy']?.tier??0)});
@@ -5438,6 +5458,7 @@ function gameView(state,revision,actor,manager,members) {
       ...unit,
       ...(!unit.enemy||manager||b.intel?.[unit.id]?.tier===3?{stackTraits,stackDefinitions}:{}),
       ...(unit.enemy?{
+        enemyIntel:gameEnemyIntelDetail(b,{...unit,library,configuredDeck},manager?3:b.intel?.[unit.id]?.tier??0,manager,passives),
         intelProgress:b.intel?.[unit.id]?.progress??0,overlapCount:b.intel?.[unit.id]?.overlap??0,
         revealTier:manager?3:b.intel?.[unit.id]?.tier??0,locationTagCount:locationTags?.length??0,
         revealNext:revealThresholds[b.intel?.[unit.id]?.tier??0]??100,

@@ -1198,7 +1198,7 @@ function renderCardFace(preview,card){
   for(const effect of rows){
     const line=el('p',undefined,{class:'forge-effect'});
     const phase=effectConditionText(effect)+effectTiming(effect);
-    const name=effects[effect.kind]||effect.kind;
+    const name=effects[effect.kind]||(effect.publicLabel?'고유 효과':effect.kind);
     const text=effectSentence(effect);
     line.append(el('b',phase),keyword(name,[phase+' · '+text]),el('span',text));
     if(effect.flavor)line.append(flavorText(effect.flavor));
@@ -1957,6 +1957,7 @@ function battleGrid(b,self){
       tokens.set(unit.id,token);
       token.dataset.unitId=unit.id;
       token.append(el('span',unit.name.split(' · ')[0]),el('progress',undefined,{value:unit.hp,max:unit.maxHp,'aria-label':unit.name+' 체력'}));
+      if(unit.enemy)token.append(el('small','관찰 '+(unit.intelProgress??0)+'%',{class:'battle-intel-token',title:'정보 해금도 '+(unit.intelProgress??0)+'/100'}));
       if(!unit.enemy)token.append(el('small',unit.mind,{class:'unit-sp',title:'정신력'}));
       const actions=intents.filter(intent=>(intent.attacker||'enemy')===unit.id);
       if(unit.hp&&actions.length){
@@ -1978,6 +1979,48 @@ function battleGrid(b,self){
   camera.append(grid);field.append(camera);frame.append(field);
   bindBattleBoardControls(field,camera,tools);
   return {frame,tools,tiles,overlay,tokens,nodes};
+}
+
+function enemyIntelGauge(unit){
+  const box=el('div',undefined,{class:'enemy-intel-gauge'});
+  const progress=unit.intelProgress??0;
+  box.append(el('span','관찰 '+progress+'/100 · '+(unit.revealTier??0)+'단계'),
+    el('progress',undefined,{max:100,value:progress,'aria-label':unit.name+' 정보 해금도'}));
+  if(state.manager)box.append(el('small','GM 전체 열람'));
+  return box;
+}
+function enemyIntelInspection(unit){
+  const info=unit.enemyIntel||{};
+  const content=el('div',undefined,{class:'stack'});
+  content.append(enemyIntelGauge(unit));
+  const group=(title,unlock)=>section(title,note('관찰도 '+unlock+'에서 해금'));
+  if(info.stats){
+    const {hp,maxHp,move,actions}=info.stats;
+    content.append(section('능력치',note('체력 '+hp+'/'+maxHp+' · 이동력 '+move+' · 행동력 '+actions)));
+  }else content.append(group('능력치',25));
+  if(info.actions){
+    const cards=el('div',undefined,{class:'enemy-intel-cards'});
+    for(const card of info.actions){
+      const face=el('article',undefined,{class:'forge-preview'});
+      renderCardFace(face,card);
+      cards.append(face);
+    }
+    content.append(section('행동 목록',info.actions.length?cards:note('공개된 행동이 없어요.')));
+  }else content.append(group('행동 목록',50));
+  if(info.passives){
+    const passives=section('패시브');
+    for(const passive of info.passives){
+      const detail=el('div',undefined,{class:'stack'});
+      detail.append(el('strong',passive.name));
+      if(passive.notes)detail.append(note(passive.notes));
+      for(const effect of passive.effects||[])detail.append(note(effectConditionText(effect)+effectTiming(effect)+' · '+effectSentence(effect)));
+      passives.append(detail);
+    }
+    if(!info.passives.length)passives.append(note('공개된 패시브가 없어요.'));
+    const mindText=info.mind?.managed===false?'이 적은 정신력 변동이 적용되지 않아요.':'공개된 조건이 없어요.';
+    content.append(passives,section('정신력 회복 조건',note(mindText)),section('정신력 감소 조건',note(mindText)));
+  }else content.append(group('패시브',100),group('정신력 회복 조건',100),group('정신력 감소 조건',100));
+  return content;
 }
 function battlePanel(){
   const b=state.battle;
@@ -2078,7 +2121,7 @@ function battlePanel(){
   const unitStats=el('div',undefined,{class:'stack'});
   for(const u of b.units){
     const chips=el('div',undefined,{class:'chips'});
-    const tags=['체력 '+u.hp+'/'+u.maxHp];
+    const tags=u.enemy&&!u.enemyIntel?.stats?['관찰 '+u.intelProgress+'/100']:['체력 '+u.hp+'/'+u.maxHp];
     if(u.inks)tags.push('영감 · 마젠타 '+u.inks.magenta+' · 시안 '+u.inks.cyan+' · 옐로우 '+u.inks.yellow+' · 블랙 '+u.inks.black);
     if(u.scribeRecord?.through>=b.round)tags.push('녹음 중 · 체력 '+u.scribeRecord.hp+' · 정신력 '+u.scribeRecord.mind);
     if(u.whiteMaze?.through>=b.round)tags.push('하얀 복도 · '+(u.whiteMaze.through-b.round)+'라운드');
@@ -2121,10 +2164,10 @@ function battlePanel(){
   menuItems.append(button('전투 기록',()=>activity.showModal()),button('참가자 상태',()=>participants.showModal()));
   board.append(activity,participants);
   const inspect=u=>{
-    const detail=el('div',undefined,{class:'stack'});
+    const detail=u.enemy?enemyIntelInspection(u):el('div',undefined,{class:'stack'});
     const portrait=battleArt(u,u.pose||'idle');
-    if(portrait)detail.append(el('img',undefined,{src:portrait,alt:u.name,class:'character-art-preview-image'}));
-    detail.append(note('체력 '+u.hp+'/'+u.maxHp),...(!u.enemy?[note('정신력 '+u.mind+'/100 · 위력 '+signed(mentalPower(u.mind)))]:[]),note('보호막 '+u.shield));
+    if(portrait)detail.prepend(el('img',undefined,{src:portrait,alt:u.name,class:'character-art-preview-image'}));
+    if(!u.enemy)detail.append(note('체력 '+u.hp+'/'+u.maxHp),...(!u.enemy?[note('정신력 '+u.mind+'/100 · 위력 '+signed(mentalPower(u.mind)))]:[]),note('보호막 '+u.shield));
     if(u.lethalGuard)detail.append(note('치명상 방지 '+u.lethalGuard));
     if(u.lateDraw)detail.append(note('다음 라운드 추가 드로우 '+u.lateDraw));
     if(u.expose)detail.append(note('취약 '+u.expose));

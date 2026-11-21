@@ -3973,3 +3973,24 @@ test('confirmed ally action nodes expose the selected enemy intent and clash',as
   assert.equal(action.actionLink,'enemy');
   assert.equal(action.clash,true);
 });
+
+test('enemy dossiers unlock stats, actions and passive details at observation thresholds',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'관찰 승객'});
+  await f.act('start',{solo:true,bots:0,encounter:'collector01'});
+  assert.ok(livingForm(f,'enemy').enemyIntel.passives.length);
+  for(const [progress,tier] of [[0,0],[25,1],[50,2],[100,3]]){
+    configureBattle(f,b=>{b.intel.enemy={progress,tier,overlap:0};});
+    const view=await f.send(f.endpoint,undefined,guest.cookie);
+    const enemy=view.body.battle.units.find(unit=>unit.enemy);
+    assert.equal(enemy.intelProgress,progress);
+    assert.equal(Boolean(enemy.enemyIntel.stats),tier>=1);
+    assert.equal(Boolean(enemy.enemyIntel.actions),tier>=2);
+    assert.equal(Boolean(enemy.enemyIntel.passives),tier>=3);
+    if(tier>=2){
+      assert.ok(enemy.enemyIntel.actions.length>1);
+      assert.ok(enemy.enemyIntel.actions.some(card=>card.id==='collectReceipt'));
+    }
+    if(tier===3)assert.equal(enemy.enemyIntel.mind.managed,false);
+  }
+});

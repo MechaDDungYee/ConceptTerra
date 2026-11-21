@@ -421,7 +421,23 @@ function gamePassive(input,id=gameId(),owned=[],stack=false){
   const card=gameCard({name:input.name,role:'normal',target:'self',range:'0',power:'0',effects:input.effects},'passive:'+id,owned,true,stack);
   return {id,name:card.name,notes:gameText(input.notes,300),...(gameText(input.flavor,300)?{flavor:gameText(input.flavor,300)}:{}),enabled:input.enabled!==false,effects:card.effects};
 }
-const gameEquippedEffects=profile=>[...(profile?.passives||[]),...(profile?.conceptTools||[])].filter(entry=>entry.enabled);
+const gameMindSources=rules=>['mind','drain'].flatMap(kind=>{
+  const effects=(rules||[]).filter(effect=>effect.kind===kind);
+  return effects.length?[{id:'mind-rules:'+kind,name:kind==='mind'?'정신력 증가 조건':'정신력 감소 조건',effects,mindRule:true}]:[];
+});
+function gameCharacterMindRules(rows,owned,mapId=id=>id){
+  if(!Array.isArray(rows)||rows.length>maxPassiveEffects*2||
+    rows.some(effect=>!effect||!['mind','drain'].includes(effect.kind)||effect.to!=='self')){
+    gameFail('캐릭터 정신력 조건은 자신에게 적용할 증가 또는 감소 효과로 설정하세요.');
+  }
+  return gameMindSources(rows).flatMap(source=>gamePassive({
+    name:source.name,effects:source.effects.map(effect=>mapEffectCardReferences(effect,mapId))
+  },source.id,owned).effects);
+}
+const gameEquippedEffects=profile=>[
+  ...[...(profile?.passives||[]),...(profile?.conceptTools||[])].filter(entry=>entry.enabled),
+  ...gameMindSources(profile?.mindRules)
+];
 const gamePassiveSource=passive=>({id:'passive:'+passive.id,name:passive.name,effects:passive.effects,passive:true});
 function gamePassives(b,actor,when,target,source){
   if(!gameAlive(actor))return;
@@ -2742,7 +2758,7 @@ function gameImportPassives(file,existing,cards,enabled,includeTools=false){
       effects:passive.effects.map(effect=>mapEffectCardReferences(effect,id=>ids.get(id)||id))},undefined,owned);
   };
   return {passives:[...existing,...file.passives.map(read)],passiveCards:[...cards,...imported],
-    ...(includeTools?{conceptTools:tools.map(read)}:{})};
+    ...(includeTools?{conceptTools:tools.map(read),mindRules:gameCharacterMindRules(file.mindRules??[],owned,id=>ids.get(id)||id)}:{})};
 }
 function gameLoadCharacter(profile,file){
   const fields=file.character;
@@ -5528,9 +5544,10 @@ function gameUnitIntelDetail(b,unit,tier,manager,passives){
     detail.actions=[...unique.values()].filter(card=>manager||!card.gmOnly).map(card=>gameRevealCard(card,tier));
   }
   if(tier>=3){
-    detail.passives=(passives||[]).filter(passive=>manager||!passive.gmOnly);
+    detail.passives=(passives||[]).filter(passive=>!passive.mindRule&&(manager||!passive.gmOnly));
     // The combat engine currently does not apply mental resource changes to enemy units.
-    detail.mind={managed:!unit.enemy,...(!unit.enemy?{value:unit.mind}: {})};
+    detail.mind={managed:!unit.enemy,...(!unit.enemy?{value:unit.mind,rules:(passives||[])
+      .filter(source=>source.mindRule).flatMap(source=>source.effects).filter(effect=>manager||!effect.gmOnly)}:{})};
   }
   return detail;
 }
@@ -5566,7 +5583,7 @@ function gameView(state,revision,actor,manager,members) {
       ...(delayedStrike?{delayedStrike:delayedStrike.map(({round,amount,source})=>({round,amount,source}))}:{}),
       ...(lifeSteal?{damageConversions:Object.values(lifeSteal).map(rule=>({shield:!!rule.shieldConversion,through:rule.through})),
         lifeStealThrough:Math.max(...Object.values(lifeSteal).map(rule=>rule.through??0))}:{}),
-      passiveNames:!unit.enemy||manager||b.intel?.[unit.id]?.tier===3?(passives||[]).map(passive=>passive.name):[],actionLimit:gameActionLimit(unit),coverCount:cover?.length||0,handCount:hand.length,deckCount:deck.length,graveCount:grave.length,exileCount:exile.length,ready:!!b.plans?.[unit.id],artVersion:state.profiles[unit.id]?.artVersion||0,artSlots:Object.keys(state.profiles[unit.id]?.art||{}),...(unit.id===actor?{cardMarks,sealedHighest,combatRound:b.round,hand:[...hand.map(id=>({...library[id],requiredState:cardState(library[id].requiredState)})),...(unit.collapsed?[gameCollapseCard]:unit.zero==='crisis'?gameCrisisCards:[])],plan:b.plans?.[actor]}:{})}))
+      passiveNames:!unit.enemy||manager||b.intel?.[unit.id]?.tier===3?(passives||[]).filter(passive=>!passive.mindRule).map(passive=>passive.name):[],actionLimit:gameActionLimit(unit),coverCount:cover?.length||0,handCount:hand.length,deckCount:deck.length,graveCount:grave.length,exileCount:exile.length,ready:!!b.plans?.[unit.id],artVersion:state.profiles[unit.id]?.artVersion||0,artSlots:Object.keys(state.profiles[unit.id]?.art||{}),...(unit.id===actor?{cardMarks,sealedHighest,combatRound:b.round,hand:[...hand.map(id=>({...library[id],requiredState:cardState(library[id].requiredState)})),...(unit.collapsed?[gameCollapseCard]:unit.zero==='crisis'?gameCrisisCards:[])],plan:b.plans?.[actor]}:{})}))
   }:null;
   return {revision,manager,me:actor,roster:members.filter(m=>m.seat>0),profile:{name:'',country:'제4국',status:'하위층 시민',wall:'',job:'',goal:'',concept:'',stats:[50,50,50,50,50,50],mind:50,cards:[],deck:[],...state.profiles[actor]},defaults:gameCatalogue,battle};
 }
@@ -5705,9 +5722,11 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
     const saved=gameView(state,revision,actor,manager,members).profile;
     const conceptTools=saved.conceptTools||[];
     const passives=saved.passives||[];
-    const {cards}=gameExportPassives([...passives,...conceptTools],[...ownCollection.cards,...(saved.passiveCards||[])]);
+    const mindRules=saved.mindRules||[];
+    const {cards}=gameExportPassives([...passives,...conceptTools,...gameMindSources(mindRules)],
+      [...gameUnlockedCards(saved),...ownCollection.cards,...(saved.passiveCards||[])]);
     return {character:{...gameProfileFields({...saved,name:saved.name||self.name},saved.mind),art:saved.art||{}},
-      passives,conceptTools,cards};
+      passives,conceptTools,mindRules,cards};
   };
   if(input?.action==='stackExport'){
     try{
@@ -5764,7 +5783,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
     data.profile.stackTraits=collection.stackTraits;
     data.profile.conceptStackTraits=Object.values(gameConceptTraits);
     data.defaults=[...gameCatalogue,...gameUnlockedCards(state.profiles[actor])];
-    const known=[...data.defaults,...collection.cards,...(data.profile.passives||[]),...(data.profile.conceptTools||[]),...(data.profile.passiveCards||[])];
+    const known=[...data.defaults,...collection.cards,...(data.profile.passives||[]),...(data.profile.conceptTools||[]),...(data.profile.passiveCards||[]),...gameMindSources(data.profile.mindRules)];
     data.profile.stackNames=[...new Set([...collection.stackNames,...known.flatMap(source=>
       (source.effects||[]).flatMap(effectStackNames))])];
     if(!studio){
@@ -5858,7 +5877,12 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
         break;
       }
       case 'profile': {
-        Object.assign(profile,gameProfileFields(input,profile.mind??50));
+        const fields=gameProfileFields(input,profile.mind??50);
+        if(input.mindRules!==undefined){
+          fields.mindRules=gameCharacterMindRules(input.mindRules,[...gameCatalogue,...gameUnlockedCards(profile),
+            ...ownCollection.cards,...(profile.passiveCards||[])]);
+        }
+        Object.assign(profile,fields);
         break;
       }
       case 'characterAccountSave': {
@@ -5956,7 +5980,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
           list.push(gamePassive(input.passive,undefined,owned));
         }
         if(profile.passiveCards?.length&&['passive','passiveDelete'].includes(input.action)){
-          const needed=new Set([...list,...(profile.conceptTools||[])].flatMap(passive=>gameShareBundle(passive,[...ownCollection.cards,...profile.passiveCards]).slice(1).map(card=>card.id)));
+          const needed=new Set([...list,...(profile.conceptTools||[]),...gameMindSources(profile.mindRules)].flatMap(passive=>gameShareBundle(passive,[...ownCollection.cards,...profile.passiveCards]).slice(1).map(card=>card.id)));
           profile.passiveCards=profile.passiveCards.filter(card=>needed.has(card.id));
         }
         break;

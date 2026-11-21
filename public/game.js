@@ -204,7 +204,14 @@ function stackManager(){
 }
 function character(){
   const p=state.profile;
-  const form=formFor('profile',(_,data)=>({...Object.fromEntries(data),activityLocations:data.getAll('activityLocations'),stats:statNames.map((_,i)=>Number(data.get('stat'+i)))}));
+  const mindWorkspaces=['mind','drain'].map(kind=>effectWorkspace(
+    (p.mindRules||[]).filter(effect=>effect.kind===kind),
+    {passive:true,mindKind:kind,onChange:()=>{draftDirty=true;}}
+  ));
+  const form=formFor('profile',(_,data)=>({
+    ...Object.fromEntries(['name','country','status','wall','job','concept','goal'].map(key=>[key,data.get(key)])),
+    activityLocations:data.getAll('activityLocations'),
+    stats:statNames.map((_,i)=>Number(data.get('stat'+i))),mindRules:mindWorkspaces.flatMap(workspace=>workspace.rows())}));
   const status=select('status',opts(statuses),p.status);
   const wall=field('살아온 장벽',select('wall',opts(countryNames.slice(4,9)),p.wall||'제4국'));
   const check=()=>{wall.hidden=status.value!=='월정커';wall.style.display=wall.hidden?'none':'';};
@@ -242,7 +249,15 @@ function character(){
   };
   locations.addEventListener('change',updateLocations);
   updateLocations();
-  stats.append(legend,list,hp);form.append(locations,stats,submit('캐릭터 저장'));
+  const mindConditions=el('fieldset',undefined,{class:'full stack'});
+  mindConditions.append(el('legend','정신력 변동 조건'),
+    note('자신의 정신력을 올리거나 내릴 이벤트와 조건을 연결하세요. 기존 전투 규칙과 함께 적용되며, 전투 중 편집은 GM이 승인하면 반영돼요.'));
+  for(const [index,label] of ['정신력 증가 조건','정신력 감소 조건'].entries()){
+    const workspace=el('details',undefined,{class:'stack'});
+    workspace.append(el('summary',label),mindWorkspaces[index].node);
+    mindConditions.append(workspace);
+  }
+  stats.append(legend,list,hp);form.append(locations,stats,mindConditions,submit('캐릭터 저장'));
   const editor=section('캐릭터 시트',form);
   editor.classList.add('full');
   const sheet=group(editor);
@@ -672,10 +687,10 @@ function effectTimingAllowed(kind,when,scoped,passive,role){
     (when!=='roll'||!['amplifyHit','replayHit'].includes(kind));
   return !['amplifyHit','replayHit'].includes(kind)&&(!stagedPowerEffects.includes(kind)||stagedPowerTimings.includes(when));
 }
-function effectWorkspace(initial,{scoped=false,passive=false,stack=false,role,onChange}){
-  const kinds=stack?passiveEffectKinds.filter(kind=>!['replaceCard','giveCard'].includes(kind)):passiveEffectKinds;
-  const allows=(kind,when)=>when==='held'?stack&&heldStackEffectKinds.includes(kind):
-    (!stack||kinds.includes(kind))&&effectTimingAllowed(kind,when,scoped,passive,role?.value);
+function effectWorkspace(initial,{scoped=false,passive=false,stack=false,role,mindKind,onChange}){
+  const kinds=mindKind?[mindKind]:stack?passiveEffectKinds.filter(kind=>!['replaceCard','giveCard'].includes(kind)):passiveEffectKinds;
+  const allows=(kind,when)=>(!mindKind||kind===mindKind)&&(when==='held'?stack&&heldStackEffectKinds.includes(kind):
+    (!stack||kinds.includes(kind))&&effectTimingAllowed(kind,when,scoped,passive,role?.value));
   const events=Object.fromEntries(Object.entries(timings).filter(([when])=>(passive?
     kinds.some(kind=>allows(kind,when)):
     when!=='held'&&(!scoped||hitEffectTimings.includes(when)))));
@@ -693,14 +708,14 @@ function effectWorkspace(initial,{scoped=false,passive=false,stack=false,role,on
       const config=newEffects[kind];
       const preferred=config?.[1]||suggestedTiming[kind]||'hit';
       return {kind,when:when||(legacyHitEvents.includes(preferred)?'hit':preferred),
-        to:cardZoneTimings.includes(when)||['replayHit','amplifyHit',...stagedPowerEffects].includes(kind)?'self':config?.[2]||(selfEffects.has(kind)?'self':'target'),
+        to:mindKind||cardZoneTimings.includes(when)||['replayHit','amplifyHit',...stagedPowerEffects].includes(kind)?'self':config?.[2]||(selfEffects.has(kind)?'self':'target'),
         amount:['amplifyHit','healCut','hitLeech','lifeSteal','shieldConversion'].includes(kind)?50:1,...(kind==='poison'?{dotRounds:2}:{}),
         ...(kind==='amplifyHit'?{amountMode:'percent'}:{})};
     },
-    makeEffect:(row,when)=>effectRow({...row,when},onChange,scoped,passive,stack),onChange
+    makeEffect:(row,when)=>effectRow({...row,when},onChange,scoped,passive,stack,mindKind),onChange
   });
 }
-function effectRow(row,refresh,scoped,passive,stack){
+function effectRow(row,refresh,scoped,passive,stack,mindKind){
   const x=el('details',undefined,{class:'effect-tile'});
   const title=el('summary');
   const fields=el('div',undefined,{class:'effect'});
@@ -854,7 +869,7 @@ function effectRow(row,refresh,scoped,passive,stack){
   const conditionStack=searchableSelect('조건에서 확인할 중첩',conditionStackControl);
   const tagHelp=el('small','',{class:'minor'});
   tag.append(tagHelp);
-  const toOptions=replace?[['self','자신'],['target','원래 대상']]:
+  const toOptions=mindKind?[['self','자신']]:replace?[['self','자신'],['target','원래 대상']]:
     Object.entries(effectRecipients).map(([id,label])=>[id,(passive||['struck','hurt','clash'].includes(row.when))&&id==='target'?'전투 상대':label]);
   const to=select('to',toOptions,row.to||'target');
   const recipient=row.recipientKeyword||{};
@@ -2093,7 +2108,10 @@ function unitIntelInspection(unit){
       '한 번에 최대 체력의 25% 이상 체력 피해를 받으면 −10',
       '카드의 정신력 소모, 정신 피해, 지속 정신 피해 적용'
     ]:[mindText];
-    content.append(passives,section('정신력 회복 조건',...recover.map(note)),section('정신력 감소 조건',...loss.map(note)));
+    const mindConditions=kind=>(info.mind?.rules||[]).filter(effect=>effect.kind===kind)
+      .map(effect=>note(effectConditionText(effect)+effectTiming(effect)+' · '+effectSentence(effect)));
+    content.append(passives,section('정신력 회복 조건',...recover.map(note),...mindConditions('mind')),
+      section('정신력 감소 조건',...loss.map(note),...mindConditions('drain')));
   }else content.append(group('패시브',100),group('정신력 회복 조건',100),group('정신력 감소 조건',100));
   return content;
 }

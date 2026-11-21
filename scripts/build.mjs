@@ -41,6 +41,7 @@ const reference={
   serverValidation:{
     rangesAndBlocks:validationSection('const gameRanges =','function gameCard('),
     cardsAndPassives:validationSection('function gameCard(','const gameEquippedEffects='),
+    characterMindRules:validationSection('const gameMindSources=','const gamePassiveSource='),
     stackDefinitions:validationSection('function gameStackName(','function gameUpgradeStackTrait('),
     stackImport:validationSection("          case 'stackImport':","          case 'card':"),
     cardImport:validationSection('function gameImportCards(','function gameActivityLocations('),

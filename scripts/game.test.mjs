@@ -4217,3 +4217,38 @@ test('only the GM seat can change the shared battle track',async()=>{
   const changed=await f.send(f.endpoint,undefined,guest.cookie);
   assert.equal(changed.body.battleMusic,'auto');
 });
+
+test('character mind rules round-trip with card references and trigger in battle',async()=>{
+  const source=await fixture(), destination=await fixture();
+  const profile={name:'정신력 시험',country:'제6국',status:'하위층 시민',stats:[50,50,50,50,50,50]};
+  await source.act('card',{card:{name:'기준 행동',role:'normal',target:'self',range:'0',power:'0',effects:[]}});
+  const oldId=source.state.profile.cards[0].id;
+  const mindRules=[
+    {kind:'mind',when:'battleStart',to:'self',amount:5,flow:[{kind:'if',id:1,branch:'then',
+      test:{type:'compare',op:'gte',left:{type:'stat',stat:'selfHp'},right:{type:'number',value:50}}}]},
+    {kind:'drain',when:'turnEnd',to:'self',amount:3},
+    {kind:'mind',when:'toGrave',to:'self',amount:1,zoneCard:'specific',zoneCardId:oldId}
+  ];
+  await source.act('profile',{...profile,mindRules});
+  const file=await source.send(source.endpoint,{action:'characterExport'},source.host.cookie);
+  assert.equal(file.status,200);
+  assert.equal(file.body.mindRules.length,3);
+  assert.equal(file.body.cards[0].id,oldId);
+  await destination.act('characterImport',{file:file.body});
+  const imported=destination.state.profile;
+  const reference=imported.mindRules.find(effect=>effect.zoneCardId);
+  assert.equal(reference.zoneCardId,imported.passiveCards[0].id);
+  assert.notEqual(reference.zoneCardId,oldId);
+  await destination.act('start',{solo:true,bots:0});
+  const before=livingForm(destination).mind;
+  assert.equal(before,55);
+  assert.equal(livingForm(destination).allyIntel.mind.rules.length,3);
+  assert.equal(livingForm(destination).allyIntel.passives.length,0);
+  configureBattle(destination,b=>{b.units.enemy.blockedRounds=1;});
+  await destination.act('plan',{});
+  await destination.act('round');
+  assert.equal(livingForm(destination).mind,before-3);
+  const rejected=await source.send(source.endpoint,{action:'profile',revision:source.state.revision,...profile,
+    mindRules:[{kind:'mind',when:'turnStart',to:'allAllies',amount:3}]},source.host.cookie);
+  assert.equal(rejected.status,400);
+});

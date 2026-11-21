@@ -3741,3 +3741,28 @@ test('applause roots its holder and release empowers exactly the next first atta
   assert.equal(livingForm(f).applauseRelease,undefined);
   assert.ok(f.state.battle.log.some(line=>line.includes('치명타 (180%)')));
 });
+
+test('concept tools equip independently, activate in battle, and survive character export and import',async()=>{
+  const f=await fixture();
+  await f.act('profile',{name:'도구 제작자',country:'제4국',status:'하위층 시민',stats:[50,50,50,50,50,50]});
+  await f.act('conceptTool',{tool:{name:'객차의 호신 부적',effects:[{when:'turnStart',kind:'shield',amount:7,to:'self'}]}});
+  const tool=f.state.profile.conceptTools[0];
+  assert.equal(tool.enabled,false);
+  assert.equal(f.state.profile.passives?.length||0,0);
+  await f.act('conceptToolToggle',{id:tool.id});
+  await f.act('start',{solo:true,bots:0});
+  assert.equal(livingForm(f).shield,7);
+  await f.act('conceptToolToggle',{id:tool.id});
+  assert.ok(livingForm(f).passiveNames.includes(tool.name));
+  await f.act('requestEdit');
+  await f.act('reviewEdit',{id:f.state.pendingEdits[0].id,approve:true});
+  assert.ok(!livingForm(f).passiveNames.includes(tool.name));
+  await f.act('reset');
+  await f.act('conceptToolToggle',{id:tool.id});
+  const exported=(await f.send(f.endpoint,{action:'characterExport'},f.host.cookie)).body;
+  assert.equal(exported.conceptTools[0].enabled,true);
+  await f.act('conceptToolDelete',{id:tool.id});
+  await f.act('characterImport',{file:exported});
+  assert.equal(f.state.profile.conceptTools[0].name,tool.name);
+  assert.equal(f.state.profile.conceptTools[0].enabled,true);
+});

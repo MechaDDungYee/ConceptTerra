@@ -65,6 +65,7 @@ async function send(action,payload={}){
     }
     if(action==='card'||action==='cardDelete'&&payload.id===edit)edit=null;
     if(action==='cardClone')edit=state.editedCardId;
+    if(['conceptTool','conceptToolDelete','characterImport','characterAccountSelect'].includes(action))conceptToolEdit=null;
     if(['passive','passiveDelete','passiveTake','passiveClone','passiveImport','characterImport','characterAccountSelect'].includes(action))passiveEdit=null;
 
     if(['plan','start','round','reset','loadSlot','importSave','loopRevert'].includes(action))battleDraft=null;
@@ -235,7 +236,7 @@ function character(){
   });
   account.classList.add('full');
   sheet.prepend(account);
-  sheet.append(files,characterPassives(p),art);
+  sheet.append(files,characterPassives(p),characterConceptTools(p),art);
   return sheet;
 }
 function characterPassives(profile){
@@ -310,6 +311,51 @@ function characterPassives(profile){
   if(existing)form.append(button('편집 취소',()=>open(null)));
   save.disabled=!workspace.rows().length;
   root.append(stackManager(),form);
+  return root;
+}
+
+let conceptToolEdit=null;
+function characterConceptTools(profile){
+  const list=profile.conceptTools||[];
+  const existing=list.find(tool=>tool.id===conceptToolEdit);
+  const open=id=>{conceptToolEdit=id;draftDirty=false;render();};
+  const root=section('개념 도구',note('아이템과 장신구의 효과를 블록으로 만들고 장착하세요. 장착한 도구는 전투 중 해당 이벤트에서 자동으로 발동합니다.'));
+  root.classList.add('full','character-passives');
+  if(state.battle?.phase==='planning'&&state.battle.units.some(unit=>unit.id===state.me))
+    root.append(note('전투 중 장착이나 해제를 적용하려면 GM에게 변경을 요청하세요.'));
+  if(!list.length)root.append(note('아직 만든 개념 도구가 없어요.'));
+  for(const tool of list){
+    const card=el('article',undefined,{class:'passive-entry stack'});
+    const title=el('div',undefined,{class:'row'});
+    title.append(el('strong',tool.name),el('span',tool.enabled?'장착 중':'미장착',{class:'tag'}));
+    card.append(title);
+    if(tool.notes)card.append(note(tool.notes));
+    if(tool.flavor)card.append(flavorText(tool.flavor));
+    for(const effect of tool.effects)card.append(note(effectConditionText(effect)+effectTiming(effect)+' · '+effectSentence(effect)));
+    const actions=el('div',undefined,{class:'row'});
+    actions.append(button('편집',()=>open(tool.id)),button(tool.enabled?'해제':'장착',()=>send('conceptToolToggle',{id:tool.id})),
+      button('삭제',()=>{if(confirm('「'+tool.name+'」 도구를 삭제할까요?'))send('conceptToolDelete',{id:tool.id});}));
+    card.append(actions);
+    root.append(card);
+  }
+  if(list.length>=maxPassives&&!existing)return root;
+  const save=submit(existing?'도구 변경 저장':'개념 도구 만들기');
+  const workspace=effectWorkspace(existing?.effects||[],{passive:true,onChange:()=>{
+    save.disabled=!workspace.rows().length;
+    draftDirty=true;
+  }});
+  const form=formFor('conceptTool',(_,data)=>({tool:{
+    id:existing?.id,name:data.get('name'),notes:data.get('notes'),flavor:data.get('flavor'),enabled:data.has('enabled'),effects:workspace.rows()
+  }}));
+  form.append(el('h3',existing?'개념 도구 편집':'새 개념 도구',{class:'full'}),
+    field('도구 이름',input('name',existing?.name||'','text',{required:true,maxlength:36})),
+    field('저장하고 장착',input('enabled','1','checkbox',{checked:existing?.enabled??false}),'inline'),
+    field('도구 설명',area('notes',existing?.notes||'',300),'full'),
+    field('플레이버 텍스트',area('flavor',existing?.flavor||'',300),'full'),
+    workspace.node,save);
+  if(existing)form.append(button('편집 취소',()=>open(null)));
+  save.disabled=!workspace.rows().length;
+  root.append(form);
   return root;
 }
 let artForm='normal',artPose='idle';

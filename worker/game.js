@@ -376,6 +376,7 @@ function gamePassive(input,id=gameId(),owned=[],stack=false){
   const card=gameCard({name:input.name,role:'normal',target:'self',range:'0',power:'0',effects:input.effects},'passive:'+id,owned,true,stack);
   return {id,name:card.name,notes:gameText(input.notes,300),...(gameText(input.flavor,300)?{flavor:gameText(input.flavor,300)}:{}),enabled:input.enabled!==false,effects:card.effects};
 }
+const gameEquippedEffects=profile=>[...(profile?.passives||[]),...(profile?.conceptTools||[])].filter(entry=>entry.enabled);
 const gamePassiveSource=passive=>({id:'passive:'+passive.id,name:passive.name,effects:passive.effects,passive:true});
 function gamePassives(b,actor,when,target,source){
   if(!gameAlive(actor))return;
@@ -2597,25 +2598,28 @@ function gameExportPassives(passives,owned){
   }
   return {passives,cards:[...cards.values()]};
 }
-function gameImportPassives(file,existing,cards,enabled){
+function gameImportPassives(file,existing,cards,enabled,includeTools=false){
+  const tools=includeTools?(file.conceptTools===undefined?[]:file.conceptTools):[];
+  if(!Array.isArray(tools)||tools.length>maxPassives)gameFail('개념 도구 수를 확인하세요.');
   if(!Array.isArray(file.passives)||existing.length+file.passives.length>maxPassives||
     !Array.isArray(file.cards)||cards.length+file.cards.length>48||
     file.cards.some(card=>!card||typeof card.id!=='string'))gameFail('패시브 또는 참조 카드 수를 확인하세요.');
   const ids=new Map(file.cards.map(card=>[card.id,gameId()]));
   const imported=file.cards.length?gameImportCards(file.cards,cards,false,ids,48):[];
   const owned=[...gameCatalogue,...cards,...imported];
-  const passives=file.passives.map(passive=>{
+  const read=passive=>{
     if(!passive||!Array.isArray(passive.effects))gameFail('패시브 파일의 효과를 확인하세요.');
     return gamePassive({...passive,enabled:enabled&&passive.enabled!==false,
       effects:passive.effects.map(effect=>mapEffectCardReferences(effect,id=>ids.get(id)||id))},undefined,owned);
-  });
-  return {passives:[...existing,...passives],passiveCards:[...cards,...imported]};
+  };
+  return {passives:[...existing,...file.passives.map(read)],passiveCards:[...cards,...imported],
+    ...(includeTools?{conceptTools:tools.map(read)}:{})};
 }
 function gameLoadCharacter(profile,file){
   const fields=file.character;
   if(!fields||!fields.art||typeof fields.art!=='object'||Array.isArray(fields.art))gameFail('캐릭터 파일 형식을 확인하세요.');
   for(const [slot,image] of Object.entries(fields.art))gameValidateArt(slot,image);
-  Object.assign(profile,gameProfileFields(fields,fields.mind),gameImportPassives(file,[],[],true),
+  Object.assign(profile,gameProfileFields(fields,fields.mind),gameImportPassives(file,[],[],true,true),
     {art:fields.art,artVersion:(profile.artVersion||0)+1});
 }
 function gameDeck(owned,ids){
@@ -2749,7 +2753,7 @@ function gameBegin(state,members,settings,actor,collections) {
     const {owned,cards}=gameCampaignDeck(state,m.id,collection);
     units[m.id]=gameUnit(m.id,p?.name||m.name,gameSpawn(m.seat-1,units,walls),cards,false,false,[...owned,...(p?.passiveCards||[])]);
     units[m.id].activityLocations=gameActivityLocations(p?.activityLocations);
-    units[m.id].passives=(p?.passives||[]).filter(passive=>passive.enabled);
+    units[m.id].passives=gameEquippedEffects(p);
     units[m.id].stackDefinitions=Object.fromEntries(collection.stackTraits.map(trait=>[trait.name,trait]));
     units[m.id].hp=units[m.id].maxHp=characterMaxHp(p?.stats?.[2]);
     if(p?.mind!==undefined)units[m.id].mind=p.mind;
@@ -2763,7 +2767,7 @@ function gameBegin(state,members,settings,actor,collections) {
     const {owned,cards}=gameCampaignDeck(state,actor.id,collection);
     units[actor.id]=gameUnit(actor.id,p?.name||actor.name,gameSpawn(0,units,walls),cards,false,false,[...owned,...(p?.passiveCards||[])]);
     units[actor.id].activityLocations=gameActivityLocations(p?.activityLocations);
-    units[actor.id].passives=(p?.passives||[]).filter(passive=>passive.enabled);
+    units[actor.id].passives=gameEquippedEffects(p);
     units[actor.id].stackDefinitions=Object.fromEntries(collection.stackTraits.map(trait=>[trait.name,trait]));
     units[actor.id].hp=units[actor.id].maxHp=characterMaxHp(p?.stats?.[2]);
     if(p?.mind!==undefined)units[actor.id].mind=p.mind;
@@ -5405,8 +5409,11 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
   const ownCollection=gameCollection(legacy,ownRow);
   const characterSnapshot=()=>{
     const saved=gameView(state,revision,actor,manager,members).profile;
+    const conceptTools=saved.conceptTools||[];
+    const passives=saved.passives||[];
+    const {cards}=gameExportPassives([...passives,...conceptTools],[...ownCollection.cards,...(saved.passiveCards||[])]);
     return {character:{...gameProfileFields({...saved,name:saved.name||self.name},saved.mind),art:saved.art||{}},
-      ...gameExportPassives(saved.passives||[],[...ownCollection.cards,...(saved.passiveCards||[])])};
+      passives,conceptTools,cards};
   };
   if(['passiveExport','characterExport'].includes(input?.action)){
     try{
@@ -5449,7 +5456,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
     data.profile.stackTraits=collection.stackTraits;
     data.profile.conceptStackTraits=Object.values(gameConceptTraits);
     data.defaults=[...gameCatalogue,...gameUnlockedCards(state.profiles[actor])];
-    const known=[...data.defaults,...collection.cards,...(data.profile.passives||[]),...(data.profile.passiveCards||[])];
+    const known=[...data.defaults,...collection.cards,...(data.profile.passives||[]),...(data.profile.conceptTools||[]),...(data.profile.passiveCards||[])];
     data.profile.stackNames=[...new Set([...collection.stackNames,...known.flatMap(source=>
       (source.effects||[]).flatMap(effectStackNames))])];
     data.profile.artSlots=Object.keys(data.profile.art||{});
@@ -5550,6 +5557,24 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
         }
         break;
       }
+      case 'conceptTool':
+      case 'conceptToolToggle':
+      case 'conceptToolDelete': {
+        const list=profile.conceptTools??=[];
+        const creating=input.action==='conceptTool';
+        const id=creating?input.tool?.id:input.id;
+        const index=list.findIndex(tool=>tool.id===id);
+        if(index<0&&(id||!creating))gameFail('변경할 개념 도구를 찾을 수 없어요.');
+        if(creating){
+          if(index<0&&list.length>=maxPassives)gameFail('개념 도구는 '+maxPassives+'개까지 저장할 수 있어요.');
+          const owned=[...gameCatalogue,...ownCollection.cards,...(profile.passiveCards||[])];
+          const tool=gamePassive({...input.tool,enabled:input.tool?.enabled===true},id||undefined,owned);
+          if(index<0)list.push(tool);
+          else list[index]=tool;
+        }else if(input.action==='conceptToolToggle')list[index].enabled=!list[index].enabled;
+        else list.splice(index,1);
+        break;
+      }
       case 'passive':
       case 'passiveToggle':
       case 'passiveDelete':
@@ -5584,7 +5609,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
           list.push(gamePassive(input.passive,undefined,owned));
         }
         if(profile.passiveCards?.length&&['passive','passiveDelete'].includes(input.action)){
-          const needed=new Set(list.flatMap(passive=>gameShareBundle(passive,[...ownCollection.cards,...profile.passiveCards]).slice(1).map(card=>card.id)));
+          const needed=new Set([...list,...(profile.conceptTools||[])].flatMap(passive=>gameShareBundle(passive,[...ownCollection.cards,...profile.passiveCards]).slice(1).map(card=>card.id)));
           profile.passiveCards=profile.passiveCards.filter(card=>needed.has(card.id));
         }
         break;
@@ -5754,7 +5779,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
         if(state.campaign?.loopCount&&state.campaign.party.some(unit=>unit.id===actor))
           gameFail('회귀로 작성된 덱은 이번 여정 동안 전투 중에 바꿀 수 없어요.');
         const deck=gameDeck(cards,ownCollection.deck);
-        const passives=(profile.passives||[]).filter(passive=>passive.enabled);
+        const passives=gameEquippedEffects(profile);
         const library=Object.fromEntries([...cards,...(profile.passiveCards||[])].map(({image,...card})=>[card.id,card]));
         const name=profile.name||self.name;
         (b.pendingEdits??={})[actor]={id:gameId(),actor,name,deck:deck.map(card=>card.id),library,passives,

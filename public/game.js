@@ -77,8 +77,11 @@ async function send(action,payload={}){
 
     if(['plan','start','round','reset','loadSlot','importSave','loopRevert'].includes(action))battleDraft=null;
     if(released)battleDraft={...released,key:state.battle.round+':'+state.me+(releasedUnit.collapsed?':collapsed':releasedUnit.zero==='crisis'?':crisis':''),card:released.card||'',discard:released.discard||''};
-    if(action!=='dialogue')draftDirty=false;
-    render();
+    if(action==='dialogue'&&tab==='battle'&&battleDialogue?.root.isConnected)battleDialoguePanel();
+    else{
+      if(action!=='dialogue')draftDirty=false;
+      render();
+    }
     if(action==='cardClone')panel.querySelector('input[name="name"]')?.focus();
     feedback.textContent={plan:'행동을 확정했어요.',unplan:'행동을 수정할 수 있어요.',round:'라운드 처리를 마쳤어요.',card:'카드 보관함에 저장했어요.',deck:'전투 덱을 저장했어요.',cardClone:'카드 사본을 만들었어요.',cardDelete:'카드를 삭제했어요.',cardShare:'이 방에 카드를 공유했어요.',cardUnshare:'공유를 해제했어요.',cardTake:'공유 카드를 보관함에 가져왔어요.',cardImport:'파일의 카드를 보관함에 가져왔어요.',passive:'패시브를 저장했어요.',passiveClone:'패시브 사본을 만들었어요.',passiveShare:'이 방에 패시브를 공유했어요.',passiveUnshare:'패시브 공유를 해제했어요.',passiveTake:'패시브를 가져왔어요. 장착하면 전투에서 발동해요.',
       characterAccountSave:'계정에 캐릭터를 저장했어요.',characterAccountSelect:'캐릭터를 불러왔어요.',requestEdit:'GM에게 변경 적용을 요청했어요.'}[action]||'반영했어요.';
@@ -2062,10 +2065,10 @@ function battlePanel(){
   }
   const nav=el('nav',undefined,{class:'battle-session-nav','aria-label':'전투 중 세션 메뉴'});
   nav.append(el('a','← 방으로',{href:'/room/'+code}));
-  for(const [key,label] of [['character','캐릭터'],['cards','카드 · 덱'],['dialogue','대화']]){
+  for(const [key,label] of [['character','캐릭터'],['cards','카드 · 덱'],['dialogue','대화창 열기']]){
     nav.append(button(label,()=>document.querySelector('#tabs [data-tab="'+key+'"]').click()));
   }
-  board.append(fieldView.frame,topbar,nav,fieldView.tools,allyPanel,intentPreview,forecast);
+  board.append(fieldView.frame,topbar,nav,fieldView.tools,allyPanel,intentPreview,forecast,battleDialoguePanel());
   const poisonAmount=u=>(u.poison||0)+(u.damageOverTime||[]).reduce((sum,dot)=>sum+dot.amount,0);
   const unitStats=el('div',undefined,{class:'stack'});
   for(const u of b.units){
@@ -2577,6 +2580,51 @@ function battleEditControls(){
   return tab==='battle'&&(!state.manager||!pending.length)?null:box;
 }
 
+
+function dialogueForm(label,placeholder){
+  const message=area('message','',500);
+  message.required=true;
+  message.setAttribute('aria-label',label);
+  message.placeholder=placeholder;
+  const post=submit('보내기');
+  const form=el('form',undefined,{class:'dialogue-input'});
+  form.append(message,post);
+  form.onsubmit=async event=>{
+    event.preventDefault();
+    const draft=message.value;
+    if(busy||post.disabled||!draft.trim())return;
+    post.disabled=true;
+    try{
+      if(await send('dialogue',{message:draft})&&message.value===draft)message.value='';
+    }finally{post.disabled=false;if(form.isConnected)message.focus();}
+  };
+  return form;
+}
+let battleDialogue;
+function battleDialoguePanel(){
+  if(!battleDialogue){
+    const root=el('details',undefined,{class:'battle-dialogue'});
+    const history=el('ol',undefined,{class:'battle-dialogue-log','aria-label':'최근 세션 대화','aria-live':'polite'});
+    root.append(el('summary','전투 채팅'),history,dialogueForm('전투 채팅 대사','전투 중 대사 입력'));
+    battleDialogue={root,history,lastId:null};
+  }
+  const {root,history}=battleDialogue;
+  const entries=(state.dialogue||[]).slice(-12);
+  const lastId=entries.at(-1)?.id||'';
+  if(battleDialogue.lastId!==lastId){
+    const follow=history.scrollHeight-history.clientHeight-history.scrollTop<18;
+    const top=history.scrollTop;
+    history.replaceChildren(...entries.map(entry=>{
+      const row=el('li');
+      row.append(el('strong',entry.name),document.createTextNode(' · '+entry.message));
+      return row;
+    }));
+    if(!entries.length)history.append(el('li','아직 대사가 없어요.'));
+    history.scrollTop=follow?history.scrollHeight:top;
+    battleDialogue.lastId=lastId;
+  }
+  return root;
+}
 let dialogue;
 function dialoguePanel(){
   if(!dialogue){
@@ -2587,21 +2635,7 @@ function dialoguePanel(){
     const line=el('div',undefined,{class:'dialogue-line','aria-live':'polite'});
     line.append(speaker,words);
     stage.append(portraits,line);
-    const message=area('message','',500);
-    message.required=true;
-    message.setAttribute('aria-label','대사');
-    message.placeholder='대사를 입력하세요';
-    const post=submit('대사 보내기');
-    const form=el('form',undefined,{class:'dialogue-input'});
-    form.append(message,post);
-    form.onsubmit=async event=>{
-      event.preventDefault();
-      if(busy||post.disabled||!message.value.trim())return;
-      post.disabled=true;
-      try{
-        if(await send('dialogue',{message:message.value}))message.value='';
-      }finally{post.disabled=false;message.focus();}
-    };
+    const form=dialogueForm('대사','대사를 입력하세요');
     const transcript=el('details',undefined,{class:'dialogue-history'});
     const history=el('ol',undefined,{class:'log'});
     transcript.append(el('summary','대화 기록'),history);
@@ -2680,10 +2714,13 @@ try{
       const next=await request();
       if(busy||state!==before)return;
       if(next.revision!==state.revision||next.collectionRevision!==state.collectionRevision||next.manager!==state.manager||JSON.stringify(next.roster)!==JSON.stringify(state.roster)||JSON.stringify(next.saveSlots)!==JSON.stringify(state.saveSlots)){
+        const chatChanged=next.dialogue?.at(-1)?.id!==state.dialogue?.at(-1)?.id;
+        const sameBattle=chatChanged&&['battle','roster','pendingEdits','saveSlots','profile','manager'].every(key=>JSON.stringify(next[key])===JSON.stringify(state[key]));
         const newRound=next.battle?.round!==state.battle?.round||next.battle?.phase!==state.battle?.phase;
         state=next;
         if(newRound)battleDraft=null;
-        if(tab==='battle'||!draftDirty){draftDirty=false;render();}
+        if(tab==='battle'&&sameBattle&&battleDialogue?.root.isConnected)battleDialoguePanel();
+        else if(tab==='battle'||!draftDirty){draftDirty=false;render();}
       }
     }catch{}
   },2300);

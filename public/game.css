@@ -371,3 +371,13 @@ body:has(.battle-dummy) > main > :is(#error,#feedback):not(:empty){
 .battle-intent-node:is(:hover,:focus-visible,[aria-pressed=true]){background:#ffe1a4;color:#332418;filter:none}
 .battle-intent-preview{position:fixed;z-index:55;width:min(235px,calc(100vw - 16px));max-height:calc(100vh - 16px);overflow:hidden;pointer-events:none}
 .battle-intent-preview[hidden]{display:none}
+
+.battle-dialogue{position:absolute;top:38%;right:var(--hud-edge);z-index:5;width:min(250px,calc(100vw - 2 * var(--hud-edge)));background:#111a23ef;border:1px solid #596c7a;border-radius:7px;color:#edf2f3;font-size:.8rem}
+.battle-dialogue:not([open]){width:auto}
+.battle-dialogue summary{cursor:pointer;padding:6px 9px;font-weight:750}
+.battle-dialogue-log{margin:0;padding:3px 9px;list-style:none;max-height:min(18vh,140px);overflow:auto;overscroll-behavior:contain}
+.battle-dialogue-log li{padding:3px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.battle-dialogue-log strong{color:#e3efb8}
+.battle-dialogue .dialogue-input{padding:5px 8px 8px;gap:5px}
+.battle-dialogue .dialogue-input textarea{font-size:.8rem;resize:none}
+.battle-dialogue .dialogue-input button{padding:5px 7px;font-size:.74rem}

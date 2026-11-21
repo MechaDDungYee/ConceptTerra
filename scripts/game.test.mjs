@@ -4025,3 +4025,17 @@ test('bright plaza exposes a difficulty label separately from damage rankings',a
   assert.equal(view.body.battle.encounter.difficulty,'전설급');
   assert.equal(view.body.battle.encounter.rank,undefined);
 });
+
+test('allies expose the full dossier without an observation requirement',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'동료'});
+  await f.act('passive',{passive:{name:'회복 기질',enabled:true,effects:[{when:'turnStart',kind:'mind',amount:2,to:'self'}]}});
+  await f.act('start',{solo:true,bots:0});
+  const view=await f.send(f.endpoint,undefined,guest.cookie);
+  const ally=view.body.battle.units.find(unit=>unit.id===f.state.me);
+  assert.equal(ally.revealTier,undefined);
+  assert.equal(ally.allyIntel.stats.maxHp,100);
+  assert.ok(ally.allyIntel.actions.length>0);
+  assert.equal(ally.allyIntel.passives[0].name,'회복 기질');
+  assert.equal(ally.allyIntel.mind.managed,true);
+});

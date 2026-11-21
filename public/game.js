@@ -1995,14 +1995,15 @@ function enemyIntelGauge(unit){
   if(state.manager)box.append(el('small','GM 전체 열람'));
   return box;
 }
-function enemyIntelInspection(unit){
-  const info=unit.enemyIntel||{};
+function unitIntelInspection(unit){
+  const info=(unit.enemy?unit.enemyIntel:unit.allyIntel)||{};
   const content=el('div',undefined,{class:'stack'});
-  content.append(enemyIntelGauge(unit));
+  if(unit.enemy)content.append(enemyIntelGauge(unit));
   const group=(title,unlock)=>section(title,note('관찰도 '+unlock+'에서 해금'));
   if(info.stats){
     const {hp,maxHp,move,actions}=info.stats;
-    content.append(section('능력치',note('체력 '+hp+'/'+maxHp+' · 이동력 '+move+' · 행동력 '+actions)));
+    content.append(section('능력치',note('체력 '+hp+'/'+maxHp+' · 이동력 '+move+' · 행동력 '+actions),
+      ...(!unit.enemy?[note('정신력 '+unit.mind+'/100 · 위력 '+signed(mentalPower(unit.mind))),note('보호막 '+unit.shield)]:[])));
   }else content.append(group('능력치',25));
   if(info.actions){
     const cards=el('div',undefined,{class:'enemy-intel-cards'});
@@ -2024,7 +2025,17 @@ function enemyIntelInspection(unit){
     }
     if(!info.passives.length)passives.append(note('공개된 패시브가 없어요.'));
     const mindText=info.mind?.managed===false?'이 적은 정신력 변동이 적용되지 않아요.':'공개된 조건이 없어요.';
-    content.append(passives,section('정신력 회복 조건',note(mindText)),section('정신력 감소 조건',note(mindText)));
+    const recover=info.mind?.managed?[
+      '전투 승리 시 +10',
+      '체력 25% 이하에서 25%를 넘겨 회복하면 전투당 한 번 +5',
+      '아군을 향한 공격을 가로채 합에서 이기면 +5',
+      '정신력 회복 효과와 지속 회복 적용'
+    ]:[mindText];
+    const loss=info.mind?.managed?[
+      '한 번에 최대 체력의 25% 이상 체력 피해를 받으면 −10',
+      '카드의 정신력 소모, 정신 피해, 지속 정신 피해 적용'
+    ]:[mindText];
+    content.append(passives,section('정신력 회복 조건',...recover.map(note)),section('정신력 감소 조건',...loss.map(note)));
   }else content.append(group('패시브',100),group('정신력 회복 조건',100),group('정신력 감소 조건',100));
   return content;
 }
@@ -2170,10 +2181,9 @@ function battlePanel(){
   menuItems.append(button('전투 기록',()=>activity.showModal()),button('참가자 상태',()=>participants.showModal()));
   board.append(activity,participants);
   const inspect=u=>{
-    const detail=u.enemy?enemyIntelInspection(u):el('div',undefined,{class:'stack'});
+    const detail=unitIntelInspection(u);
     const portrait=battleArt(u,u.pose||'idle');
     if(portrait)detail.prepend(el('img',undefined,{src:portrait,alt:u.name,class:'character-art-preview-image'}));
-    if(!u.enemy)detail.append(note('체력 '+u.hp+'/'+u.maxHp),...(!u.enemy?[note('정신력 '+u.mind+'/100 · 위력 '+signed(mentalPower(u.mind)))]:[]),note('보호막 '+u.shield));
     if(u.lethalGuard)detail.append(note('치명상 방지 '+u.lethalGuard));
     if(u.lateDraw)detail.append(note('다음 라운드 추가 드로우 '+u.lateDraw));
     if(u.expose)detail.append(note('취약 '+u.expose));

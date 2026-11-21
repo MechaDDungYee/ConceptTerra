@@ -3059,3 +3059,20 @@ test('shield slots honor caps and keep their original expiry when duration refre
   }
   assert.equal(livingForm(f).shieldSlots,undefined);
 });
+
+test('GM-only effect contents are removed from shared cards and only the public hint reaches guests',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'관찰자'});
+  await f.act('card',{card:{name:'감춘 카드',role:'normal',power:'0',range:'0',target:'self',effects:[
+    {kind:'shield',when:'use',to:'self',amount:3},
+    {kind:'mind',when:'end',to:'self',amount:87,gmOnly:true,flavor:'숨겨진 원문',publicHint:'기묘한 잔향'}
+  ]}});
+  await f.act('cardShare',{id:f.state.profile.cards[0].id});
+  const gm=f.state.sharedCards[0].card;
+  const publicResponse=await f.send(f.endpoint,undefined,guest.cookie);
+  const card=publicResponse.body.sharedCards[0].card;
+  assert.equal(gm.effects[1].amount,87);
+  assert.deepEqual(card.effects.map(effect=>effect.kind),['shield']);
+  assert.deepEqual(card.publicHints,['기묘한 잔향']);
+  assert.ok(!JSON.stringify(publicResponse.body).includes('숨겨진 원문'));
+});

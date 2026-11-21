@@ -332,7 +332,7 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
       if(key==='durationCap'&&!timed)gameFail('이 효과에는 유지 라운드 상한을 연결할 수 없어요.');
       numberExprs[key]=gameExpression(expr);
     }
-    return {...settings,...gainLimits,...(Object.keys(numberExprs).length?{numberExprs}:{}),...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
+    return {...settings,...gainLimits,...gameVisibility(row),...(Object.keys(numberExprs).length?{numberExprs}:{}),...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
       ...(grantsShield?{shieldDuration,shieldCap,stackMode,...(shieldSource?{shieldSource}:{}),
         ...(row.refreshDuration===false?{refreshDuration:false}:{})}:{}),
       ...(durationPolicy!=='default'?{durationPolicy}:{}),...(durationCap?{durationCap}:{}),
@@ -357,7 +357,7 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
   gameValidateFlow(entries);
   const hitFlavors=Array.isArray(input.hitFlavors)?hitPowers.map((_,index)=>gameText(input.hitFlavors[index],180)):[];
   const flavor=gameText(input.flavor,300);
-  return {id,name,power:hitPowers[0],...(flavor?{flavor}:{}),...(hitFlavors.some(Boolean)?{hitFlavors}:{}),...(hitPowers.length>1?{hitPowers}:{}),...(hitTargets?{hitTargets}:{}),range,...(rangeShape?{rangeShape}:{}),target,...(splash?{splash}:{}),requiredState,clash:!counter&&target!=='tile'&&input.clash===true,unstoppable:!counter&&target!=='tile'&&input.unstoppable===true&&input.clash===true&&!['guard','assist'].includes(input.role)&&target!=='self',role:input.role,cost:input.role==='overload'?bounded(Number(input.cost)||20,10,30):0,notes:gameText(input.notes,300),effects:entries,image};
+  return {id,name,...gameVisibility(input,true),power:hitPowers[0],...(flavor?{flavor}:{}),...(hitFlavors.some(Boolean)?{hitFlavors}:{}),...(hitPowers.length>1?{hitPowers}:{}),...(hitTargets?{hitTargets}:{}),range,...(rangeShape?{rangeShape}:{}),target,...(splash?{splash}:{}),requiredState,clash:!counter&&target!=='tile'&&input.clash===true,unstoppable:!counter&&target!=='tile'&&input.unstoppable===true&&input.clash===true&&!['guard','assist'].includes(input.role)&&target!=='self',role:input.role,cost:input.role==='overload'?bounded(Number(input.cost)||20,10,30):0,notes:gameText(input.notes,300),effects:entries,image};
 }
 function gamePassive(input,id=gameId(),owned=[],stack=false){
   const limit=maxPassiveEffects+Number(stack);
@@ -396,7 +396,7 @@ function gamePassives(b,actor,when,target,source){
 }
 function gameHeldStackSources(unit){
   return Object.entries(unit.stackTraits||{}).filter(([name])=>unit.stacks[name]>0).map(([name,trait])=>({
-    id:'stack:'+name,name,effects:trait.effects,passive:true,stackCount:unit.stacks[name]
+    id:'stack:'+name,name,effects:trait.effects,passive:true,stackCount:unit.stacks[name],...gameVisibility(trait)
   }));
 }
 function gameStackGainLimits(input){
@@ -423,12 +423,12 @@ function gameStackTrait(input,owned){
     if(!gameInt(input[key],1,max))gameFail('중첩 보유 한도를 확인하세요.');
     holdLimits[key]=input[key];
   }
-  return {name:input.name,...(flavor?{flavor}:{}),...holdLimits,gainLimits:gameStackGainLimits(input.gainLimits),effects:normalized.map((effect,index)=>({...effect,
+  return {name:input.name,...gameVisibility(input),...(flavor?{flavor}:{}),...holdLimits,gainLimits:gameStackGainLimits(input.gainLimits),effects:normalized.map((effect,index)=>({...effect,
     ...(effects[index].scaleStack==='count'?{scaleStack:'count'}:{})
   }))};
 }
-function gameUpgradeStackTrait({name,effects,critical,flavor,gainLimits,holdCount,holdPower}){
-  const entry={name,effects,...(flavor?{flavor}:{}),...(gainLimits?{gainLimits}:{}),
+function gameUpgradeStackTrait({name,effects,critical,flavor,gainLimits,holdCount,holdPower,...visibility}){
+  const entry={name,effects,...gameVisibility(visibility),...(flavor?{flavor}:{}),...(gainLimits?{gainLimits}:{}),
     ...(holdCount?{holdCount}:{}),...(holdPower?{holdPower}:{})};
   if(!critical)return entry;
   return {...entry,effects:[...effects,{when:'held',kind:'critChance',amount:critical,to:'self',scaleStack:'count'}]};
@@ -570,7 +570,43 @@ const gameAlive=u=>u&&u.hp>0;
 const gameCanPlan=u=>gameAlive(u)&&!u.blockedRounds&&(u.collapsed||!u.zero||u.zero==='crisis');
 const gameDistance=(a,b)=>gridDistance(a.pos,b.pos);
 const gameReach=(card,a,b)=>gridCardInRange(card,a.pos,b.pos);
-const gameLog=(b,message)=>{b.log.push(message);b.log=b.log.slice(-65);};
+function gameVisibility(value,card=false){
+  if(value.gmOnly!==true&&value.visibility!=='gm')return {};
+  const publicHint=gameText(value.publicHint,120);
+  const publicName=card?gameText(value.publicName,40):'';
+  return {gmOnly:true,...(publicHint?{publicHint}:{}),...(publicName?{publicName}:{})};
+}
+function gameLog(b,message){
+  const hidden=b.hiddenEffectLog;
+  if(hidden){
+    b.log.push({text:message,gmOnly:true,publicHint:hidden.reported?null:hidden.hint,round:b.round});
+    hidden.reported=true;
+  }else b.log.push(message);
+  b.log=b.log.slice(-65);
+}
+function gameVisibleLog(log,manager){
+  return log.flatMap(entry=>typeof entry==='string'?[entry]:
+    manager?[entry.gmOnly?'[GM 전용] '+entry.text:entry.text]:entry.gmOnly?(entry.publicHint?[entry.publicHint]:[]):[entry.text]);
+}
+function gamePublicView(value){
+  if(Array.isArray(value))return value.map(gamePublicView);
+  if(!value||typeof value!=='object')return value;
+  if(value.gmOnly){
+    const fields=['id','name','power','range','rangeShape','target','role','cost','requiredState','clash','unstoppable','splash','cap'];
+    const result=Object.fromEntries(fields.filter(key=>Object.hasOwn(value,key)).map(key=>[key,value[key]]));
+    if(value.publicName)result.name=value.publicName;
+    if(value.publicHint)result.publicHints=[value.publicHint];
+    if(Array.isArray(value.effects))result.effects=[];
+    return result;
+  }
+  const result=Object.fromEntries(Object.entries(value).filter(([key])=>key!=='effects').map(([key,item])=>[key,gamePublicView(item)]));
+  if(Array.isArray(value.effects)){
+    result.effects=value.effects.filter(effect=>!effect?.gmOnly).map(gamePublicView);
+    const hints=value.effects.flatMap(effect=>effect?.gmOnly&&effect.publicHint?[effect.publicHint]:[]);
+    if(hints.length)result.publicHints=hints;
+  }
+  return result;
+}
 
 const handTarget=4, handLimit=12;
 function gameDiscardSelection(hand,input,ai){
@@ -2047,6 +2083,16 @@ function gameTeachCard(actor,recipient,card){
   }
 }
 function gameApplyEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
+  const previous=b.hiddenEffectLog;
+  const hidden=effect.gmOnly?effect:ctx.card.gmOnly?ctx.card:null;
+  if(!previous&&hidden)b.hiddenEffectLog={hint:hidden.publicHint,reported:false};
+  try{
+    return gameApplyVisibleEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup);
+  }finally{
+    if(!previous)delete b.hiddenEffectLog;
+  }
+}
+function gameApplyVisibleEffect(b,ctx,when,target,depth,effect,u,applied,consumeGroup){
   const sourceEffect=effect;
   if(effect.numberExprs){
     effect={...effect};
@@ -3076,7 +3122,7 @@ function gamePrepareAction(b,u,plan,moved){
   ctx.copyId=replacement?replacement.copyId:plan.copyId;
   ctx.goal=plan.pos;
   ctx.clash=plan.clash&&(!replacement||card.clash&&targets.includes(b.units.enemy))&&gameReach(card,u,b.units.enemy);
-  gameLog(b,u.name+' · '+card.name);
+  gameLog(b,u.name+' · '+(card.gmOnly?(card.publicName||'숨겨진 카드'):card.name));
   if(card.role!=='assist')gamePassives(b,u,'use',targets[0]||null,ctx);
   if(card.role==='guard'){
     const protectedId=(replacement?replacement.protectedId:plan.targets?.[0])||null;
@@ -3410,7 +3456,7 @@ function gameAwaiting(b,members){
 }
 function gameView(state,revision,actor,manager,members) {
   const b=state.battle;
-  const battle=b?{round:b.round,phase:b.phase,result:b.result,intent:b.intent,log:b.log,walls:b.walls,poses:b.poses||[],
+  const battle=b?{round:b.round,phase:b.phase,result:b.result,intent:b.intent,log:gameVisibleLog(b.log,manager),walls:b.walls,poses:b.poses||[],
     awaiting:gameActive(b)?gameAwaiting(b,members).map(u=>u.name):[],clashActor:Object.keys(b.plans||{}).find(id=>gameHasClash(b.plans[id])),
     units:Object.values(b.units).map(({library,hand,deck,grave,exile,cover,effectUsage,passives,cardMarks,configuredDeck,lifeSteal,poisonSources,shieldSlots,queuedShields,stackRuns,damageDebt,damageOverTime,delayedStrike,...unit})=>({
       ...unit,
@@ -3495,9 +3541,11 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       if(input.action==='passiveExport'){
         if(input.id)passives=passives.filter(passive=>passive.id===input.id);
         if(!passives.length)gameFail('다운로드할 패시브가 없어요.');
-        return json({format:passiveFileFormat,version:1,...gameExportPassives(passives,owned)});
+        const data={format:passiveFileFormat,version:1,...gameExportPassives(passives,owned)};
+        return json(manager?data:gamePublicView(data));
       }
-      return json({format:characterFileFormat,version:1,...characterSnapshot()});
+      const data={format:characterFileFormat,version:1,...characterSnapshot()};
+      return json(manager?data:gamePublicView(data));
     }catch(e){if(e instanceof GameInputError)return error(e.message);throw e;}
   }
   const shares=()=>Object.values(state.cardShares||{}).filter(share=>members.some(member=>member.id===share.owner));
@@ -3528,7 +3576,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       data.pendingEdits=Object.values(b.pendingEdits||{}).filter(edit=>manager||edit.actor===actor)
         .map(({id,actor,name,cardNames,passiveNames})=>({id,actor,name,cardNames,passiveNames}));
     }
-    return json(data);
+    return json(manager?data:gamePublicView(data));
   };
   if(!input)return view();
   const collectionEdit=['card','deck','cardClone','cardDelete','cardImport','cardTake','stackCreate','stackEdit'].includes(input.action);

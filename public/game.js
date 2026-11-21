@@ -512,6 +512,8 @@ function readEffect(row){
   const all=effect.kind==='consume'&&effect.consumeAmount==='all';
   if(all||unnumberedEffects.includes(effect.kind))effect.amount=1;
   if(!effect.ratioBasis||effect.amountMode!=='percent')delete effect.ratioBasis;
+  effect.gmOnly=row.querySelector('[name=gmOnly]')?.checked===true;
+  if(!effect.gmOnly)delete effect.publicHint;
   if(!effect.dotRounds)delete effect.dotRounds;
   if(!effect.shieldCap)delete effect.shieldCap;
   if(effect.durationPolicy==='default'||row.querySelector('[name=durationPolicy]')?.closest('label')?.hidden){
@@ -821,7 +823,7 @@ function effectRow(row,refresh,scoped,passive,stack){
       x.amountPart.dataset.unit=isPercent?'percent':'fixed';
       x.amountPart.firstElementChild.textContent=isPercent?'비율값 파츠':'고정값 파츠';
     }
-    title.textContent=effectConditionText(e)+effectTiming(e)+' · '+effectSentence(e);
+    title.textContent=(e.gmOnly?'[GM 전용] ':'')+effectConditionText(e)+effectTiming(e)+' · '+effectSentence(e);
     if(x.isConnected)refresh();
   };
   const part=(label,color,...controls)=>{
@@ -855,6 +857,11 @@ function effectRow(row,refresh,scoped,passive,stack){
       ...capFields,...ampFields,...shieldFields,...leechFields,...duration,...settings,durationPolicyField,durationCapField,...stackScale,reactionField,...(row.kind==='stack'?[]:[tag]),fixedField),
     field('효과 플레이버 텍스트',area('flavor',row.flavor||'',180),'full'),
     part('대가와 발동 제한','limit',field('발동 제한',limit),limitCountField,scaleField,scaleModeField,scaleAmountField,scaleBasisField));
+  if(state.manager){
+    const secret=input('gmOnly','1','checkbox');
+    secret.checked=row.gmOnly===true;
+    fields.append(field('GM 전용 효과',secret,'inline'),field('참가자에게 보일 힌트',input('publicHint',row.publicHint||'','text',{maxlength:120})));
+  }
   fields.append(part('효과 자체 조건','condition',field('어떤 조건에서?',condition),conditionCardField,conditionStack,threshold,diceHelp));
   x.append(title,fields);
   x.addEventListener('input',show);
@@ -1029,6 +1036,7 @@ function renderCardFace(preview,card){
     }
     description.append(stacks);
   }
+  for(const hint of card.publicHints||[])description.append(note(hint));
   for(const effect of rows){
     const line=el('p',undefined,{class:'forge-effect'});
     const phase=effectConditionText(effect)+effectTiming(effect);
@@ -1395,7 +1403,7 @@ function cards(){
     }
     const image=await imageData(data.get('image'));
     const splash=['splash','tile'].includes(chosen)?{range:splashForm.range.value,rangeShape:splashForm.value()}:undefined;
-    return {card:{id:c.id,name:data.get('name'),hitPowers,hitTargets,hitFlavors:hits.map(hit=>hit.flavor.value),flavor:data.get('flavor'),target:['guard','counter'].includes(role.value)?'self':/^\d$/.test(chosen)?Number(chosen):chosen,range:rangeForm.range.value,rangeShape:rangeForm.value(),splash,clash:data.has('clash'),unstoppable:data.has('unstoppable'),role:data.get('role'),requiredState:data.get('requiredState'),cost:Number(data.get('cost')),notes:data.get('notes'),effects,image:image||(!data.has('clearImage')?c.image:'')}};
+    return {card:{id:c.id,name:data.get('name'),gmOnly:data.has('gmOnly'),publicName:data.get('publicName'),publicHint:data.get('publicHint'),hitPowers,hitTargets,hitFlavors:hits.map(hit=>hit.flavor.value),flavor:data.get('flavor'),target:['guard','counter'].includes(role.value)?'self':/^\d$/.test(chosen)?Number(chosen):chosen,range:rangeForm.range.value,rangeShape:rangeForm.value(),splash,clash:data.has('clash'),unstoppable:data.has('unstoppable'),role:data.get('role'),requiredState:data.get('requiredState'),cost:Number(data.get('cost')),notes:data.get('notes'),effects,image:image||(!data.has('clearImage')?c.image:'')}};
   });
   const cost=field('혹사 정신력 소모',select('cost',[[10,'10'],[20,'20'],[30,'30']],c.cost||20));
   const sync=()=>{
@@ -1422,6 +1430,13 @@ function cards(){
     el('p','합에서 패배해도 전투를 계속할 수 있으면 최소 위력으로 공격해요.',{id:'unstoppable-guide',class:'notice minor full'}),
     field('카드 이미지',input('image','','file',{accept:'image/png,image/jpeg,image/webp'})),
     field('카드 플레이버 텍스트',area('flavor',c.flavor||'',300),'full'),field('GM 판정 메모',area('notes',c.notes||'',300),'full'));
+  if(state.manager){
+    const secret=input('gmOnly','1','checkbox');
+    secret.checked=c.gmOnly===true;
+    makeCard.append(field('카드 전체를 GM 전용으로 표시',secret,'inline'),
+      field('참가자에게 보일 카드 이름',input('publicName',c.publicName||'','text',{maxlength:40})),
+      field('참가자에게 보일 카드 힌트',input('publicHint',c.publicHint||'','text',{maxlength:120})));
+  }
   makeCard.elements.target.addEventListener('change',sync);
   makeCard.elements.clash.addEventListener('change',sync);
   sync();
@@ -1612,6 +1627,7 @@ function actionPanel(title,card,unit,art){
   if(card.role==='counter')side.append(note(counterHelp));
   if(card.splash)side.append(note((card.target==='tile'?'선택한 칸 주변 · ':card.hitTargets?'부 대상 범위 · ':'주 대상 적중 시 · 주변 ')+gridCardRangeLabel(card.splash)));
   if(art)side.append(el('img',undefined,{src:art,alt:'',class:'battle-action-art'}));
+  for(const hint of card.publicHints||[])side.append(note(hint));
   for(const effect of card.effects)side.append(note(effectConditionText(effect)+effectTiming(effect)+' · '+effectSentence(effect)));
   if(card.cost)side.append(note('정신력 −'+card.cost));
   if(card.notes)side.append(note(card.notes));

@@ -3204,3 +3204,31 @@ test('first stop loads a 225 HP foe and resolves peaceful and brute-force extrac
     }
   }
 });
+
+test('an explicit interceptor becomes the enemy target on losing the clash',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'예고 대상'});
+  await f.send(f.room+'/seat',{id:f.state.me,seat:1},f.host.cookie);
+  await f.send(f.room+'/seat',{id:guest.body.me,seat:2},f.host.cookie);
+  await f.act('card',{card:{name:'가로채기 시험',power:'1',role:'normal',range:'1~4',target:1,clash:true,effects:[]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[id],mind:50});
+    b.units[guest.body.me].pos=18;
+    b.units.enemy.pos=20;
+    b.intent={target:guest.body.me,reachable:true,card:{...b.intent.card,power:'8',unredirectable:true}};
+  });
+  const payload={card:id,targets:['enemy'],stance:'intercept'};
+  const rejected=await f.send(f.endpoint,{action:'plan',revision:f.state.revision,...payload},f.host.cookie);
+  assert.equal(rejected.status,400);
+  configureBattle(f,b=>{b.intent.card.unredirectable=false;});
+  await f.act('plan',payload);
+  const guestState=(await f.send(f.endpoint,undefined,guest.cookie)).body;
+  const guestPlan=await f.send(f.endpoint,{action:'plan',revision:guestState.revision,cards:[]},guest.cookie);
+  assert.equal(guestPlan.status,200);
+  const result=await f.send(f.endpoint,{action:'round',revision:guestPlan.body.revision},f.host.cookie);
+  assert.equal(result.status,200);
+  assert.equal(result.body.battle.units.find(unit=>unit.id===f.state.me).hp,92);
+  assert.equal(result.body.battle.units.find(unit=>unit.id===guest.body.me).hp,100);
+});

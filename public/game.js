@@ -1973,12 +1973,12 @@ function battlePanel(){
   const planned=self.plan;
   const draftKey=b.round+':'+self.id+(collapsed?':collapsed':crisis?':crisis':'');
   if(!battleDraft||battleDraft.key!==draftKey){
-    battleDraft={key:draftKey,card:planned?.card??(planned?'':null),targetTile:planned?.targetTile??null,pos:planned?.pos??self.pos,targets:planned?.targets??[],clash:!!planned?.clash,discard:planned?.discard||'',copyId:planned?.copyId||'',vow:planned?.vow||self.crisisVow||''};
+    battleDraft={key:draftKey,card:planned?.card??(planned?'':null),targetTile:planned?.targetTile??null,pos:planned?.pos??self.pos,targets:planned?.targets??[],clash:!!planned?.clash,stance:planned?.stance||(planned?.clash?'clash':'unopposed'),discard:planned?.discard||'',copyId:planned?.copyId||'',vow:planned?.vow||self.crisisVow||''};
   }
   const editable=!self.ready;
   const actionLimit=self.actionLimit??baseActions;
   const slotCount=Math.max(1,actionLimit);
-  const actionFields=({card=null,targets=[],clash=false,copyId='',targetTile=null}={})=>({card,targets,clash,copyId,targetTile});
+  const actionFields=({card=null,targets=[],clash=false,stance,copyId='',targetTile=null}={})=>({card,targets,clash,stance:stance||(clash?'clash':'unopposed'),copyId,targetTile});
   const draft=editable?battleDraft:{...planned};
   draft.slots??=(draft.cards||[draft]).map(actionFields);
   draft.slots.length=Math.min(draft.slots.length,slotCount);
@@ -2034,8 +2034,8 @@ function battlePanel(){
   const setup=el('div',undefined,{class:'battle-selection'});
   const moveInfo=el('span');
   const tileMode=button('이동 칸 선택',()=>{moveMode=!moveMode;refresh();});
-  const clash=input('clash','1','checkbox',{disabled:!editable});
-  const clashLabel=field('예고 공격과 합',clash,'inline');
+  const clash=select('stance',[['unopposed','일방행동'],['clash','합'],['intercept','가로채기']],draft.stance||'unopposed');
+  const clashLabel=field('공격 방식',clash,'inline');
   if(!Array.isArray(draft.discard))draft.discard=draft.discard?[draft.discard]:[];
   const discarded=new Map();
   const discardLabel=el('details',undefined,{class:'battle-discard'});
@@ -2082,7 +2082,7 @@ function battlePanel(){
   dock.insertBefore(queue,setup);
   if(editable)controls.prepend(cancel,commit);
   else controls.prepend(button('확정 취소 · 수정',()=>send('unplan')));
-  clash.onchange=()=>{draft.clash=clash.checked;refresh();};
+  clash.onchange=()=>{draft.stance=clash.value;draft.clash=draft.stance!=='unopposed';refresh();};
   copy.onchange=()=>{draft.copyId=copy.value;refresh();};
 
   function refresh(){
@@ -2136,17 +2136,24 @@ function battlePanel(){
     const splashCenter=targetingTile?center:primary?.pos;
     const designated=guarding&&b.units.find(u=>chosen.has(u.id));
     const coverInRange=designated&&candidates.includes(designated);
-    const clashTaken=others.some(slot=>slot.clash)||!!b.clashActor&&b.clashActor!==self.id;
+    const clashTaken=others.some(slot=>slot.clash);
     const incoming=b.intent?.reachable&&target&&foe&&gridCardHasReach(b.intent.card,foe.pos,targetPos(target),b.walls);
     const canClash=!collapsed&&card?.clash&&!['guard','assist','counter'].includes(card.role)&&incoming&&chosen.has(foe?.id)&&!clashTaken&&(!b.intent.card.unredirectable||b.intent.target===self.id);
     if(editable){
       draft.targets=manual?[...chosen]:[];
-      if(!canClash)draft.clash=false;
+      const canIntercept=canClash&&b.intent.target!==self.id&&
+        gridCardHasReach(b.intent.card,foe.pos,pos,b.walls);
+      clash.options[1].disabled=!canClash;
+      clash.options[2].disabled=!canIntercept;
+      if(!canClash||draft.stance==='intercept'&&!canIntercept){
+        draft.clash=false;
+        draft.stance='unopposed';
+      }
     }
     clashLabel.hidden=collapsed||!card?.clash||['guard','assist','counter'].includes(card.role);
     clashLabel.title=clashTaken?'다른 참가자가 이미 합을 확정했어요.':'합을 걸려면 적을 선택하세요.';
-    clash.checked=!!draft.clash;
-    clash.disabled=!editable||!canClash;
+    clash.value=draft.stance||'unopposed';
+    clash.disabled=!editable;
     const selected=slotChoices().filter(slot=>slot.card);
     for(const [id,choices] of discarded){
       const remaining=handCount(id)-selected.filter(slot=>slot.card===id).length;

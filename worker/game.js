@@ -1667,7 +1667,11 @@ function gameSelect(b,u,input,ai=false) {
     if(card&&!['guard','counter'].includes(card.role)&&!collapseTargets(card,{...u,pos:goal},Object.values(b.units),gameBattleWalls(b)).length)gameFail('선택한 위치에서 사거리 안에 자동 표적이 없어요.');
     return {card:cardId,pos:goal,targets:[],clash:false,...(copyId?{copyId}:{}),discard};
   }
-  const clash=input.clash===true;
+  if(input.stance!=null&&!['clash','unopposed','intercept'].includes(input.stance))gameFail('공격 방식을 확인하세요.');
+  const intercept=input.stance==='intercept'||input.intercept===true;
+  const clash=intercept||input.stance==='clash'||input.stance==null&&input.clash===true;
+  if(intercept&&(b.intent.target===u.id||!gameReach(b,b.intent.card,b.units.enemy,{...u,pos:goal})))
+    gameFail('양쪽 공격 사거리 안에서 아군을 향한 예고만 가로챌 수 있어요.');
   if(clash&&b.intent.card.unredirectable&&b.intent.target!==u.id)gameFail('대상 변경 불가 공격은 가로챌 수 없어요.');
   if(clash&&(['assist','guard','counter'].includes(card?.role)||!card?.clash||!b.intent.reachable||!gameAlive(b.units[b.intent.target])))gameFail('이 행동으로는 현재 합을 걸 수 없어요.');
   const guarding=card?.role==='guard';
@@ -1682,15 +1686,15 @@ function gameSelect(b,u,input,ai=false) {
   if(!targets.every(id=>available.some(v=>v.id===id)))gameFail('선택한 위치에서 대상이 사거리 밖에 있어요.');
   if(clash&&b.intent.target===u.id&&!gameReach(b,b.intent.card,b.units.enemy,{...u,pos:goal}))gameFail('이동할 위치가 적의 예고 공격 사거리 밖이에요.');
   if(clash&&!(card.target==='area'?available.some(v=>v.enemy):targets.includes('enemy')))gameFail('합을 걸려면 예고 공격을 하는 적을 대상으로 선택하세요.');
-  if(clash&&Object.entries(b.plans).some(([id,plan])=>id!==u.id&&gameHasClash(plan)))gameFail('이미 다른 참가자가 합을 확정했어요.');
-  return {card:cardId,...(crisis?{vow}:{}),pos:goal,targets,clash,...(copyId?{copyId}:{}),discard};
+
+  return {card:cardId,...(crisis?{vow}:{}),pos:goal,targets,clash,stance:intercept?'intercept':clash?'clash':'unopposed',...(intercept?{intercept:true}:{}),...(copyId?{copyId}:{}),discard};
 }
 function gameSelectTurn(b,u,input,ai=false){
   if(!Object.hasOwn(input,'cards'))return gameSelect(b,u,input,ai);
   const {cards,pos,vow,discard}=input;
   if(!Array.isArray(cards)||cards.length>gameActionLimit(u))gameFail('이번 턴 행동량까지만 카드를 예약할 수 있어요.');
   if(cards.some(card=>!card||typeof card.card!=='string'||!card.card))gameFail('예약할 카드를 확인하세요.');
-  if(cards.filter(card=>card.clash===true).length>1)gameFail('예고 공격 하나에는 카드 한 장만 합을 걸 수 있어요.');
+  if(cards.filter(card=>card.clash===true||['clash','intercept'].includes(card.stance)).length>1)gameFail('예고 공격 하나에는 카드 한 장만 합을 걸 수 있어요.');
   if(!cards.length)return gameSelect(b,u,{pos,vow,discard},ai);
   const hand=[...u.hand], temporary=new Set();
   const chosen=cards.map(choice=>{
@@ -3405,6 +3409,7 @@ function gamePrepareAction(b,u,plan,moved){
   ctx.temporary=temporary;
   ctx.copyId=replacement?replacement.copyId:plan.copyId;
   ctx.goal=plan.pos;
+  ctx.intercept=plan.intercept===true;
   ctx.clash=plan.clash&&(!replacement||card.clash&&targets.includes(b.units.enemy))&&gameReach(b,card,u,b.units.enemy);
   gameLog(b,u.name+' · '+(card.gmOnly?(card.publicName||'숨겨진 카드'):card.name));
   if(card.role!=='assist')gamePassives(b,u,'use',targets[0]||null,ctx);
@@ -3450,10 +3455,14 @@ function gameResolveWave(b,contexts,countered){
     for(const victim of ctx.targets)gameTriggers(b,ctx,'use',victim);
   };
   const enemy=b.units.enemy,target=b.units[b.intent.target];
-  const duelist=contexts.find(c=>c.clash&&gameAlive(c.actor)&&!['guard','assist','counter'].includes(c.card.role));
+  const confirmed=Object.keys(b.plans);
+  const duelist=contexts.filter(ctx=>ctx.clash&&gameAlive(ctx.actor)&&!['guard','assist','counter'].includes(ctx.card.role)&&
+    (!ctx.intercept||!b.intent.card.unredirectable&&gameReach(b,b.intent.card,enemy,ctx.actor)))
+    .sort((a,c)=>confirmed.indexOf(a.actor.id)-confirmed.indexOf(c.actor.id))[0];
   if(!countered&&duelist&&gameEnemyReady(b)){
     b.shock={};
-    const incoming=gameEnemyAction(b,enemy,target);
+    if(duelist.intercept)gameLog(b,duelist.actor.name+' · '+target.name+'의 예고 공격 가로채기');
+    const incoming=gameEnemyAction(b,enemy,duelist.intercept?duelist.actor:target);
     if(!gameAlive(enemy))return true;
     gameClashEffects(b,duelist,incoming);
     const ours=gameActionPower(b,duelist,enemy),theirs=gameActionPower(b,incoming,duelist.actor);

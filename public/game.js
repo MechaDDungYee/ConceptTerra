@@ -1885,7 +1885,7 @@ function actionPanel(title,card,unit,art){
   const hidden=card.revealHidden||[];
   if(unit.enemy&&unit.revealTier!=null){
     side.dataset.revealTier=unit.revealTier;
-    side.append(note(state.manager?'GM · 전체 공개':'관찰 '+unit.revealTier+'단계 · '+unit.intelProgress+'/'+unit.revealNext));
+    side.append(note('관찰 '+unit.revealTier+'단계 · '+unit.intelProgress+'/100'+(state.manager?' · GM 전체 열람':'')));
   }
   const [min,max]=hidden.includes('power')?['???','???']:powerBounds(card,(unit.enemy?0:mentalPower(Math.max(0,unit.mind-card.cost)))+(unit.nextPower||0)+(unit.awakening?awakeningPower:0)).map(value=>applyPowerRatio(value,unit.nextPowerPercent||0));
   const values=el('div',undefined,{class:'battle-power-preview'});
@@ -1963,7 +1963,7 @@ function battleGrid(b,self){
       tokens.set(unit.id,token);
       token.dataset.unitId=unit.id;
       token.append(el('span',unit.name.split(' · ')[0]),el('progress',undefined,{value:unit.hp,max:unit.maxHp,'aria-label':unit.name+' 체력'}));
-      if(unit.enemy)token.append(el('small','관찰 '+(unit.intelProgress??0)+'%',{class:'battle-intel-token',title:'정보 해금도 '+(unit.intelProgress??0)+'/100'}));
+      if(unit.enemy)token.append(el('small','관찰 '+(unit.intelProgress??0)+'% · '+(unit.revealTier??0)+'단계',{class:'battle-intel-token',title:'정보 해금도 '+(unit.intelProgress??0)+'/100'}));
       if(!unit.enemy)token.append(el('small',unit.mind,{class:'unit-sp',title:'정신력'}));
       const actions=intents.filter(intent=>(intent.attacker||'enemy')===unit.id);
       if(unit.hp&&actions.length){

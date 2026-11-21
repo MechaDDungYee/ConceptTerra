@@ -5460,7 +5460,7 @@ function gameView(state,revision,actor,manager,members) {
       ...(unit.enemy?{
         enemyIntel:gameEnemyIntelDetail(b,{...unit,library,configuredDeck},manager?3:b.intel?.[unit.id]?.tier??0,manager,passives),
         intelProgress:b.intel?.[unit.id]?.progress??0,overlapCount:b.intel?.[unit.id]?.overlap??0,
-        revealTier:manager?3:b.intel?.[unit.id]?.tier??0,locationTagCount:locationTags?.length??0,
+        revealTier:gameRevealTier(b.intel?.[unit.id]?.progress??0),locationTagCount:locationTags?.length??0,
         revealNext:revealThresholds[b.intel?.[unit.id]?.tier??0]??100,
         ...(manager||b.intel?.[unit.id]?.tier>=1?{locationTags}:{})
       }:{}),

@@ -3979,6 +3979,8 @@ test('enemy dossiers unlock stats, actions and passive details at observation th
   const guest=await f.send(f.room+'/join',{name:'관찰 승객'});
   await f.act('start',{solo:true,bots:0,encounter:'collector01'});
   assert.ok(livingForm(f,'enemy').enemyIntel.passives.length);
+  assert.equal(livingForm(f,'enemy').intelProgress,0);
+  assert.equal(livingForm(f,'enemy').revealTier,0);
   for(const [progress,tier] of [[0,0],[25,1],[50,2],[100,3]]){
     configureBattle(f,b=>{b.intel.enemy={progress,tier,overlap:0};});
     const view=await f.send(f.endpoint,undefined,guest.cookie);

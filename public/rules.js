@@ -404,6 +404,9 @@ export const maxPassiveEffects = 8;
 export const heldStackEffectKinds = ['conceptIncomingCut','critChance','critMultiplier','outgoingDamage','incomingDamage','moveMod','forcedMoveImmune','leaveTrail'];
 // Concept cards grant these traits to their holder for the current battle.
 export const conceptStacks = {
+  '영감':{cap:null,flavor:'전장에서 일어난 모든 일이 그림의 재료가 된다.',effects:[
+    {when:'held',kind:'rulecard:ink',amount:1,to:'self',publicLabel:'타격마다 마젠타 3 · 피해의 절반 시안 · 체력 회복량 옐로우 · 정신력 변화 절댓값 블랙'}
+  ]},
   '붉은 소양감':{cap:null,flavor:'손톱이 자랄 때마다 붉은 줄이 더 길어졌다.',effects:[
     {when:'held',kind:'outgoingDamage',amount:10,amountMode:'percent',scaleStack:'count',to:'self',
       publicLabel:'중첩당 입히는 피해 +10%, 위력 +1 · 출혈 불사 · 턴 시작 출혈 및 중첩 증가'}
@@ -536,9 +539,14 @@ export const artPoses = {idle:'스탠딩',ready:'공격 준비',attack:'공격',
 export const artPoseLabel=(form,pose)=>pose==='shift'?
   ({concept:'기본 → 붕괴 변화 연출',awakened:'기본 → 각성 변화 연출',normal:'기본 형태로 복귀 연출',crisis:'붕괴 직전 변화 연출'}[form]||artPoses.shift):
   artPoses[pose];
-export function cardUsable(unit,card){
+export function effectiveCardCost(unit,card,round=unit.combatRound??Infinity){
+  const reduced=(card?.cost||0)-(unit.scribeDiscount>=round?3:0);
+  const half=unit.ruleHalfCost>=round?Math.floor(reduced/2):reduced;
+  return Math.max(0,unit.inkBuff?.includes('black')?Math.floor(half*0.7):half);
+}
+export function cardUsable(unit,card,round){
   if(!card)return false;
-  if(card.concept&&(unit.enemy||unit.mind<card.cost))return false;
+  if(card.concept&&(unit.enemy||unit.mind<effectiveCardCost(unit,card,round)))return false;
   if(card.trial)return unit.zero==='crisis'&&!unit.collapsed;
   const state=cardState(card.requiredState);
   if(unit.collapsed)return state==='collapsed';

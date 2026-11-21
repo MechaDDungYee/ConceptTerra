@@ -18,6 +18,7 @@ export function gridLineOfSight(from,to,walls=[]){
   return true;
 }
 export function gridCardHasReach(card,from,to,walls=[]){
+  if(card?.boardReach)return from!==to||card.targetSide==='any';
   return gridCardInRange(card,from,to)&&(card.target==='tile'||gridLineOfSight(from,to,walls));
 }
 export function gridDistance(a,b) {

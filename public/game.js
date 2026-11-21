@@ -1918,6 +1918,9 @@ function battlePanel(){
   for(const u of b.units){
     const chips=el('div',undefined,{class:'chips'});
     const tags=['체력 '+u.hp+'/'+u.maxHp];
+    if(u.inks)tags.push('영감 · 마젠타 '+u.inks.magenta+' · 시안 '+u.inks.cyan+' · 옐로우 '+u.inks.yellow+' · 블랙 '+u.inks.black);
+    if(u.scribeRecord?.through>=b.round)tags.push('녹음 중 · 체력 '+u.scribeRecord.hp+' · 정신력 '+u.scribeRecord.mind);
+    if(u.whiteMaze?.through>=b.round)tags.push('하얀 복도 · '+(u.whiteMaze.through-b.round)+'라운드');
     if(u.redBleed)tags.push('출혈 · 위력 '+u.redBleed.power+' · 횟수 '+u.redBleed.count);
     if(!u.enemy)tags.push('정신력 '+u.mind+' · 위력 '+signed(mentalPower(u.mind)),'행동량 '+(u.actionLimit??baseActions));
     if(u.coverCount)tags.push('원호 방어 '+u.coverCount);

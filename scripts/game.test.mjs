@@ -2537,9 +2537,9 @@ test('arithmetic supports extra terms in effects and comparison operands',async(
 test('concept cards are stronger catalogue choices and pay mental cost once on use',async()=>{
   const f=await fixture();
   const allConcepts=f.state.defaults.filter(card=>card.concept);
-  assert.equal(allConcepts.length,20);
-  const concepts=allConcepts.filter(card=>!['conceptVaultStart','conceptSnailStart','conceptSafeStart','conceptPlummetStart','conceptTrifaceStart','conceptStitchSeam','conceptHeronSpring','conceptFleshNails','conceptBlindJudge','conceptGuestStart'].includes(card.id));
-  assert.equal(f.state.profile.conceptStackTraits.length,18);
+  assert.equal(allConcepts.length,26);
+  const concepts=allConcepts.filter(card=>!['conceptVaultStart','conceptSnailStart','conceptSafeStart','conceptPlummetStart','conceptTrifaceStart','conceptStitchSeam','conceptHeronSpring','conceptFleshNails','conceptBlindJudge','conceptGuestStart','conceptCommuteStart','conceptDread','conceptMaze','conceptApproach','conceptScribeStart','conceptArtistStart'].includes(card.id));
+  assert.equal(f.state.profile.conceptStackTraits.length,19);
   const {parsePower}=await import('../public/rules.js');
   const average=card=>(card.hitPowers??[card.power]).reduce((sum,value)=>{const power=parsePower(value);return sum+power.bonus+power.count*(power.sides+1)/2;},0);
   const baseline=Math.max(...f.state.defaults.filter(card=>['strike','hold','shot','rush','trace'].includes(card.id)).map(average));
@@ -3627,4 +3627,90 @@ test('guest replays the previous other unit card effect onto its own target',asy
   await f.act('round');
   assert.ok(f.state.battle.log.some(line=>line.includes('1개 부가 효과 받아 적음')));
   assert.equal(livingForm(f,'enemy').shield,12);
+});
+
+test('attendance waits one round and produces a three-hit capture for an idle target',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:17,mind:90,hand:['conceptCommuteStart'],deck:[]});
+    Object.assign(b.units.enemy,{pos:18,hp:999,maxHp:999,blockedRounds:3});b.walls=[];
+  });
+  await f.act('plan',{card:'conceptCommuteStart',targets:['enemy']});await f.act('round');
+  assert.ok(!livingForm(f).hand.some(card=>card.id==='conceptCommuteSeize'));
+  await f.act('plan',{cards:[]});await f.act('round');
+  const capture=livingForm(f).hand.find(card=>card.id==='conceptCommuteSeize');
+  assert.equal(capture.hitPowers.length,3);
+  await f.act('plan',{card:capture.id,targets:['enemy']});await f.act('round');
+  assert.equal(livingForm(f,'enemy').rooted,true);
+});
+test('scribe rewinds health, mind, and position within the cap without changing stacks',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:17,mind:90,hand:['conceptScribeStart'],deck:[]});
+    Object.assign(b.units.enemy,{pos:18,hp:999,maxHp:999,blockedRounds:3});b.walls=[];
+  });
+  await f.act('plan',{card:'conceptScribeStart',targets:[f.state.me]});await f.act('round');
+  assert.equal(livingForm(f).scribeRecord.pos,17);
+  configureBattle(f,(b,self)=>{self.hp=30;self.mind=70;self.pos=16;self.stacks['시험']=2;});
+  await f.act('plan',{card:'conceptScribeRewind',targets:[f.state.me]});await f.act('round');
+  assert.equal(livingForm(f).hp,70);
+  assert.equal(livingForm(f).pos,17);
+  assert.equal(livingForm(f).stacks['시험'],2);
+  assert.equal(livingForm(f).scribeRecord,undefined);
+});
+test('artist collects colors and consumes them for a balanced masterpiece',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:17,mind:95,hand:['conceptArtistStart'],deck:[]});
+    Object.assign(b.units.enemy,{pos:18,hp:999,maxHp:999,blockedRounds:3});b.walls=[];
+  });
+  await f.act('plan',{card:'conceptArtistStart',targetTile:18});await f.act('round');
+  assert.ok(livingForm(f).inks.magenta>0);
+  assert.ok(livingForm(f).inks.cyan>0);
+  configureBattle(f,(b,self)=>{self.inks={magenta:100,cyan:100,yellow:100,black:100};self.stacks['영감']=400;});
+  const hp=livingForm(f,'enemy').hp;
+  await f.act('plan',{card:'conceptArtistFinish',targetTile:18});await f.act('round');
+  assert.ok(livingForm(f,'enemy').hp<hp-200);
+  assert.deepEqual(livingForm(f).inkBuff,['magenta','cyan','yellow','black']);
+  assert.equal(livingForm(f).inks,undefined);
+});
+test('approach can flank across walls and disrupts a conceptual enemy',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,mind:95,hand:['conceptApproach']});
+    Object.assign(b.units.enemy,{pos:21,hp:999,maxHp:999,conceptEntity:true,blockedRounds:3});b.walls=[18,20];
+  });
+  await f.act('plan',{card:'conceptApproach',targets:['enemy']});await f.act('round');
+  assert.equal(livingForm(f).pos,22);
+  assert.ok(livingForm(f,'enemy').ruleConfusion>=f.state.battle.round);
+});
+
+test('dread rolls the weakest tier against a high-mind target and grants stealth',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:17,mind:95,hand:['conceptDread']});
+    Object.assign(b.units.enemy,{pos:18,hp:999,maxHp:999,mind:90,blockedRounds:2});b.walls=[];
+  });
+  await f.act('plan',{card:'conceptDread',targets:['enemy']});await f.act('round');
+  assert.ok(livingForm(f).ruleStealth.through>=f.state.battle.round);
+  assert.ok(livingForm(f,'enemy').hp>=988);
+});
+test('maze rewinds a moving ally of the target side after movement',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,mind:95,hand:['conceptMaze']});
+    Object.assign(b.units.enemy,{pos:19,hp:999,maxHp:999,blockedRounds:2});b.walls=[];
+  });
+  await f.act('plan',{card:'conceptMaze',targets:['enemy']});await f.act('round');
+  assert.equal(livingForm(f,'enemy').whiteMaze.pos,19);
+  configureBattle(f,(b,self)=>{self.pos=8;b.units.enemy.blockedRounds=0;});
+  await f.act('plan',{cards:[],pos:0});await f.act('round');
+  assert.ok(f.state.battle.log.some(line=>line.includes('같은 복도로 돌아옴')));
+  assert.equal(livingForm(f,'enemy').pos,19);
 });

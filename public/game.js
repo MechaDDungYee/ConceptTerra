@@ -2698,7 +2698,7 @@ function battlePanel(){
       tile.classList.toggle('targetable',canAimTile||editable&&!!targetUnit);
       tile.classList.toggle('tile-center',targetingTile&&isChosen);
       tile.classList.toggle('aimed',isChosen);
-      const splashTile=splashCenter!=null&&i!==splashCenter&&gridCardInRange(card.splash,splashCenter,i)&&!b.walls.includes(i);
+      const splashTile=!!card?.splash&&splashCenter!=null&&i!==splashCenter&&gridCardInRange(card.splash,splashCenter,i)&&!b.walls.includes(i);
       const secondaryTarget=secondary.some(u=>u.pos===i);
       tile.classList.toggle('splash-range',splashTile);
       tile.classList.toggle('splash-target',secondaryTarget);

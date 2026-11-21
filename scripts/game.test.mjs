@@ -3994,3 +3994,10 @@ test('enemy dossiers unlock stats, actions and passive details at observation th
     if(tier===3)assert.equal(enemy.enemyIntel.mind.managed,false);
   }
 });
+
+test('an attack without a splash shape has no secondary tile range',async()=>{
+  const {gridCardInRange,gridCardHasReach}=await import('../public/grid.js');
+  assert.equal(gridCardInRange(undefined,18,19),false);
+  assert.equal(gridCardHasReach(undefined,18,19),false);
+  assert.equal(gridCardInRange({range:'1'},18,19),true);
+});

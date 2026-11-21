@@ -74,6 +74,7 @@ export function gridShapeAt(shape,dx,dy){
   return shape.kind==='custom'&&shape.cells.some(([x,y])=>x===dx&&y===dy);
 }
 export function gridCardInRange(card,from,to){
+  if(!card)return false;
   if(!card.rangeShape)return gridInRange(card.range,from,to);
   const a=gridPoint(from),b=gridPoint(to);
   return gridShapeAt(card.rangeShape,b.x-a.x,b.y-a.y);

@@ -1,5 +1,5 @@
 import {gridIndex,gridValid, gridSize, gridTileGroups, gridDistance, gridPoint, gridLineOfSight, gridPaths, gridDisplacement, gridCardInRange,gridCardHasReach, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
-import {maxConceptTools,stackScanScopes,stackScanMetrics,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,maxActivityLocations,trainReturnMind,baseHp,characterMaxHp,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, effectiveCardCost, applauseAttack, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
+import {maxConceptTools,keywordScanModes,keywordScanPeriods,stackScanScopes,stackScanMetrics,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,maxActivityLocations,trainReturnMind,baseHp,characterMaxHp,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, effectiveCardCost, applauseAttack, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
 class GameInputError extends Error {}
@@ -77,14 +77,15 @@ function gameFlowTest(raw,row,id,owned,depth=0,budget={left:maxGateTests}){
     return {type,left:gameFlowTest(raw.left,row,id,owned,depth+1,budget),right:gameFlowTest(raw.right,row,id,owned,depth+1,budget)};
   }
   if(type==='not')return {type,test:gameFlowTest(raw.test,row,id,owned,depth+1,budget)};
-  if(type==='condition'&&raw.condition==='stackScan'){
+  if(type==='condition'&&['stackScan','keywordScan'].includes(raw.condition)){
+    const keyword=raw.condition==='keywordScan',period=raw.period??'round',mode=raw.mode??'any';
     const tag=gameText(raw.tag,maxStackNameLength),scope=raw.scope??'allies',metric=raw.metric??'count',op=raw.op??'gte';
     const minimum=raw.minimum??1,threshold=raw.threshold??1;
     const names=typeof raw.names==='string'?[...new Set(raw.names.split(/[,\n]/).map(name=>name.trim().normalize('NFKC')).filter(Boolean))]:[];
-    if(!tag||Object.hasOwn(Object.prototype,tag)||!Object.hasOwn(stackScanScopes,scope)||!Object.hasOwn(stackScanMetrics,metric)||
+    if(!tag||Object.hasOwn(Object.prototype,tag)||!Object.hasOwn(stackScanScopes,scope)||(!keyword&&!Object.hasOwn(stackScanMetrics,metric)||keyword&&(!Object.hasOwn(keywordScanPeriods,period)||!Object.hasOwn(keywordScanModes,mode)))||
       !Object.hasOwn(flowComparisons,op)||!gameInt(minimum,1,9999)||!gameInt(threshold,0,100)||
       scope==='named'&&(!names.length||names.length>12||names.some(name=>name.length>50)))gameFail('중첩 대상 감지 조건을 확인하세요.');
-    return {type,condition:'stackScan',subject:'self',tag,scope,metric,op,minimum,threshold,
+    return {type,condition:raw.condition,subject:'self',tag,scope,metric,op,minimum,threshold,...(keyword?{period,mode}:{}),
       ...(scope==='named'?{names:names.join(', ')}:{}),...(raw.thresholdExpr?{thresholdExpr:gameExpression(raw.thresholdExpr)}:{})};
   }
   if(type==='condition'&&raw.condition&&Object.hasOwn(effectConditions,raw.condition)&&['self','target'].includes(raw.subject)){
@@ -3372,6 +3373,36 @@ function gameFlowValue(b,ctx,unit,node,hitIndex=ctx.hitIndex||0){
     }
   },gameFlowValue(b,ctx,unit,first,hitIndex));
 }
+function gameRecordKeywordUse(b,ctx){
+  if(ctx.keywordRecorded||ctx.card.passive)return;
+  ctx.keywordRecorded=true;
+  const tags=new Set();
+  for(const effect of ctx.card.effects){
+    if(effect.gmOnly||!effect.tag)continue;
+    const mode=stackGrantEffects.includes(effect.kind)?'grant':effect.kind==='consume'?'consume':effect.kind==='remove'?'remove':'other';
+    tags.add('any:'+effect.tag);
+    tags.add(mode+':'+effect.tag);
+  }
+  if(!tags.size)return;
+  const history=ctx.actor.keywordUses??={};
+  for(const tag of tags){
+    const record=history['keyword:'+tag]??={total:0,round:0,count:0};
+    record.total++;
+    if(record.round!==b.round){
+      record.previous=record.round===b.round-1?record.count:0;
+      record.round=b.round;
+      record.count=0;
+    }
+    record.count++;
+  }
+}
+function gameKeywordUses(unit,test,round){
+  const record=unit.keywordUses?.['keyword:'+(test.mode||'any')+':'+test.tag];
+  if(!record)return 0;
+  if(test.period==='battle')return record.total;
+  if(test.period==='previous')return record.round===round?record.previous||0:record.round===round-1?record.count:0;
+  return record.round===round?record.count:0;
+}
 function gameStackScan(b,ctx,test){
   const names=test.names?.split(', ');
   const targets=new Set(ctx.targets?.map(unit=>unit.id)||[]);
@@ -3387,7 +3418,7 @@ function gameStackScan(b,ctx,test){
     }
   };
   const count=Object.values(b.units).filter(unit=>gameAlive(unit)&&match(unit)&&
-    (test.metric==='power'?stackPotency(unit,test.tag):unit.stacks[test.tag]||0)>=test.minimum).length;
+    (test.condition==='keywordScan'?gameKeywordUses(unit,test,b.round):test.metric==='power'?stackPotency(unit,test.tag):unit.stacks[test.tag]||0)>=test.minimum).length;
   const threshold=test.thresholdExpr?Math.trunc(gameFlowValue(b,ctx,ctx.actor,test.thresholdExpr)):test.threshold;
   switch(test.op){
     case 'gt':return count>threshold;
@@ -3399,7 +3430,7 @@ function gameStackScan(b,ctx,test){
   }
 }
 function gameFlowTestValue(b,ctx,target,test,effect){
-  if(test.type==='condition'&&test.condition==='stackScan')return gameStackScan(b,ctx,test);
+  if(test.type==='condition'&&['stackScan','keywordScan'].includes(test.condition))return gameStackScan(b,ctx,test);
   if(test.type==='hitResult')return !!ctx.hitResult&&ctx.hitResult.target===target&&ctx.hitResult[test.result]===true;
   if(test.type==='condition'){
     const subject=test.subject==='self'?ctx.actor:target;
@@ -3514,6 +3545,7 @@ function gameTriggers(b,ctx,when,target,depth=0,hitIndex=0) {
     return !effect.hitIndex||(['wall','consume'].includes(when)&&effect.hitIndex===ctx.hitIndex);
   });
   if(when==='use'){
+    gameRecordKeywordUse(b,ctx);
     const priority=e=>!e.flow?.length&&(discardCosts.includes(e.kind)||resourceCosts.includes(e.kind))?0:e.when==='base'?1:2;
     entries.sort((a,c)=>priority(a)-priority(c));
   }
@@ -5297,7 +5329,7 @@ function gameView(state,revision,actor,manager,members) {
     ...(b.encounter?{encounter:{id:b.encounter.id,name:b.encounter.name,peace:b.encounter.peace,peaceOpen:b.encounter.peaceOpen,
       deckSize:b.foeDeck.cards.length,subdueOrder:b.encounter.subdueOrder,rank:b.encounter.rank,negotiating:b.encounter.breakRound===b.round,...(gameIsBright(b)&&(manager||b.encounter.stage>1)?{stage:b.encounter.stage}:{})},zones:b.zones,outcome:b.outcome}:{}),log:gameVisibleLog(b.log,manager),walls:b.walls,extraWalls:b.extraWalls,tiles:b.tiles,poses:b.poses||[],
     awaiting:gameActive(b)?gameAwaiting(b,members).map(u=>u.name):[],clashActor:Object.keys(b.plans||{}).find(id=>gameHasClash(b.plans[id])),
-    units:Object.values(b.units).map(({library,hand,deck,grave,exile,cover,effectUsage,passives,cardMarks,configuredDeck,lifeSteal,poisonSources,shieldSlots,queuedShields,activityLocations,locationTags,stackTraits,stackDefinitions,sealedHighest,stackRuns,damageDebt,damageOverTime,delayedStrike,controlledIndex,controlledPower,cardUseCounts,...unit})=>({
+    units:Object.values(b.units).map(({library,hand,deck,grave,exile,cover,effectUsage,passives,cardMarks,configuredDeck,lifeSteal,poisonSources,shieldSlots,queuedShields,activityLocations,locationTags,stackTraits,stackDefinitions,sealedHighest,stackRuns,damageDebt,damageOverTime,delayedStrike,controlledIndex,controlledPower,cardUseCounts,keywordUses,...unit})=>({
       ...unit,
       ...(!unit.enemy||manager||b.intel?.[unit.id]?.tier===3?{stackTraits,stackDefinitions}:{}),
       ...(unit.enemy?{

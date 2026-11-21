@@ -3790,3 +3790,30 @@ test('equipment accepts ten items and a stack scan counts qualified allies rathe
   await f.act('plan',{cards:[]});await f.act('round');
   assert.equal(livingForm(f).shield,9);
 });
+
+test('keyword scans use card history and count individual users even without the stack',async()=>{
+  const f=await fixture();
+  await f.act('conceptTool',{tool:{name:'집중 사용 기록',enabled:true,effects:[{
+    when:'turnStart',kind:'shield',to:'self',amount:8,flow:[{kind:'if',id:1,branch:'then',test:{
+      type:'condition',condition:'keywordScan',tag:'집중',scope:'allies',mode:'consume',period:'previous',threshold:2
+    }}]
+  }]}});
+  await f.act('start',{solo:true,bots:2});
+  configureBattle(f,b=>{
+    for(const bot of [b.units.bot0,b.units.bot1]){
+      bot.library.hold={...bot.library.hold,role:'normal',target:'self',range:'0',effects:[
+        {when:'use',kind:'consume',to:'self',amount:1,tag:'집중'}
+      ]};
+      bot.hand=['hold'];
+      b.plans[bot.id]={card:'hold',pos:bot.pos,targets:[]};
+    }
+    b.units.enemy.blockedRounds=2;
+  });
+  await f.act('plan',{cards:[]});await f.act('round');
+  assert.equal(livingForm(f).shield,8);
+  assert.ok(!livingForm(f,'bot0').stacks['집중']);
+  assert.ok(!livingForm(f,'bot1').stacks['집중']);
+  configureBattle(f,b=>{for(const id of ['bot0','bot1'])b.units[id].blockedRounds=2;});
+  await f.act('plan',{cards:[]});await f.act('round');
+  assert.equal(livingForm(f).shield,8);
+});

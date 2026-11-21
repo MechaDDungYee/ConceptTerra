@@ -124,7 +124,7 @@ body:has(.battle-dummy) > main > :is(#error,#feedback):not(:empty){
 .battle-skill .hand-art{width:100%;height:38px;object-fit:cover}
 .battle-token .action-slot,.battle-token .unit-sp{position:absolute;top:0;left:0;background:#182733;border:1px solid #83a3b8;padding:1px 3px;border-radius:3px;font-size:.66rem}
 .battle-token .unit-sp{left:auto;right:0;color:#ffdf9e}
-.battle-token .battle-unit-sprite{height:clamp(21px,4vw,52px);max-width:75%;object-fit:contain;image-rendering:pixelated}
+.battle-token .battle-unit-sprite{height:clamp(21px,4vw,52px);max-width:75%;object-fit:contain}.battle-token .battle-unit-sprite.pixel-sprite{image-rendering:pixelated}
 .battle-token .enemy-core{border-radius:22%;transform:rotate(12deg);box-shadow:0 0 10px #ff8b7b65}
 .vn-log-modal{width:min(570px,90vw);max-height:80dvh;background:#121c25;color:#e8eff3;border:1px solid #8095a4;border-radius:5px;padding:14px}
 .vn-log-modal::backdrop{background:#000a}

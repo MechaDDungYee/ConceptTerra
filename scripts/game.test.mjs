@@ -3289,3 +3289,27 @@ test('collector seizes the highest expected power copy and leaves the duplicate 
   assert.equal(rejected.status,400);
   await f.act('plan',{card:'shot',targets:['enemy']});
 });
+
+test('blind judge marks the actual damage leader and permits a nonattacking resolution',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'기여 계산',role:'normal',power:'0',range:'1~4',target:1,
+    effects:[{kind:'damage',when:'hit',to:'target',amount:12}]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0,encounter:'judge01'});
+  assert.equal(livingForm(f,'enemy').hp,560);
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:16,hand:[id]});
+    Object.assign(b.units.enemy,{pos:18,blockedRounds:1,shield:3});
+  });
+  await f.act('plan',{card:id,targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f).judgmentMark,true);
+  assert.equal(f.state.battle.encounter.rank[0].damage,9);
+  assert.equal(f.state.battle.intent.card.id,'judgeAxe');
+  assert.equal(f.state.battle.intent.card.hitPowers.length,2);
+  configureBattle(f,b=>{b.units.enemy.blockedRounds=1;});
+  await f.act('plan',{cards:[]});
+  await f.act('round');
+  assert.equal(f.state.battle.phase,'finished');
+  assert.equal(f.state.battle.outcome.kind,'level');
+});

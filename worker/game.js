@@ -580,7 +580,92 @@ const collectorStop={
   deck:['collectReceipt','collectReceipt','collectAbacus','collectOverdue','collectAbacus','collectOverdue','collectCollateral','collectLump'],
   orb:'orbCollectorSeal'
 };
-const encounterPresets={stop01:firstStop,collector01:collectorStop};
+const judgeStop={
+  id:'judge01',name:'법원 지하 보관고 · 수평을 찾지 못한 천칭',foe:'눈 먼 심판자',hp:560,start:22,
+  walls:[10,14,26,30],zones:[],tags:['제4국 아이젠베르크'],
+  deck:['judgeRead','judgeAxe','judgeScales','judgeRead','judgeAxe','judgeNail','judgeScales','judgeVerdict'],
+  orb:'orbJudgeWeight'
+};
+const encounterPresets={stop01:firstStop,collector01:collectorStop,judge01:judgeStop};
+const judgeCards=Object.fromEntries([
+  ['judgeRead','천칭의 서류 낭독','2d6+6','2~4','무작위 상태 이상 1종. 표식 대상에게 위력 +4 및 상태 이상 1종 추가'],
+  ['judgeAxe','무딘 처형도 내리치기','3d10+8','1~2','위력 감소 무시. 홀수 주사위 합이면 인접 여파. 표식 대상은 2타'],
+  ['judgeScales','연좌의 저울질','2d8+6','1~3','대상 주변 2×2 범위 공격. 상태 이상을 복사. 표식 대상은 피해 절반이 고정 피해'],
+  ['judgeNail','쇠못 박힌 침묵','2d6+5','1~3','대상 변경 불가. 방어 무시와 상태 이상 2종. 표식 대상의 보호막 제거 및 이동 수 −2'],
+  ['judgeVerdict','최후의 선고 · 눈 먼 천칭','5d10+12','1~2','상태 이상 종류당 +3 (최대 +12). 홀수 여파 및 표식 대상 추가 피해']
+].map(([id,name,power,range,publicLabel])=>[id,{...gamePreset(id,name,power,range,'normal',1,
+  [{...gameEffect('hit','judge:'+id,1),publicLabel}]),unredirectable:id==='judgeNail'}]));
+const gameIsJudge=b=>b.encounter?.id===judgeStop.id;
+function gameJudgeRank(b,party){
+  const hits=b.encounter.hits||{};
+  const foe=b.units.enemy;
+  return party.filter(unit=>hits[unit.id]>0).sort((a,c)=>hits[c.id]-hits[a.id]||gameDistance(a,foe)-gameDistance(c,foe)||a.hand.length-c.hand.length);
+}
+function gameJudgeRound(b,party){
+  for(const unit of party)delete unit.judgmentMark;
+  const order=gameJudgeRank(b,party);
+  b.encounter.rank=order.map(unit=>({id:unit.id,name:unit.name,damage:b.encounter.hits[unit.id]}));
+  b.encounter.hits={};
+  if(!order.length)return null;
+  const mark=order[0];
+  mark.judgmentMark=true;
+  b.encounter.marks=(b.encounter.marks||0)+1;
+  gameLog(b,mark.name+' · 죄인의 표식');
+  return mark;
+}
+const judgeDebuffs={
+  이동감소:{test:unit=>unit.nextMove<0,apply:unit=>{unit.nextMove=Math.min(-2,unit.nextMove||0);}},
+  위력감소:{test:unit=>unit.nextPower<0,apply:unit=>{unit.nextPower=Math.min(-3,unit.nextPower||0);}},
+  행동제한:{test:unit=>unit.blockedRounds||unit.nextBlockedRounds,apply:unit=>{unit.nextBlockedRounds=Math.max(unit.nextBlockedRounds||0,1);}},
+  정신피해:{test:unit=>!!unit.mindStatuses?.mindBurn,apply:(unit,b)=>{(unit.mindStatuses??={}).mindBurn={amount:3,through:b.round+1};}}
+};
+function gameJudgeDebuffKinds(unit){
+  return Object.entries(judgeDebuffs).filter(([,rule])=>rule.test(unit)).map(([name])=>name);
+}
+function gameJudgeDebuffs(b,target,count){
+  const options=gameShuffle(Object.keys(judgeDebuffs));
+  for(const name of options.slice(0,count)){
+    judgeDebuffs[name].apply(target,b);
+    gameLog(b,target.name+' · 심판자의 '+name);
+  }
+}
+function gameJudgeEffect(b,ctx,target,kind){
+  if(target===ctx.actor||ctx.judgeSplash)return;
+  if(kind==='judge:judgeRead')gameJudgeDebuffs(b,target,target.judgmentMark?2:1);
+  if(kind==='judge:judgeNail'){
+    gameJudgeDebuffs(b,target,2);
+    if(target.judgmentMark)target.nextMove=Math.min(0,target.nextMove||0)-2;
+  }
+  if(kind==='judge:judgeScales'){
+    const {x,y}=gridPoint(target.pos);
+    const left=Math.min(x,6),top=Math.min(y,3);
+    const area=Object.values(b.units).filter(unit=>{
+      const tile=gridPoint(unit.pos);
+      return gameAlive(unit)&&tile.x>=left&&tile.x<=left+1&&tile.y>=top&&tile.y<=top+1;
+    });
+    const source=[...area].sort((a,c)=>gameJudgeDebuffKinds(c).length-gameJudgeDebuffKinds(a).length)[0];
+    const state=source&&gameJudgeDebuffKinds(source)[0];
+    for(const unit of area){
+      if(unit!==target&&unit!==ctx.actor)gameDamage(b,unit,ctx.judgeLastRoll||0,ctx.actor,false,false,false,{kind:'card',judgeIndirect:true});
+      if(state&&unit!==source)judgeDebuffs[state].apply(unit,b);
+    }
+  }
+}
+function gameJudgeOutcome(b,foe,party){
+  if(!gameIsJudge(b))return false;
+  if(!party.length){b.outcome={kind:'wipe',tier:'none'};return false;}
+  if(!gameAlive(foe)){
+    if(b.encounter.marks>=3&&!b.encounter.chained&&party.some(unit=>unit.judgmentMark))
+      b.outcome={kind:'balance',tier:'puzzleSolved',orb:judgeStop.orb};
+    else{
+      const rolls=[gameRoll(6),gameRoll(6)],total=rolls[0]+rolls[1];
+      b.outcome={kind:'blunt',tier:'bruteKill',extract:{rolls,total,need:10},orb:total>=10?judgeStop.orb:null};
+    }
+    return false;
+  }
+  if(b.encounter.level){b.outcome={kind:'level',tier:'none'};return true;}
+  return false;
+}
 const collectorCards=Object.fromEntries([
   ['collectReceipt','선지급 영수증 발행','2d6+5','1~3','hit','대상에게 미수금 2 부여. 미수금 4 이상이면 인접한 아군과 나누어 부여'],
   ['collectAbacus','주판알 튕기기','1d8+4','2~4','hit','승객 전원에게 미수금 1 부여. 대상에게 정신 피해 3'],
@@ -1097,8 +1182,12 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
     u.enemy&&gameIsCollector(b)&&b.encounter.breakRound===b.round?25:0]:[];
   const sum=values=>values.reduce((total,value)=>total+(value||0),0);
   const base=Math.floor(amount)+bonus;
-  const adjusted=fixedDamage?Math.max(0,Math.floor(amount)):
+  let adjusted=fixedDamage?Math.max(0,Math.floor(amount)):
     applyPowerRatio(Math.max(0,base+sum(bonuses)-u.reduce),sum(ratios));
+  if(gameIsJudge(b)&&actor.enemy&&u.judgmentMark&&!origin.judgeIndirect){
+    if(!fixedDamage&&u.guardRound===b.round)adjusted=Math.ceil(adjusted/2);
+    adjusted=Math.floor(adjusted*1.35);
+  }
   if(!fixedDamage)u.reduce=0;
   const collateral=gameIsCollector(b)&&u.enemy&&!actor.enemy&&adjusted>0&&
     u.shieldSlots?.some(slot=>slot.key==='collectorCollateral');
@@ -1141,6 +1230,10 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
     gameLog(b,u.name+' · 치명상 방지');
   }
   u.hp-=actual;
+  if(actual&&gameIsJudge(b)&&u.enemy&&!actor.enemy&&!origin.judgeIndirect){
+    const hits=b.encounter.hits??={};
+    hits[actor.id]=(hits[actor.id]||0)+actual;
+  }
   if(gameIsFirstStop(b)&&u.enemy&&actual){
     b.encounter.damage+=actual;
     if(gameAlive(u)&&!b.encounter.phaseFired&&u.hp/u.maxHp<=0.7){
@@ -1323,7 +1416,8 @@ function gameActionPower(b,ctx,opponent){
   const memory=clash?(unit.clashMemory||0):0;
   if(clash)delete unit.clashMemory;
   const formulas=cardHitPowers(ctx.card);
-  const modifier=ctx.mod+(unit.nextPower||0)+memory+awakening;
+  const judgeAxe=gameIsJudge(b)&&ctx.card.id==='judgeAxe';
+  const modifier=ctx.mod+(judgeAxe?Math.max(0,unit.nextPower||0):unit.nextPower||0)+memory+awakening;
   const percent=(ctx.powerPercent||0)+(unit.nextPowerPercent||0);
   const stages={};
   for(const key of stagedPowerEffects.flatMap(kind=>[kind,kind+'Percent'])){
@@ -1340,7 +1434,8 @@ function gameActionPower(b,ctx,opponent){
     });
     ctx.minimumHitRolls=gamePowerShares(minimum,modifier,percent,stages);
   }
-  return ctx.hitRolls.reduce((sum,value)=>sum+value,0);
+  const total=ctx.hitRolls.reduce((sum,value)=>sum+value,0);
+  return clash&&opponent.enemy&&gameIsJudge(b)&&unit.judgmentMark&&!ctx.intercept?Math.max(0,total-6):total;
 }
 function gamePowerShares(rolled,modifier,percent,stages){
   const rolls=rolled.map(value=>Math.max(0,value));
@@ -1413,7 +1508,7 @@ function gameDeckEffects(b,when){
 }
 function gameNext(b) {
   const enemy=b.units.enemy, party=Object.values(b.units).filter(u=>!u.enemy&&gameAlive(u));
-  const peaceful=gameStopOutcome(b,enemy,party)||gameCollectorOutcome(b,enemy,party);
+  const peaceful=gameStopOutcome(b,enemy,party)||gameCollectorOutcome(b,enemy,party)||gameJudgeOutcome(b,enemy,party);
   if (peaceful||!gameAlive(enemy)||!party.length) {
     b.phase='finished';
     b.result=!peaceful&&gameAlive(enemy)?'패배':'승리';
@@ -1453,6 +1548,13 @@ function gameNext(b) {
     if(!paused)deck.index=(deck.index+1)%deck.cards.length;
     const target=card.unredirectable?[...party].sort((a,c)=>(c.stacks['미수금']||0)-(a.stacks['미수금']||0)||a.hand.length-c.hand.length)[0]:victim;
     b.intent={target:target.id,card,reachable:!paused};
+  }else if(gameIsJudge(b)){
+    const deck=b.foeDeck;
+    const card=judgeCards[deck.cards[deck.index]];
+    deck.index=(deck.index+1)%deck.cards.length;
+    const marked=gameJudgeRound(b,party);
+    const attack=card.id==='judgeAxe'&&marked?{...card,hitPowers:[card.power,card.power]}:card;
+    b.intent={target:(marked||victim).id,card:attack,reachable:true};
   }else b.intent={target:victim.id,card:gameFoe,reachable:true};
   b.plans={};
   b.phase='planning';
@@ -1762,7 +1864,7 @@ function gameBegin(state,members,settings,actor,collections) {
     const foe=units.enemy;
     Object.assign(foe,{conceptEntity:true,name:encounter.foe,pos:encounter.start,hp:encounter.hp,maxHp:encounter.hp,move:0,
       immovable:encounter===firstStop,locationTags:[...encounter.tags],
-      passives:(encounter===firstStop?['부동의 사신','선공하지 않는 구원자','성역의 정적']:['이자가 붙는 장부','원금 회수'])
+      passives:(encounter===firstStop?['부동의 사신','선공하지 않는 구원자','성역의 정적']:encounter===collectorStop?['이자가 붙는 장부','원금 회수']:['죄인의 표식','죄업','무차별 여파'])
         .map((name,index)=>({id:'stopPassive'+index,name,effects:[]}))});
     battle.encounter={id:encounter.id,name:encounter.name,peace:0,peaceOpen:false,damage:0,lastDamage:0,attackers:[]};
     battle.foeDeck={cards:[...encounter.deck],index:0};
@@ -2658,6 +2760,10 @@ function gameApplyVisibleEffect(b,ctx,when,target,depth,effect,u,applied,consume
     const shieldKey=actor.id+':'+card.id+'#'+card.effects.indexOf(sourceEffect.flowSource||sourceEffect);
     const gainShield=(unit,amount,temporary=false)=>gameGainShield(b,unit,amount,effect,shieldKey,temporary);
     const damage=(amount,piercing=false,fixed=false)=>gameDamage(b,u,amount,actor,piercing,false,fixed,origin);
+    if(effect.kind.startsWith('judge:')){
+      gameJudgeEffect(b,ctx,u,effect.kind);
+      return;
+    }
     if(effect.kind.startsWith('collector:')){
       gameCollectorEffect(b,actor,u,effect.kind);
       return;
@@ -3258,7 +3364,36 @@ function gameStrike(b,ctx,target,roll){
     gameLog(b,actor.name+' · 치명타 ('+multiplier+'%) → '+target.name);
   }
   const origin={kind:'strike'};
-  const dealt=gameDamage(b,target,roll,actor,false,true,false,origin);
+  let dealt;
+  if(gameIsJudge(b)&&actor.enemy){
+    const id=ctx.card.id;
+    if(id==='judgeRead'&&target.judgmentMark)roll+=4;
+    if(id==='judgeVerdict')roll+=Math.min(12,gameJudgeDebuffKinds(target).length*3);
+    ctx.judgeLastRoll=roll;
+    if(id==='judgeNail'&&target.judgmentMark)gameRemoveShield(target,target.shield);
+    if(id==='judgeScales'&&target.judgmentMark){
+      const half=Math.floor(roll/2);
+      dealt=gameDamage(b,target,roll-half,actor,false,true,false,origin);
+      dealt+=gameDamage(b,target,half,actor,false,false,true,origin);
+    }else dealt=gameDamage(b,target,roll,actor,false,true,id==='judgeNail',origin);
+    const dice=ctx.diceRolls?.[(ctx.hitIndex||1)-1];
+    if((id==='judgeAxe'||id==='judgeVerdict')&&dice%2===1){
+      for(const near of Object.values(b.units).filter(unit=>unit!==target&&gameAlive(unit)&&gameDistance(unit,target)===1))
+        gameDamage(b,near,Math.floor(roll*0.3),actor,false,false,false,{kind:'card',judgeIndirect:true});
+    }
+    if(id==='judgeVerdict'&&target.judgmentMark&&gameAlive(target))
+      dealt+=gameDamage(b,target,Math.floor(roll/2),actor,false,false,true,origin);
+    if(target.judgmentMark&&!gameAlive(target)&&!target.collapsed&&gameAlive(actor)){
+      const next=b.encounter.rank?.map(entry=>b.units[entry.id]).find(unit=>unit!==target&&gameAlive(unit));
+      if(next){
+        delete target.judgmentMark;
+        next.judgmentMark=true;
+        b.encounter.chained=true;
+        gameLog(b,'죄인의 표식 이전 → '+next.name+' · 연쇄 일방공격');
+        gameDamage(b,next,roll+6,actor,false,false,false,{kind:'card',judgeIndirect:true});
+      }
+    }
+  }else dealt=gameDamage(b,target,roll,actor,false,true,false,origin);
   if(actor.enemy!==target.enemy||actor.collapsed&&actor!==target){
     const event={...ctx,base:dealt,brokeShield:!!origin.shieldBroken};
     gameBasicStackDamage(b,target,'struck');
@@ -3623,6 +3758,7 @@ function gamePrepareAction(b,u,plan,moved){
   gameLog(b,u.name+' · '+(card.gmOnly?(card.publicName||'숨겨진 카드'):card.name));
   if(card.role!=='assist')gamePassives(b,u,'use',targets[0]||null,ctx);
   if(card.role==='guard'){
+    u.guardRound=b.round;
     const protectedId=(replacement?replacement.protectedId:plan.targets?.[0])||null;
     ctx.coverCharge={card:card.id,target:protectedId,copyId:ctx.copyId};
     (u.cover??=[]).push(ctx.coverCharge);
@@ -3846,6 +3982,8 @@ function gameResolve(b) {
     b.encounter.damage=0;
   }
   gameDeckEffects(b,'turnEnd');
+  if(gameIsJudge(b))b.encounter.level=party.some(unit=>gameAlive(unit)&&unit.judgmentMark)&&
+    !contexts.some(ctx=>ctx.card.target!=='self'&&ctx.card.targetSide!=='ally'&&!['assist','guard','counter'].includes(ctx.card.role));
   if(gameIsCollector(b))gameCollectorEndRound(b,party);
   else for(const unit of party)if(unit.stacks['미수금']>0){
     gameDamage(b,unit,unit.stacks['미수금'],unit,false,false,true,{kind:'stack',ongoing:true});
@@ -4001,7 +4139,7 @@ function gameView(state,revision,actor,manager,members) {
   const intent=b?.intent&&{...b.intent,card:gameRevealCard(b.intent.card,manager?3:foeIntel?.tier??0)};
   const battle=b?{round:b.round,phase:b.phase,result:b.result,intent,
     ...(b.encounter?{encounter:{id:b.encounter.id,name:b.encounter.name,peace:b.encounter.peace,peaceOpen:b.encounter.peaceOpen,
-      deckSize:b.foeDeck.cards.length,negotiating:b.encounter.breakRound===b.round},zones:b.zones,outcome:b.outcome}:{}),log:gameVisibleLog(b.log,manager),walls:b.walls,poses:b.poses||[],
+      deckSize:b.foeDeck.cards.length,rank:b.encounter.rank,negotiating:b.encounter.breakRound===b.round},zones:b.zones,outcome:b.outcome}:{}),log:gameVisibleLog(b.log,manager),walls:b.walls,poses:b.poses||[],
     awaiting:gameActive(b)?gameAwaiting(b,members).map(u=>u.name):[],clashActor:Object.keys(b.plans||{}).find(id=>gameHasClash(b.plans[id])),
     units:Object.values(b.units).map(({library,hand,deck,grave,exile,cover,effectUsage,passives,cardMarks,configuredDeck,lifeSteal,poisonSources,shieldSlots,queuedShields,activityLocations,locationTags,stackTraits,stackDefinitions,sealedHighest,stackRuns,damageDebt,damageOverTime,delayedStrike,...unit})=>({
       ...unit,

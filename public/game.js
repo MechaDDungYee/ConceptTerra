@@ -1652,7 +1652,7 @@ function startPanel(){
     bots.value=String(Math.min(old,max));
   };
   solo.onchange=refresh;refresh();bots.value=String(4-state.roster.length-Number(solo.checked));
-  const encounter=select('encounter',[['','객차 연습 전투'],['stop01','첫 정류장 · 불 꺼진 제6국 외곽 막다른 골목'],['collector01','외상 장부의 수금원 · 잿빛 세관 창고']],'');
+  const encounter=select('encounter',[['','객차 연습 전투'],['stop01','첫 정류장 · 불 꺼진 제6국 외곽 막다른 골목'],['collector01','외상 장부의 수금원 · 잿빛 세관 창고'],['judge01','눈 먼 심판자 · 법원 지하 보관고']],'');
   form.append(field('조우 선택',encounter),field('내 캐릭터로 혼자 연습',solo,'inline'),field('자동 행동 봇 동료',bots),submit('전투 시작'));
   root.append(form,note('봇은 빈 플레이어 자리를 채우고 라운드 처리 시 이동·공격·합·원호를 자동 선택합니다.'));
   return root;
@@ -1791,9 +1791,11 @@ function battlePanel(){
     controls.append(advance);
   }
   if(state.manager&&b.phase==='finished')controls.append(button('다음 전투 준비',()=>send('reset'),true));
+  if(self?.judgmentMark)controls.append(note('죄인의 표식 · 심판자에게 받는 피해 +35% · 직접 합 위력 −6'));
+  if(b.encounter?.rank?.length)controls.append(note('직전 라운드 피해 순위 · '+b.encounter.rank.map(item=>item.name+' '+item.damage).join(' / ')));
   if(b.encounter?.negotiating)controls.append(note('협상 파훼 · 수금원 공격 정지 · 받는 피해 +25%'));
   if(b.outcome){
-    const result=({peace:'평화 해소',break:'강제 격파',paid:'완납',seized:'강제 회수',installment:'분할 납부'})[b.outcome.kind]||'조우 실패';
+    const result=({peace:'평화 해소',break:'강제 격파',paid:'완납',seized:'강제 회수',installment:'분할 납부',balance:'균형 회복',blunt:'강제 판결',level:'수평의 정적'})[b.outcome.kind]||'조우 실패';
     controls.append(note(result+(b.outcome.extract?' · 추출 '+b.outcome.extract.total+'/'+b.outcome.extract.need:'')+
       (b.outcome.orb?' · 개념구 획득':'')));
   }

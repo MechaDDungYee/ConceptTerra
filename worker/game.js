@@ -4911,9 +4911,14 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       case 'intent': {
         if(!manager)return error('GM 또는 방장만 적 행동을 바꿀 수 있어요.',403);
         if(!gameActive(b)||Object.keys(b.plans).length)gameFail('플레이어가 행동을 확정하기 전에 바꿀 수 있어요.');
-        const target=Object.hasOwn(b.units,input.target)?b.units[input.target]:null, foe=b.units.enemy;
+        const target=Object.hasOwn(b.units,input.target)?b.units[input.target]:null;
         if(!gameAlive(target)||target.enemy)gameFail('살아 있는 대상을 선택하세요.');
-        b.intent={target:target.id,card:gameFoe,reachable:gameActionLimit(foe)>0&&gameReach(b,gameFoe,foe,target)};
+        const intent=b.intentQueue?.find(entry=>entry.id===input.foeIntent)??b.intent;
+        if(intent.card.unredirectable||gameIsFirstStop(b))gameFail('이 조우의 예고 대상은 정해진 규칙으로 결정돼요.');
+        const foe=b.units[intent.attacker||'enemy'];
+        if(!gameAlive(foe))gameFail('행동할 수 있는 적을 선택하세요.');
+        intent.target=target.id;
+        intent.reachable=!intent.card.support&&gameActionLimit(foe)>0&&gameReach(b,intent.card,foe,target);
         break;
       }
       case 'adjustActions': {

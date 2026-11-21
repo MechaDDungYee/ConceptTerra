@@ -1860,7 +1860,9 @@ function battlePanel(){
   if(saves)menuItems.append(saves);
   if(state.manager&&b.phase==='planning'){
     const choices=b.units.filter(u=>!u.enemy&&u.hp>0);
-    const settings=formFor('intent',(_,data)=>({target:data.get('target')}));
+    const settings=formFor('intent',(_,data)=>({target:data.get('target'),foeIntent:data.get('foeIntent')}));
+    if(b.intentQueue?.length)settings.append(field('대상을 바꿀 예고',select('foeIntent',
+      b.intentQueue.map(intent=>[intent.id,intent.card.name]),b.intentQueue[0].id)));
     settings.append(field('적의 공격 대상',select('target',choices.map(u=>[u.id,u.name]),target?.id)),submit('예고 변경'));
     const adjust=formFor('adjust',(_,data)=>({target:data.get('target'),mind:Number(data.get('mind'))}));
     adjust.append(field('정신력 조정 대상',select('target',choices.filter(u=>!u.collapsed).map(u=>[u.id,u.name]),choices.find(u=>!u.collapsed)?.id)),field('변화량',input('mind',5,'number',{min:-100,max:100,required:true})),submit('정신력 반영'));

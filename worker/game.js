@@ -269,7 +269,10 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
       gameFail('중첩 소모 방식과 우선 대상을 확인하세요.');
     }
     const consumeAll=consuming&&consumeAmount==='all';
-    const amount=consumeAll?1:row.amount;
+    const independent=row.stackAxes===true&&['stack','consume','remove'].includes(row.kind)&&!consumeAll;
+    const axisPower=independent?row.axisPower:undefined,axisCount=independent?row.axisCount:undefined;
+    if(independent&&([axisPower,axisCount].every(value=>value==null)&&!row.numberExprs?.axisPower&&!row.numberExprs?.axisCount||axisPower!=null&&!gameInt(axisPower,1,maxStackPotency)||axisCount!=null&&!gameInt(axisCount,1,maxStatusStacks)))gameFail('중첩 위력 또는 횟수를 입력하세요.');
+    const amount=consumeAll||independent?1:row.amount;
     const maxAmount=consuming?(consumeScope==='total'?maxCollectiveStackConsume:maxStatusStacks):
       ['awakenBody','inscribeMeaning'].includes(row.kind)?10000:row.kind==='blockAction'?maxStatusRounds:row.kind==='reduceActions'?maxActions:amplify&&ratio?300:100;
     if(!gameInt(amount,signed?-100:1,maxAmount)||amount===0)gameFail('효과 수치를 확인하세요.');
@@ -345,7 +348,7 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
       numberExprs[key]=gameExpression(expr);
     }
     const recipientKeyword=row.to==='keywordHolders'?gameFlowTest({...row.recipientKeyword,type:'condition',condition:'keywordOwned'},row,id,owned):null;
-    return {...(recipientKeyword?{recipientKeyword}:{}),...settings,...gainLimits,...gameVisibility(row),...(Object.keys(numberExprs).length?{numberExprs}:{}),...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
+    return {...(independent?{stackAxes:true,...(axisPower!=null?{axisPower}:{}),...(axisCount!=null?{axisCount}:{})}:{}),...(recipientKeyword?{recipientKeyword}:{}),...settings,...gainLimits,...gameVisibility(row),...(Object.keys(numberExprs).length?{numberExprs}:{}),...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
       ...(grantsShield?{shieldDuration,shieldCap,stackMode,...(shieldSource?{shieldSource}:{}),
         ...(row.refreshDuration===false?{refreshDuration:false}:{})}:{}),
       ...(durationPolicy!=='default'?{durationPolicy}:{}),...(durationCap?{durationCap}:{}),
@@ -396,7 +399,7 @@ function gamePassives(b,actor,when,target,source){
   const sources=[...(actor.passives||[]).map(gamePassiveSource),...gameHeldStackSources(actor)];
   for(const card of sources){
     if(!gameAlive(actor))break;
-    if(card.stackCount&&!actor.stacks[card.name])continue;
+    if(card.stackCount&&!gameStackActive(actor,card.name))continue;
     if(!card.effects.some(effect=>effect.when===when))continue;
     const ctx=gameContext(actor,card,[target],source.moved);
     Object.assign(ctx,{base:source.base,critical:source.critical,anyCritical:source.anyCritical,
@@ -408,9 +411,10 @@ function gamePassives(b,actor,when,target,source){
     else gameTriggers(b,ctx,when,target);
   }
 }
+const gameStackActive=(unit,name)=>!!(unit.stacks[name]||unit.stackTraits?.[name]?.stackAxesMode==='power'&&stackPotency(unit,name));
 function gameHeldStackSources(unit){
-  return Object.entries(unit.stackTraits||{}).filter(([name])=>unit.stacks[name]>0).map(([name,trait])=>({
-    id:'stack:'+name,name,effects:trait.effects,passive:true,stackCount:unit.stacks[name],...gameVisibility(trait)
+  return Object.entries(unit.stackTraits||{}).filter(([name])=>gameStackActive(unit,name)).map(([name,trait])=>({
+    id:'stack:'+name,name,effects:trait.effects,passive:true,stackCount:unit.stacks[name]||stackPotency(unit,name),...gameVisibility(trait)
   }));
 }
 function gameStackGainLimits(input){
@@ -437,12 +441,13 @@ function gameStackTrait(input,owned){
     if(!gameInt(input[key],1,max))gameFail('중첩 보유 한도를 확인하세요.');
     holdLimits[key]=input[key];
   }
-  return {name:input.name,...gameVisibility(input),...(flavor?{flavor}:{}),...holdLimits,gainLimits:gameStackGainLimits(input.gainLimits),effects:normalized.map((effect,index)=>({...effect,
+  const stackAxesMode=['both','power','count'].includes(input.stackAxesMode)?input.stackAxesMode:'both';
+  return {name:input.name,stackAxesMode,...gameVisibility(input),...(flavor?{flavor}:{}),...holdLimits,gainLimits:gameStackGainLimits(input.gainLimits),effects:normalized.map((effect,index)=>({...effect,
     ...(effects[index].scaleStack==='count'?{scaleStack:'count'}:{})
   }))};
 }
-function gameUpgradeStackTrait({name,effects,critical,flavor,gainLimits,holdCount,holdPower,...visibility}){
-  const entry={name,effects,...gameVisibility(visibility),...(flavor?{flavor}:{}),...(gainLimits?{gainLimits}:{}),
+function gameUpgradeStackTrait({name,effects,critical,flavor,gainLimits,holdCount,holdPower,stackAxesMode,...visibility}){
+  const entry={name,effects,...(stackAxesMode?{stackAxesMode}:{}),...gameVisibility(visibility),...(flavor?{flavor}:{}),...(gainLimits?{gainLimits}:{}),
     ...(holdCount?{holdCount}:{}),...(holdPower?{holdPower}:{})};
   if(!critical)return entry;
   return {...entry,effects:[...effects,{when:'held',kind:'critChance',amount:critical,to:'self',scaleStack:'count'}]};
@@ -451,7 +456,7 @@ const gameForcedMoveBlocked=(b,unit)=>unit.immovable||!!gameHeldModifiers(b,unit
 function gameHeldModifiers(b,unit,opponent){
   const modifiers={};
   for(const [name,trait] of Object.entries(unit.stackTraits||{})){
-    const count=unit.stacks[name]||0;
+    const count=unit.stacks[name]||(trait.stackAxesMode==='power'?stackPotency(unit,name):0);
     if(!count)continue;
     const entries=gameUpgradeStackTrait(trait).effects.filter(effect=>effect.when==='held'&&heldStackEffectKinds.includes(effect.kind));
     if(!entries.length)continue;
@@ -2397,7 +2402,7 @@ function gameDeckEffects(b,when){
     sources.push(...(actor.passives||[]).map(gamePassiveSource),...gameHeldStackSources(actor));
     for(const card of sources){
       if(!gameAlive(actor)||!card||(!card.passive&&!cardUsable(actor,card))||!card.effects.some(effect=>effect.when===when))continue;
-      if(card.stackCount&&!actor.stacks[card.name])continue;
+      if(card.stackCount&&!gameStackActive(actor,card.name))continue;
       const targets=card.passive||card.target==='tile'?[]:actor.collapsed?collapseTargets(card,actor,Object.values(b.units),gameBattleWalls(b)):gameAllowedTargets(b,actor,card);
       const ctx=gameContext(actor,card,targets);
       const base=ctx.mod;
@@ -3101,6 +3106,7 @@ function gameStackRuns(unit,tag){
 function gameSplitStacks(runs,count){
   const taken=[],remaining=[];
   for(const run of runs){
+    if(!run.count){remaining.push(run);continue;}
     const portion=Math.min(count,run.count);
     if(portion)taken.push({...run,count:portion});
     if(portion<run.count)remaining.push({...run,count:run.count-portion});
@@ -3110,8 +3116,8 @@ function gameSplitStacks(runs,count){
 }
 function gameWriteStacks(unit,tag,runs){
   unit.stacks[tag]=runs.reduce((total,run)=>total+run.count,0);
-  if(!unit.stacks[tag]&&unit.stackTraits)delete unit.stackTraits[tag];
-  if(!runs.length||runs.every(run=>run.power===1&&!run.dealer)){
+  if(!runs.length&&unit.stackTraits)delete unit.stackTraits[tag];
+  if(!runs.length||runs.every(run=>run.count>0&&run.power===1&&!run.dealer)){
     if(unit.stackRuns)delete unit.stackRuns[tag];
     return;
   }
@@ -3123,6 +3129,24 @@ function gameWriteStacks(unit,tag,runs){
   }
   (unit.stackRuns??={})[tag]=merged;
 }
+
+function gameSetStackAxes(unit,tag,count,power,dealer){
+  if(!count){
+    gameWriteStacks(unit,tag,power?[{count:0,power,dealer}]:[]);
+    return;
+  }
+  const base=Math.floor(power/count), extra=power%count;
+  gameWriteStacks(unit,tag,[
+    ...(extra?[{count:extra,power:base+1,dealer}]:[]),
+    ...(count>extra?[{count:count-extra,power:base,dealer}]:[])
+  ]);
+}
+function gameSpendStackAxes(unit,tag,count,power){
+  const beforeCount=unit.stacks[tag]||0,beforePower=stackPotency(unit,tag);
+  const used=Math.min(beforeCount,count||0),potency=Math.min(beforePower,power||0);
+  if(used||potency)gameSetStackAxes(unit,tag,beforeCount-used,beforePower-potency,gameStackRuns(unit,tag)[0]?.dealer);
+  return {used,potency};
+}
 function gameTakeStacks(unit,tag,count){
   const {taken,remaining}=gameSplitStacks(gameStackRuns(unit,tag),count);
   if(taken.length)gameWriteStacks(unit,tag,remaining);
@@ -3130,6 +3154,7 @@ function gameTakeStacks(unit,tag,count){
 }
 function gameGrantStacks(b,unit,effect,amount,trait,sourceRuns,dealer){
   const tag=effect.tag;
+  const independent=effect.stackAxes;
   const definitions=[trait,unit.stackTraits?.[tag],unit.stackDefinitions?.[tag]];
   const cap=Math.min(effect.stackCap??maxStatusStacks,(!basicStacks[tag]?.sub?basicStacks[tag]?.cap:trait?.cap)??maxStatusStacks,
     ...definitions.map(entry=>Math.min(entry?.cap??maxStatusStacks,entry?.holdCount??maxStatusStacks)));
@@ -3139,19 +3164,34 @@ function gameGrantStacks(b,unit,effect,amount,trait,sourceRuns,dealer){
   const usage=ledger?.round===b.round?ledger:{round:b.round,turnCount:0,turnPower:0,
     battleCount:ledger?.battleCount||0,battlePower:ledger?.battlePower||0};
   const policies=[effect,...definitions.map(entry=>entry?.gainLimits)];
-  let countBudget=Math.min(amount,room),powerBudget=holdPower-stackPotency(unit,tag);
+  const oldPower=stackPotency(unit,tag),oldCount=unit.stacks[tag]||0;
+  const axesMode=definitions.find(entry=>entry?.stackAxesMode)?.stackAxesMode||'both';
+  const requestedCount=independent?(axesMode==='power'?0:effect.axisCount??(effect.axisPower&&!oldCount?1:0)):amount;
+  let countBudget=Math.min(requestedCount,room),powerBudget=holdPower-oldPower;
   for(const [key,[,metric,period]] of Object.entries(stackGainLimits)){
     const bound=Math.min(...policies.map(policy=>policy?.[key]??Infinity));
     const used=period==='gain'?0:usage[period+(metric==='count'?'Count':'Power')];
     if(metric==='count')countBudget=Math.min(countBudget,bound-used);
     else powerBudget=Math.min(powerBudget,bound-used);
   }
+  if(independent){
+    const count=Math.max(0,countBudget), power=axesMode==='count'?0:Math.max(0,Math.min(powerBudget,effect.axisPower??(count&&!oldPower?1:0)));
+    if(!count&&!power||axesMode!=='power'&&!oldCount&&!count)return 0;
+    const ward=unit.stackWard?.[tag]||0;
+    if(ward>0){unit.stackWard[tag]=ward-1;return 0;}
+    if(trait&&!unit.stackTraits?.[tag])(unit.stackTraits??={})[tag]=trait;
+    gameSetStackAxes(unit,tag,oldCount+count,oldPower+power,gameStackRuns(unit,tag)[0]?.dealer||dealer);
+    (unit.stackCaps??={})[tag]=cap;
+    (unit.stackAcquisitions??={})[tag]={round:b.round,turnCount:usage.turnCount+count,turnPower:usage.turnPower+power,
+      battleCount:usage.battleCount+count,battlePower:usage.battlePower+power};
+    return count||power;
+  }
   if(countBudget<=0||powerBudget<=0)return 0;
   const runs=sourceRuns?gameSplitStacks(sourceRuns,countBudget).taken:[{count:countBudget,power:1}];
   const eligible=[];
   for(const run of runs){
     const power=Math.min(effect.stackPower??run.power,effect.stackPowerCap??maxStackPotency);
-    const count=Math.min(run.count,Math.floor(powerBudget/power));
+    const count=power===0?run.count:Math.min(run.count,Math.floor(powerBudget/power));
     if(count)eligible.push({count,power,...(run.dealer||dealer?{dealer:run.dealer||dealer}:{})});
     powerBudget-=count*power;
     if(count<run.count)break;
@@ -3744,7 +3784,7 @@ function gameApplyVisibleEffect(b,ctx,when,target,depth,effect,u,applied,consume
   if(effect.kind.startsWith('bright:')){gameBrightHit(b,ctx,u,effect.kind.slice(7));return;}
   if(effect.kind==='giveCard'&&(u.enemy||!gameAlive(u)||!actor.library[effect.givenCardId]||u.hand.length>=12))return;
   if(stagedPowerEffects.includes(effect.kind)&&ctx.once.has(sourceEffect))return;
-  if(effect.kind==='consume'&&!(u.stacks[effect.tag]>0))return;
+  if(effect.kind==='consume'&&!(u.stacks[effect.tag]>0)&&!((effect.stackAxes||effect.consumeAmount==='all')&&stackPotency(u,effect.tag)>0))return;
   if(effect.kind==='hitLeech'&&!ctx.base)return;
   const singleTotal=effect.ratioBasis==='totalDamage'&&effect.to==='self';
   if(singleTotal&&ctx.totalDamageUsed?.has(sourceEffect))return;
@@ -4195,17 +4235,33 @@ function gameApplyVisibleEffect(b,ctx,when,target,depth,effect,u,applied,consume
         break;
       }
       case 'stack': gameGrantStacks(b,u,effect,n,card.concept?gameConceptTraits[tag]:actor.stackDefinitions?.[tag]??gameConceptTraits[tag]??(basicStacks[tag]?.effects?{...basicStacks[tag],name:tag}:undefined),undefined,actor.id); break;
-      case 'remove': gameTakeStacks(u,tag,n); break;
+      case 'remove':
+        if(effect.stackAxes)gameSpendStackAxes(u,tag,effect.axisCount,effect.axisPower);
+        else gameTakeStacks(u,tag,n);
+        break;
       case 'consume': {
+        if(effect.stackAxes){
+          const {used,potency}=gameSpendStackAxes(u,tag,effect.axisCount,effect.axisPower);
+          if(used||potency){
+            const previous=ctx.usedPotency;
+            ctx.usedPotency=potency;
+            gameTriggers(b,ctx,'consume',u,depth+1);
+            ctx.usedPotency=previous;
+          }
+          break;
+        }
         const budget=effect.consumeAmount==='all'?Infinity:n;
         let used=0,potency=0;
         for(const source of consumeGroup||[u]){
           const spend=Math.min(budget-used,source.stacks[tag]||0);
-          potency+=gameTakeStacks(source,tag,spend);
+          if(effect.consumeAmount==='all'){
+            potency+=stackPotency(source,tag);
+            gameWriteStacks(source,tag,[]);
+          }else potency+=gameTakeStacks(source,tag,spend);
           used+=spend;
           if(used>=budget)break;
         }
-        if(used){
+        if(used||potency){
           const previous=ctx.usedPotency;
           ctx.usedPotency=potency;
           if(consumeGroup||effect.consumeAmount==='all')gameLog(b,actor.name+' · '+tag+' '+used+' 소모 → '+u.name);
@@ -5362,7 +5418,7 @@ function gameView(state,revision,actor,manager,members) {
         ...(manager||b.intel?.[unit.id]?.tier>=1?{locationTags}:{})
       }:{}),
       ...(shieldSlots?.length?{shieldSlots:shieldSlots.map(({amount,through,temporary,cap})=>({amount,through,temporary,cap}))}:{}),
-      ...(stackRuns?{stackRuns:Object.fromEntries(Object.entries(stackRuns).filter(([,runs])=>runs.some(run=>run.power!==1)).map(([tag,runs])=>[tag,runs.map(({count,power})=>({count,power}))]))}:{}),
+      ...(stackRuns?{stackRuns:Object.fromEntries(Object.entries(stackRuns).filter(([,runs])=>runs.some(run=>run.power!==1||run.count===0)).map(([tag,runs])=>[tag,runs.map(({count,power})=>({count,power}))]))}:{}),
       ...(damageDebt?{damageDebt:damageDebt.map(({round,amount})=>({round,amount}))}:{}),
       ...(damageOverTime?{damageOverTime:damageOverTime.map(({through,amount})=>({through,amount}))}:{}),
       ...(delayedStrike?{delayedStrike:delayedStrike.map(({round,amount,source})=>({round,amount,source}))}:{}),

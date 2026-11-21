@@ -175,6 +175,8 @@ export const shieldStackModes={add:'누적',max:'높은 값 유지',replace:'새
 export const durationPolicyKinds=['lifeSteal','shieldConversion','healCut','collapseImmune','mindGuard','mindRecoveryCut','mindRegen','mindBurn','poison','blockAction'];
 export const maxDurationCap=999;
 export function effectNumberBounds(kind,key,hitIndex=0,hitCount=8,dice=false){
+  if(['stack','consume','remove'].includes(kind)&&key==='axisPower')return [1,maxStackPotency];
+  if(['stack','consume','remove'].includes(kind)&&key==='axisCount')return [1,maxStatusStacks];
   const limits={threshold:[dice?1:0,dice?maxDiceTotal:100],stackCap:[1,maxStatusStacks],stackPower:[1,maxStackPotency],
     stackPowerCap:[1,maxStackPotency],dotRounds:[1,maxStatusRounds],reactionRounds:[0,maxStatusRounds],
     durationCap:[0,maxDurationCap],shieldDuration:[0,maxStatusRounds],shieldCap:[1,999],deferRounds:[1,maxDeferralRounds],amplifyIndex:[hitIndex+1,hitCount],limitCount:[1,maxEffectActivations],scaleCostAmount:[1,100]};
@@ -374,7 +376,7 @@ export const basicStacks=Object.fromEntries(Object.entries(basicStackDefinitions
 export const legacyCriticalStackEffects=['critStacks','critSpend','critRemove','critPerSpent'];
 export const maxStackPotency = 999;
 export function stackPotency(unit,tag){
-  return unit.stackRuns?.[tag]?.reduce((total,{count,power})=>total+count*power,0)??(unit.stacks[tag]||0);
+  return unit.stackRuns?.[tag]?.reduce((total,{count,power})=>total+(count||1)*power,0)??(unit.stacks[tag]||0);
 }
 export const maxCollectiveStackConsume = 39960;
 export const bossDamageModifiers = ['bossOutgoingDamage','bossIncomingDamage'];

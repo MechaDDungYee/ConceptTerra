@@ -158,6 +158,7 @@ function stackManager(){
     const workspace=effectWorkspace(trait?.effects||[],{passive:true,stack:true,onChange:()=>{draftDirty=true;}});
     const traitForm=el('form',undefined,{class:'stack'});
     const limits=stackGainFields(trait?.gainLimits);
+    const axesMode=select('stackAxesMode',[['both','위력과 횟수'],['power','위력만'],['count','횟수만']],trait?.stackAxesMode||'both');
     const holdCount=input('holdCount',trait?.holdCount??'','number',{min:1,max:maxStatusStacks,placeholder:'기본 한도'});
     const holdPower=input('holdPower',trait?.holdPower??'','number',{min:1,max:maxStatusStacks*maxStackPotency,placeholder:'제한 없음'});
     const flavor=area('stackFlavor',trait?.flavor||'',300);
@@ -165,13 +166,13 @@ function stackManager(){
     traitForm.append(
       note('‘보유 시’ 효과는 중첩이 있는 동안 적용되고, 중첩이 사라지면 해제돼요. 설정은 다음 전투부터 반영돼요.'),
       field('중첩 플레이버 텍스트',flavor),
-      field('최대 보유 위력 합계',holdPower),field('최대 보유 횟수',holdCount),
+      field('사용할 중첩 수치',axesMode),field('최대 보유 위력 합계',holdPower),field('최대 보유 횟수',holdCount),
       note('보유 중인 중첩의 위력 합계와 횟수를 제한해요. 소모하면 보유 한도에 다시 여유가 생겨요.'),
       limits,workspace.node,submit('중첩 저장'));
     traitForm.onsubmit=async event=>{
       event.preventDefault();
       if(await send('stackEdit',{name:chosen,flavor:flavor.value,
-        holdCount:holdCount.value===''?null:Number(holdCount.value),holdPower:holdPower.value===''?null:Number(holdPower.value),
+        stackAxesMode:axesMode.value,holdCount:holdCount.value===''?null:Number(holdCount.value),holdPower:holdPower.value===''?null:Number(holdPower.value),
         gainLimits:Object.fromEntries(
         [...limits.querySelectorAll('input')].filter(control=>control.value!=='').map(control=>[control.name,Number(control.value)])),effects:workspace.rows()}))draftDirty=false;
     };
@@ -401,9 +402,10 @@ function characterArt(profile){
 }
 function signed(n){return n>=0?'+'+n:String(n);}
 function stackLabels(unit){
-  return Object.entries(unit.stacks).filter(([,count])=>count>0).map(([tag,count])=>{
+  return Object.entries(unit.stacks).filter(([tag,count])=>count>0||stackPotency(unit,tag)>0).map(([tag,count])=>{
     const power=stackPotency(unit,tag);
-    return tag+' · 총 위력 '+power+' · '+count+'회';
+    const mode=unit.stackTraits?.[tag]?.stackAxesMode;
+    return tag+(mode==='count'?'':' · 총 위력 '+power)+(mode==='power'?'':' · '+count+'회');
   });
 }
 function combatStatusLabels(unit){
@@ -550,7 +552,8 @@ function effectSentence(e,extra=[]){
     .map(([key,[label,defaultValue]])=>label+' '+(e[key]??defaultValue)).join(' · ');
   let summary=(tuning?text+' · '+tuning:text)+paymentText;
   if(stackGrantEffects.includes(e.kind)){
-    if(e.stackPower||e.kind==='stack')summary+=' · 1회당 위력 '+(e.stackPower||1);
+    if(e.stackAxes)summary+=' · 위력 '+(e.axisPower??'유지')+' · 횟수 '+(e.axisCount??'유지');
+    else if(e.stackPower||e.kind==='stack')summary+=' · 1회당 위력 '+(e.stackPower||1);
     if(e.stackPowerCap)summary+=' · 1회당 위력 최대 '+e.stackPowerCap;
     if(e.stackCap)summary+=' · 최대 '+e.stackCap+'회';
     for(const [key,[label]] of Object.entries(stackGainLimits)){
@@ -584,6 +587,8 @@ function readEffect(row){
   const {scaleBy,scaleCostMode,scaleCostAmount,scaleHealthBasis,limitPeriod,limitCount,...effect}=Object.fromEntries(controls.map(x=>[x.name,x.type==='number'?Number(x.value):x.value]));
   if(effect.to==='keywordHolders')effect.recipientKeyword={tag:effect.recipientKeywordTag,scope:effect.recipientKeywordScope,zone:effect.recipientKeywordZone,mode:effect.recipientKeywordMode,minimum:effect.recipientKeywordMinimum,names:effect.recipientKeywordNames};
   for(const key of Object.keys(effect))if(key.startsWith('recipientKeyword')&&key!=='recipientKeyword')delete effect[key];
+  effect.stackAxes=row.querySelector('[name=stackAxes]')?.checked===true;
+  for(const key of ['axisPower','axisCount'])if(!effect.stackAxes||!effect[key])delete effect[key];
   const all=effect.kind==='consume'&&effect.consumeAmount==='all';
   if(all||unnumberedEffects.includes(effect.kind))effect.amount=1;
   if(!effect.ratioBasis||effect.amountMode!=='percent')delete effect.ratioBasis;
@@ -723,6 +728,13 @@ function effectRow(row,refresh,scoped,passive,stack){
   const priorityField=field('어느 적을 우선할까?',consumePriority);
   const totalHelp=note('우선 대상부터 중첩을 소모해요. ‘중첩 소모 시 → 카드 대상’ 효과는 소모한 총량을 기준으로 우선 대상에게 한 번 적용돼요.');
   const consumeFields=consuming?[field('얼마나?',consumeAmount),scopeField,priorityField,totalHelp]:[];
+  const axesToggle=input('stackAxes','1','checkbox',{checked:row.stackAxes??false});
+  const axesPower=input('axisPower',row.axisPower??'','number',{min:1,max:maxStackPotency,placeholder:'비워두면 유지'});
+  const axesCount=input('axisCount',row.axisCount??'','number',{min:1,max:maxStatusStacks,placeholder:'비워두면 유지'});
+  const axisFields=el('div',undefined,{class:'stack'});
+  axisFields.append(field('중첩 위력 합계',axesPower),field('중첩 횟수',axesCount));
+  const axisToggleField=field('위력과 횟수를 따로 지정',axesToggle,'inline');
+  const axisControls=['stack','consume','remove'].includes(row.kind)?[axisToggleField,axisFields]:[];
   const capFields=stackGrantEffects.includes(row.kind)
     ?[
       field('중첩 위력 (1회당)',input('stackPower',row.stackPower??'','number',{
@@ -906,6 +918,10 @@ function effectRow(row,refresh,scoped,passive,stack){
     conditionStack.hidden=conditionStackControl.disabled=e.condition!=='stack';
     tagHelp.textContent=basicStacks[e.tag]?basicStackInfo(basicStacks[e.tag]).join(" · "):conceptStacks[e.tag]?.description||'';
     threshold.style.display=e.condition&&!flagConditions.includes(e.condition)?'':'none';
+    axisToggleField.hidden=all;
+    axisFields.hidden=all||!axesToggle.checked;
+    axesPower.disabled=axesCount.disabled=axisFields.hidden;
+    amountLabel.hidden=axisControls.length>0&&axesToggle.checked&&!all;
     if(x.amountPart){
       x.amountPart.hidden=all;
       const isPercent=mode.value==='percent'||['percent','healPercent','healMissing','healCut','hitLeech'].includes(e.kind);
@@ -943,7 +959,7 @@ function effectRow(row,refresh,scoped,passive,stack){
     zoneFields,part('대상','target',field(leech?'누가 피해를 줄 때?':replace?'조건을 확인할 대상':'누구에게?',to),recipientFields),
     ...(row.kind==='stack'?[part('중첩 부여','effect',tag)]:[]),
     part('효과 옵션','effect',...replacementFields,...consumeFields,...(row.kind==='giveCard'?[giveField]:[]),
-      ...capFields,...ampFields,...shieldFields,...leechFields,...duration,...settings,durationPolicyField,durationCapField,...stackScale,reactionField,...(row.kind==='stack'?[]:[tag]),fixedField),
+      ...axisControls,...capFields,...ampFields,...shieldFields,...leechFields,...duration,...settings,durationPolicyField,durationCapField,...stackScale,reactionField,...(row.kind==='stack'?[]:[tag]),fixedField),
     field('효과 플레이버 텍스트',area('flavor',row.flavor||'',180),'full'),
     part('대가와 발동 제한','limit',field('발동 제한',limit),limitCountField,scaleField,scaleModeField,scaleAmountField,scaleBasisField));
   if(state.manager){
@@ -2069,7 +2085,7 @@ function battlePanel(){
       }
     }
     for(const [name,trait] of Object.entries(u.stackTraits||{})){
-      if(!u.stacks[name])continue;
+      if(!u.stacks[name]&&!stackPotency(u,name))continue;
       if(trait.flavor)detail.append(flavorText(name+' · '+trait.flavor));
       for(const effect of trait.effects||[]){
         detail.append(note(name+' · '+stackEffectText(effect)));

@@ -3881,3 +3881,22 @@ test('all activity locations persist and allocations set combat attributes',asyn
   assert.equal(guarded.critChance,25);
   assert.equal(guarded.mindGuard,25);
 });
+
+test('independent stack effects grant and spend one axis without changing the other',async()=>{
+  const f=await fixture();
+  const rows=[['stack',{axisPower:8}],['stack',{axisCount:2}],['consume',{axisPower:3}],['remove',{axisCount:1}]];
+  const ids=[];
+  for(const [kind,axes] of rows){
+    await f.act('card',{card:{name:'독립 중첩 '+ids.length,power:'0',target:'self',range:'0',role:'normal',
+      effects:[{when:'use',kind,to:'self',tag:'시험 축',stackAxes:true,...axes}]}});
+    ids.push(f.state.profile.cards.at(-1).id);
+  }
+  await f.act('start',{solo:true,bots:0});
+  for(const [index,[count,power]] of [[1,8],[3,8],[3,5],[2,5]].entries()){
+    configureBattle(f,(b,self)=>{self.hand=[ids[index]];b.units.enemy.blockedRounds=2;});
+    await f.act('plan',{card:ids[index]});await f.act('round');
+    const unit=livingForm(f);
+    assert.equal(unit.stacks['시험 축'],count);
+    assert.equal(unit.stackRuns['시험 축'].reduce((sum,run)=>sum+run.count*run.power,0),power);
+  }
+});

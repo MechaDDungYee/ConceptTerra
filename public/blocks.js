@@ -141,6 +141,7 @@ export function blockWorkspace(config){
       if(isAction(node)){
         const row=readEffect(node.widget);
         const numberExprs={...node.numberExprs};
+        if(!row.stackAxes||row.consumeAmount==='all'){delete numberExprs.axisCount;delete numberExprs.axisPower;}
         if(node.widget.querySelector('[name=durationCap]')?.closest('label')?.hidden)delete numberExprs.durationCap;
         return [{...row,when,...(Object.keys(numberExprs).length?{numberExprs}:{}),...(flow.length?{flow}:{}),...(node.expr&&row.consumeAmount!=='all'?{amountExpr:node.expr}:{})}];
       }

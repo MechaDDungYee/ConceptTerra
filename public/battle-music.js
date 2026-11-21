@@ -29,13 +29,14 @@ export function battleMusicTrack(battle,selection='auto'){
   return Object.keys(tracks).find(key=>name===tracks[key]||battle.units?.some(unit=>unit.enemy&&unit.name===tracks[key]))??null;
 }
 
-let audio,currentTrack,currentPlayback,statusField;
+const defaultPreview=Object.keys(tracks)[0];
+let audio,currentTrack,currentPlayback,statusField,previewTrack;
 function updateStatus(message){
   if(statusField?.isConnected)statusField.textContent=message;
 }
 
 export function syncBattleMusic(battle,playRequested=false){
-  const track=battleMusicTrack(battle,musicSettings.track);
+  const track=battleMusicTrack(battle,musicSettings.track)||previewTrack;
   if(!track){
     if(currentTrack){
       currentTrack=null;
@@ -44,7 +45,7 @@ export function syncBattleMusic(battle,playRequested=false){
       audio.removeAttribute('src');
       audio.load();
     }
-    updateStatus('이 전투에 지정된 BGM이 없습니다.');
+    updateStatus('자동 배정된 곡이 없어요. 곡을 고르거나 재생을 눌러 첫 곡을 들어보세요.');
     return;
   }
   audio??=new Audio();
@@ -59,6 +60,7 @@ export function syncBattleMusic(battle,playRequested=false){
     updateStatus(tracks[track]);
   }
   if(playRequested){
+    if(audio.error)audio.load();
     const playback=audio.play();
     currentPlayback=playback;
     updateStatus(tracks[track]);
@@ -71,6 +73,12 @@ export function syncBattleMusic(battle,playRequested=false){
       }
     });
   }
+}
+
+export function closeBattleMusicSettings(battle){
+  previewTrack=null;
+  statusField=null;
+  syncBattleMusic(battle);
 }
 
 export function battleMusicSettings(getBattle,ui){
@@ -93,12 +101,23 @@ export function battleMusicSettings(getBattle,ui){
   };
   mute.onchange=()=>{musicSettings.muted=mute.checked;save();};
   loop.onchange=()=>{musicSettings.loop=loop.checked;save();};
-  track.onchange=()=>{musicSettings.track=track.value;save();};
+  track.onchange=()=>{
+    musicSettings.track=track.value;
+    previewTrack=null;
+    save();
+    if(Object.hasOwn(tracks,track.value)&&!battleMusicTrack(getBattle(),track.value))
+      updateStatus(tracks[track.value]+' · 재생 버튼으로 미리 들을 수 있어요.');
+  };
   const selected=battleMusicTrack(getBattle(),musicSettings.track);
-  statusField.textContent=selected?tracks[selected]:'이 전투에 지정된 BGM이 없습니다.';
-  const play=button('전투 BGM 재생',()=>syncBattleMusic(getBattle(),true));
-  play.disabled=!selected;
-  track.addEventListener('change',()=>{play.disabled=!battleMusicTrack(getBattle(),musicSettings.track);});
+  const manual=Object.hasOwn(tracks,musicSettings.track)?tracks[musicSettings.track]:null;
+  statusField.textContent=selected?tracks[selected]:manual?manual+' · 재생 버튼으로 미리 들을 수 있어요.':
+    '자동 배정된 곡이 없어요. 곡을 고르거나 재생을 눌러 첫 곡을 들어보세요.';
+  const play=button('전투 BGM 재생',()=>{
+    const battle=getBattle();
+    previewTrack=battleMusicTrack(battle,musicSettings.track)?null:
+      Object.hasOwn(tracks,musicSettings.track)?musicSettings.track:defaultPreview;
+    syncBattleMusic(battle,true);
+  });
   content.append(field('전투 BGM',track),field('음악 음량',volume),level,field('음소거',mute),field('반복 재생',loop),play,statusField);
   return content;
 }

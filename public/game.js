@@ -1,9 +1,9 @@
-import {battleMusicSettings,syncBattleMusic} from './battle-music.js';
+import {battleMusicSettings,closeBattleMusicSettings,syncBattleMusic} from './battle-music.js';
 import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
 import {accountPanel} from './account.js';
 import {gridCanAimTile,gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridLineOfSight,gridCardInRange,gridCardHasReach,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
-import {instantMoveModes,instantMoveDirections,instantMoveOffsets,instantMoveAnchors,instantMoveOrders,instantMoveStackTests,instantMoveStackMetrics,maxPortraitDataLength,maxPortraitSide,keywordOwnedZones,keywordScanModes,stackScanScopes,maxConceptTools,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTagGroups,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,stackFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
+import {instantMoveModes,instantMoveDirections,instantMoveOffsets,instantMoveAnchors,instantMoveOrders,instantMoveStackTests,instantMoveStackMetrics,maxPortraitDataLength,maxPortraitSide,keywordOwnedZones,keywordScanModes,stackScanScopes,maxConceptTools,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTagGroups,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,maxOverloadCost,defaultOverloadCost,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,stackFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
 const studio=location.pathname==='/studio';
 const code=location.pathname.split('/')[2], endpoint=studio?'/api/studio':'/api/rooms/'+code+'/game';
@@ -1236,7 +1236,7 @@ function renderCardFace(preview,card){
   if(unstoppable)body.append(note('저지불가 · 합 패배 시 최소 위력으로 공격'));
   if(role==='guard')body.append(note(coverHelp));
   if(role==='counter')body.append(note(counterHelp));
-  if(cost&&(role==='overload'||card.concept))body.append(note('정신력 −'+cost+(card.concept?' · 부족하면 사용 불가':'')));
+  if(role==='overload'||cost&&card.concept)body.append(note('정신력 −'+cost+(card.concept?' · 부족하면 사용 불가':'')));
   const {popup,keyword}=cardKeywordHelp(preview);
   const description=el('div',undefined,{class:'forge-description',tabindex:0,role:'region','aria-label':'카드 설명'});
   const stackNames=new Set(rows.flatMap(effectStackNames));
@@ -1619,9 +1619,10 @@ function cards(){
     const splash=['splash','tile'].includes(chosen)?{range:splashForm.range.value,rangeShape:splashForm.value()}:undefined;
     return {card:{id:c.id,name:data.get('name'),gmOnly:data.has('gmOnly'),publicName:data.get('publicName'),publicHint:data.get('publicHint'),hitPowers,hitTargets,hitFlavors:hits.map(hit=>hit.flavor.value),flavor:data.get('flavor'),target:['guard','counter'].includes(role.value)?'self':/^\d$/.test(chosen)?Number(chosen):chosen,range:rangeForm.range.value,rangeShape:rangeForm.value(),splash,clash:data.has('clash'),unstoppable:data.has('unstoppable'),unredirectable:data.has('unredirectable'),role:data.get('role'),requiredState:data.get('requiredState'),cost:Number(data.get('cost')),notes:data.get('notes'),effects,image:image||(!data.has('clearImage')?c.image:'')}};
   });
-  const cost=field('혹사 정신력 소모',select('cost',[[10,'10'],[20,'20'],[30,'30']],c.cost||20));
+  const costInput=input('cost',c.role==='overload'?(c.cost??defaultOverloadCost):defaultOverloadCost,'number',{min:0,max:maxOverloadCost,step:1,required:true});
+  const cost=field('혹사 정신력 소모',costInput);
   const sync=()=>{
-    cost.style.display=role.value==='overload'?'':'none';
+    cost.hidden=costInput.disabled=role.value!=='overload';
     const form=makeCard.elements;
     form.target.disabled=['guard','counter'].includes(role.value);
     form.clash.disabled=form.target.disabled||form.target.value==='tile';
@@ -1671,7 +1672,7 @@ function cards(){
       range:range.value,rangeShape,hitPowers:powers(),hitTargets:modes,hitFlavors:hits.map(hit=>hit.flavor.value),flavor:form.flavor.value,
       splash:splashSettings.hidden?undefined:{range:splashForm.range.value,rangeShape:splashForm.value()},
       clash:!form.clash.disabled&&form.clash.checked,unstoppable:!form.unstoppable.disabled&&form.unstoppable.checked,unredirectable:form.unredirectable.checked,
-      requiredState:form.requiredState.value,cost:form.cost.value,
+      requiredState:form.requiredState.value,cost:role.value==='overload'?Number(form.cost.value):0,
       image:form.clearImage?.checked?'':artwork,effects:allEffects(),notes:form.notes.value
     });
     rangeGuide.hidden=rangeHint.hidden=!!rangeShape;
@@ -2121,7 +2122,7 @@ function unitIntelInspection(unit){
 function battleSettingsButton(){
   return button('⚙ 설정',()=>{
     const dialog=battleDialog('전투 설정',battleMusicSettings(()=>state.battle,{el,button,field,input,select}));
-    dialog.addEventListener('close',()=>dialog.remove(),{once:true});
+    dialog.addEventListener('close',()=>{closeBattleMusicSettings(state.battle);dialog.remove();},{once:true});
     document.body.append(dialog);
     dialog.showModal();
   });

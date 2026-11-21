@@ -21,7 +21,7 @@
 ## 카드
 
 - `id`는 파일 안에서 유일한 문자열입니다. 최대 70자이며 기본 카드 ID와 겹치면 안 됩니다. 예를 들어 `my-pack-signal-01`을 사용합니다. 업로드 시 서버가 새 ID를 만들고 파일 내부의 카드 참조도 함께 바꿉니다.
-- `name`은 최대 36자입니다. `role`은 `normal`, `chain`, `assist`, `guard`, `counter`, `overload` 중 하나입니다. `overload`의 `cost`는 10~30 범위이며 생략 시 20입니다.
+- `name`은 최대 36자입니다. `role`은 `normal`, `chain`, `assist`, `guard`, `counter`, `overload` 중 하나입니다. `overload`의 `cost`는 0~100 사이의 정수이며 생략 시 20입니다. 0을 입력하면 정신력을 소모하지 않습니다.
 - `target`은 정수 `1`~`4` 또는 `"self"`, `"area"`, `"splash"`, `"tile"`입니다. 원호 방어와 반격은 `self`를 사용합니다. `splash`와 `tile`에는 `splash` 객체가 필요합니다.
 - 단타는 `"power":"2d8+3"`, 다타는 `"hitPowers":["2d8+3","5"]`처럼 씁니다. 둘을 함께 쓰면 `hitPowers`가 우선합니다. 최대 8타이며, 각 식은 문자열입니다. 주사위는 1~12개, 면은 2~100이고 `2d+5`처럼 면을 생략하면 d6입니다. 고정 위력은 `"0"`~`"999"`입니다.
 - 거리 `range`는 `"0"`, `"1, 3"`, `"1~4"`처럼 0~12를 사용한 문자열입니다. 쉼표로 최대 8개 구간을 연결할 수 있습니다. 기하 사거리는 `rangeShape`에 `{"kind":"rectangle","x":3,"y":1}`, `{"kind":"circle","radius":2}`, `{"kind":"cross","radius":2}`, `{"kind":"custom","cells":[[1,0],[2,0],[1,-1]]}`처럼 씁니다. `splash`에도 같은 `range` 또는 `rangeShape` 형식을 사용합니다. 양의 x는 동쪽, 양의 y는 남쪽입니다. 커스텀 좌표에서 중심 `[0,0]`은 제외합니다.

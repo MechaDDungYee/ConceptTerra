@@ -4168,3 +4168,27 @@ test('homepage authoring downloads ship working examples for all three upload fo
   assert.ok(f.state.profile.passives.some(passive=>passive.name==='객차 순찰'));
   assert.ok(f.state.profile.stackTraits.some(trait=>trait.name==='잔류 신호'));
 });
+
+test('overload accepts custom integer costs including zero, and pays the saved value in combat',async()=>{
+  const card={name:'자율 혹사',power:'0',target:'self',range:'0',role:'overload',effects:[]};
+  for(const cost of [0,37]){
+    const f=await fixture();
+    await f.act('card',{card:{...card,cost}});
+    const saved=f.state.profile.cards[0];
+    assert.equal(saved.cost,cost);
+    await f.act('start',{solo:true,bots:0});
+    configureBattle(f,(b,self)=>{
+      self.hand=[saved.id];self.mind=95;b.units.enemy.blockedRounds=1;
+    });
+    await f.act('plan',{card:saved.id,targets:[]});
+    await f.act('round');
+    assert.equal(livingForm(f).mind,95-cost);
+  }
+  const f=await fixture();
+  await f.act('card',{card});
+  assert.equal(f.state.profile.cards[0].cost,20);
+  for(const cost of [-1,1.5,101]){
+    const rejected=await f.send(f.endpoint,{action:'card',collectionRevision:f.state.collectionRevision,card:{...card,cost}},f.host.cookie);
+    assert.equal(rejected.status,400);
+  }
+});

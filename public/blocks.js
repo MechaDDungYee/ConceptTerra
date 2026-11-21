@@ -312,11 +312,11 @@ export function blockWorkspace(config){
       terms.forEach((term,index)=>{
         const line=create('div',null,'block-math-term');
         const remove=action('삭제',()=>{
-          const next=changeTerms(terms.filter((_,i)=>i!==index));
-          next.querySelector('.block-math-add').focus();
+          const remaining=terms.filter((_,i)=>i!==index);
+          const next=remaining.length===1?replace(remaining[0]):changeTerms(remaining);
+          next.querySelector('.block-math-add, select').focus();
         },'block-text-button');
         remove.setAttribute('aria-label',(index+1)+'번 항 삭제');
-        remove.disabled=terms.length<=2;
         line.append(create('span',String(index+1)),valueEditor(term,value=>{
           terms[index]=value;
           if(!node.terms)node[index===0?'left':'right']=value;
@@ -414,9 +414,11 @@ export function blockWorkspace(config){
       add.disabled=node.inputs.length>=maxGateInputs;
       node.inputs.forEach((test,index)=>{
         const line=create('div',null,'block-gate-input');
-        const remove=action('삭제',()=>replace({...node,inputs:node.inputs.filter((_,i)=>i!==index)}),'block-text-button');
+        const remove=action('삭제',()=>{
+          const remaining=node.inputs.filter((_,i)=>i!==index);
+          replace(remaining.length===1?remaining[0]:{...node,inputs:remaining});
+        },'block-text-button');
         remove.setAttribute('aria-label',(index+1)+'번 조건 삭제');
-        remove.disabled=node.inputs.length<=2;
         line.append(create('span',String(index+1)),testEditor(test,value=>{node.inputs[index]=value;},when,depth+1),remove);
         inputs.append(line);
       });

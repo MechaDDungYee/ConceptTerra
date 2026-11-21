@@ -3955,3 +3955,21 @@ test('a unit-centered splash card can instead strike an empty tile without a cla
   await f.act('round');
   assert.equal(livingForm(f,'enemy').hp,87);
 });
+
+test('confirmed ally action nodes expose the selected enemy intent and clash',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'관전자'});
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    self.pos=18;self.hand=['strike'];b.units.enemy.pos=19;b.walls=[];
+    b.intent={...b.intent,target:self.id,reachable:true};
+  });
+  await f.act('plan',{card:'strike',targets:['enemy'],stance:'clash',actionLink:'enemy'});
+  const view=await f.send(f.endpoint,undefined,guest.cookie);
+  assert.equal(view.status,200);
+  const action=view.body.battle.allyActions[0];
+  assert.equal(action.attacker,f.state.me);
+  assert.equal(action.card.id,'strike');
+  assert.equal(action.actionLink,'enemy');
+  assert.equal(action.clash,true);
+});

@@ -2886,7 +2886,7 @@ function gameSelect(b,u,input,ai=false) {
     if(!gridValid(input.targetTile)||b.walls.includes(input.targetTile)||!gridCardInRange(card,goal,input.targetTile))
       gameFail('기본 사거리 안에서 광역 중심 칸을 선택하세요.');
     if(input.clash||['clash','intercept'].includes(input.stance))gameFail('칸을 지정한 행동은 합을 걸 수 없어요.');
-    return {card:cardId,pos:goal,targetTile:input.targetTile,targets:[],clash:false,...(crisis?{vow}:{}),...(copyId?{copyId}:{}),discard};
+    return {card:cardId,pos:goal,targetTile:input.targetTile,targets:[],clash:false,...(typeof input.actionLink==='string'&&input.actionLink.length<=100?{actionLink:input.actionLink}:{}),...(crisis?{vow}:{}),...(copyId?{copyId}:{}),discard};
   }
   // Collapse targets are calculated after movement. Ignore submitted target and clash choices.
   if(u.collapsed){
@@ -2916,7 +2916,7 @@ function gameSelect(b,u,input,ai=false) {
   if(clash&&intent.target===u.id&&!gameReach(b,intent.card,foe,{...u,pos:goal}))gameFail('이동할 위치가 적의 예고 공격 사거리 밖이에요.');
   if(clash&&!(card.target==='area'?available.includes(foe):targets.includes(foe.id)))gameFail('합을 걸려면 예고 공격을 하는 적을 대상으로 선택하세요.');
 
-  return {card:cardId,...(crisis?{vow}:{}),pos:goal,targets,clash,stance:intercept?'intercept':clash?'clash':'unopposed',...(intercept?{intercept:true}:{}),...(clash&&intent.id?{foeIntent:intent.id}:{}),...(copyId?{copyId}:{}),discard};
+  return {card:cardId,...(crisis?{vow}:{}),pos:goal,targets,clash,stance:intercept?'intercept':clash?'clash':'unopposed',...(intercept?{intercept:true}:{}),...(clash&&intent.id?{foeIntent:intent.id}:{}),...(typeof input.actionLink==='string'&&input.actionLink.length<=100?{actionLink:input.actionLink}:{}),...(copyId?{copyId}:{}),discard};
 }
 function gameSelectTurn(b,u,input,ai=false){
   if(!Object.hasOwn(input,'cards'))return gameSelect(b,u,input,ai);
@@ -5426,6 +5426,11 @@ function gameView(state,revision,actor,manager,members) {
   const intent=b?.intent&&revealIntent(b.intent);
   const battle=b?{round:b.round,phase:b.phase,result:b.result,intent,
     ...(b.intentQueue?{intentQueue:b.intentQueue.map(revealIntent),aimLine:b.aimLine}:{}),
+    allyActions:Object.entries(b.plans||{}).flatMap(([id,plan])=>gamePlannedCards(plan).flatMap((action,index)=>{
+      const unit=b.units[id],card=unit?.library[action.card];
+      return card&&!unit.enemy?[{id:'ally:'+id+':'+index,attacker:id,card:gameRevealCard(card,3),
+        targets:action.targets||[],target:action.targets?.[0],targetTile:action.targetTile,clash:action.clash,actionLink:action.actionLink,foeIntent:action.foeIntent}]:[];
+    })),
     ...(b.encounter?{encounter:{id:b.encounter.id,name:b.encounter.name,peace:b.encounter.peace,peaceOpen:b.encounter.peaceOpen,
       deckSize:b.foeDeck.cards.length,subdueOrder:b.encounter.subdueOrder,rank:b.encounter.rank,negotiating:b.encounter.breakRound===b.round,...(gameIsBright(b)&&(manager||b.encounter.stage>1)?{stage:b.encounter.stage}:{})},zones:b.zones,outcome:b.outcome}:{}),log:gameVisibleLog(b.log,manager),walls:b.walls,extraWalls:b.extraWalls,tiles:b.tiles,poses:b.poses||[],
     awaiting:gameActive(b)?gameAwaiting(b,members).map(u=>u.name):[],clashActor:Object.keys(b.plans||{}).find(id=>gameHasClash(b.plans[id])),

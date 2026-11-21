@@ -1931,12 +1931,13 @@ function battleGrid(b,self){
   const overlay=document.createElementNS('http://www.w3.org/2000/svg','svg');
   overlay.setAttribute('viewBox','0 0 8 5');overlay.setAttribute('class','battle-lines');overlay.setAttribute('aria-hidden','true');
   const tiles=[],tokens=new Map(),nodes=[];
-  const intents=b.phase==='planning'?(b.intentQueue||[b.intent].filter(Boolean)):[];
+  const intents=b.phase==='planning'?[...(b.intentQueue||[b.intent].filter(Boolean)),...(b.allyActions||[])]:[];
   for(let i=0;i<gridSize;i++){
     const {x,y}=gridPoint(i), temporaryWall=b.extraWalls?.find(item=>item.index===i);
     const wall=b.walls.includes(i)||!!temporaryWall&&(!self||temporaryWall.ownerSide!==self.enemy);
     const unit=b.units.find(u=>u.pos===i&&u.hp>0)||b.units.find(u=>u.pos===i&&!u.hp);
     const tile=el('div',undefined,{role:'button',tabindex:0});
+    tile.dataset.tile=String(i);
     tile.onkeydown=event=>{if(event.target===tile&&['Enter',' '].includes(event.key)){event.preventDefault();tile.click();}};
     const sniper=b.units.find(unit=>unit.id===b.aimLine?.sourceId);
     const aim=sniper&&b.aimLine.index===y&&!wall&&gridLineOfSight(sniper.pos,i,b.walls);
@@ -1954,14 +1955,16 @@ function battleGrid(b,self){
       if(art)token.append(el('img',undefined,{src:art,alt:'',class:'battle-unit-sprite',draggable:'false'}));
       else token.append(el('b',unit.collapsed?'개념화':unit.hp?title:'전투 불능',{class:unit.enemy?'enemy-core':''}));
       tokens.set(unit.id,token);
+      token.dataset.unitId=unit.id;
       token.append(el('span',unit.name.split(' · ')[0]),el('progress',undefined,{value:unit.hp,max:unit.maxHp,'aria-label':unit.name+' 체력'}));
       if(!unit.enemy)token.append(el('small',unit.mind,{class:'unit-sp',title:'정신력'}));
       const actions=intents.filter(intent=>(intent.attacker||'enemy')===unit.id);
       if(unit.hp&&actions.length){
         const row=el('div',undefined,{class:'battle-intent-nodes'});
         for(const [index,intent] of actions.entries()){
-          const node=el('button',String(index+1),{type:'button',class:'battle-intent-node','aria-label':unit.name+' 예고 '+(index+1)+' · '+intent.card.name});
+          const node=el('button',String(index+1),{type:'button',class:'battle-intent-node'+(unit.enemy?'':' allied'),'aria-label':unit.name+' 예고 '+(index+1)+' · '+intent.card.name});
           node.onpointerdown=event=>event.stopPropagation();
+          node.dataset.intentId=intent.id||'enemy';
           nodes.push({node,intent,unit});
           row.append(node);
         }
@@ -2041,6 +2044,8 @@ function battlePanel(){
   if(self?.coverCount)meters.append(el('span','원호 방어 '+self.coverCount));
   if(awaiting.length&&b.phase==='planning')meters.append(el('span','행동 대기 '+awaiting.length,{title:awaiting.join(', ')}));
   topbar.append(heading,meters,menu);
+  const links=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  links.setAttribute('class','battle-action-links');links.setAttribute('aria-hidden','true');board.append(links);
   const allyPanel=el('div',undefined,{class:'battle-side left'});
   const intentPreview=el('div',undefined,{class:'battle-intent-preview',hidden:true});
   const forecast=el('div',undefined,{class:'clash-forecast','aria-live':'polite'});
@@ -2201,51 +2206,60 @@ function battlePanel(){
       menuItems.append(button('지난 라운드 연출',()=>{index=0;show();replay.showModal();}));
     }
   }
-  if(!active){
-    const pickUnit=(unit,intentNode)=>{
-      const choice=candidates.find(candidate=>candidate.id===unit.id);
-      if(!editable||!choice||!(guarding||targetLimit))return false;
-      const ids=new Set(draft.targets.filter(id=>candidates.some(candidate=>candidate.id===id)));
-      if(!intentNode&&ids.has(unit.id)&&draft.targetTile==null&&draft.stance==='unopposed')ids.delete(unit.id);
-      else if(guarding||targetLimit===1){ids.clear();ids.add(unit.id);}
-      else if(ids.size<targetLimit||ids.has(unit.id))ids.add(unit.id);
-      else return false;
-      draft.targets=[...ids];
-      draft.targetTile=null;
-      draft.stance='unopposed';draft.clash=false;draft.foeIntent='';
-      if(intentNode){
-        const victim=b.units.find(value=>value.id===intentNode.target);
-        const already=others.some(slot=>slot.clash&&(!intentNode.id||slot.foeIntent===intentNode.id));
-        if(!already&&card.clash&&!['guard','assist','counter'].includes(card.role)&&intentNode.reachable&&!intentNode.card.support&&
-            victim?.hp&&(!intentNode.card.unredirectable||victim.id===self.id)&&gridCardHasReach(intentNode.card,unit.pos,pos,b.walls)){
-          draft.stance=victim.id===self.id?'clash':'intercept';
-          draft.clash=true;
-          draft.foeIntent=intentNode.id||'';
-        }
-      }
-      refresh();
-      return true;
+  let linkFrame=0;
+  function drawActionLinks(){
+    linkFrame=0;
+    if(!board.isConnected)return;
+    links.replaceChildren();
+    const bounds=board.getBoundingClientRect();
+    const centerOf=element=>{
+      if(!element)return null;
+      const rect=element.getBoundingClientRect();
+      return [rect.left+rect.width/2-bounds.left,rect.top+rect.height/2-bounds.top];
     };
-    for(const {node,intent:scheduled,unit} of fieldView.nodes){
-      node.setAttribute('aria-pressed',String(draft.clash&&(scheduled.id?scheduled.id===draft.foeIntent:unit.id==='enemy')));
-      node.onclick=event=>{
-        event.stopPropagation();
-        if(!pickUnit(unit,scheduled)){
-          if(editable&&card?.target==='tile'&&legalTile(card,unit.pos)){draft.targetTile=unit.pos;refresh();}
-          else node.onfocus();
+    const arrow=(from,to,tone)=>{
+      if(!from||!to)return;
+      const [x,y]=from,[u,v]=to,angle=Math.atan2(v-y,u-x);
+      const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+      const wing=offset=>[u-9*Math.cos(angle+offset),v-9*Math.sin(angle+offset)].join(' ');
+      path.setAttribute('d',`M ${x} ${y} L ${u} ${v} M ${wing(-.5)} L ${u} ${v} L ${wing(.5)}`);
+      path.setAttribute('class',tone);
+      links.append(path);
+    };
+    const nodes=new Map(fieldView.nodes.map(entry=>[entry.intent.id||'enemy',entry]));
+    for(const entry of localNodes)nodes.set(entry.intent.id,entry);
+    const positionOf=id=>id===self?.id?linkPosition:b.units.find(unit=>unit.id===id)?.pos;
+    const anchored=new Set();
+    const replies=new Map();
+    for(const entry of nodes.values()){
+      if(entry.unit.enemy)continue;
+      const action=entry.intent,from=centerOf(entry.node);
+      const opposing=nodes.get(action.actionLink||(action.clash?(action.foeIntent||'enemy'):''));
+      if(opposing){
+        const other=centerOf(opposing.node);
+        if(opposing.unit.enemy&&(action.clash||action.card.role==='guard')){
+          const mid=from.map((value,index)=>(value+other[index])/2);
+          arrow(from,mid,action.clash?'clashing':'outgoing');
+          arrow(other,mid,action.clash?'clashing':'incoming');
+          anchored.add(opposing.intent.id||'enemy');
+        }else{
+          arrow(from,other,'outgoing');
+          if(opposing.unit.enemy&&opposing.intent.target===entry.unit.id)replies.set(opposing.intent.id||'enemy',from);
         }
-      };
+      }else if(action.targetTile!=null)arrow(from,centerOf(fieldView.tiles[action.targetTile]),'outgoing');
+      else for(const id of action.targets||[])arrow(from,centerOf(fieldView.tiles[positionOf(id)]),'outgoing');
     }
-    for(const [id,token] of fieldView.tokens){
-      const unit=b.units.find(value=>value.id===id);
-      token.onclick=event=>{
-        event.stopPropagation();
-        if(!pickUnit(unit)){
-          if(editable&&card?.target==='tile'&&legalTile(card,unit.pos)){draft.targetTile=unit.pos;refresh();}
-          else inspect(unit);
-        }
-      };
-    }
+    for(const [id,entry] of nodes)if(entry.unit.enemy&&!anchored.has(id)&&entry.intent.reachable)
+      arrow(centerOf(entry.node),replies.get(id)||centerOf(fieldView.tiles[positionOf(entry.intent.target)]),'incoming');
+  }
+  const scheduleLinks=()=>{if(!linkFrame)linkFrame=requestAnimationFrame(drawActionLinks);};
+  let localNodes=[];
+  let linkPosition=self?.pos;
+  board.addEventListener('pointermove',scheduleLinks);
+  board.addEventListener('wheel',scheduleLinks);
+  fieldView.tools.addEventListener('click',scheduleLinks);
+  if(!active){
+    fieldView.overlay.replaceChildren();scheduleLinks();
     fieldView.tiles.forEach((tile,i)=>{const u=unitAt(i);tile.setAttribute('aria-disabled',String(!u));if(u)tile.onclick=()=>inspect(u);});
     status.textContent=b.phase==='finished'?'전투 '+b.result:self?.blockedRounds?'행동 불가 · 이번 라운드에는 이동하거나 행동할 수 없어요.':awaiting.length?'행동 확정 대기 · '+awaiting.join(', '):state.manager?'라운드를 진행할 수 있어요.':'GM이 라운드를 진행할 때까지 기다려 주세요.';
     return board;
@@ -2259,7 +2273,7 @@ function battlePanel(){
   const actionLimit=self.actionLimit??baseActions;
   const freeActions=Number(self.hand.some(card=>card.freeAction));
   const slotCount=Math.max(1,actionLimit+freeActions);
-  const actionFields=({card=null,targets=[],clash=false,stance,foeIntent='',copyId='',targetTile=null}={})=>({card,targets,clash,foeIntent,stance:stance||(clash?'clash':'unopposed'),copyId,targetTile});
+  const actionFields=({card=null,targets=[],clash=false,stance,foeIntent='',copyId='',targetTile=null,actionLink=''}={})=>({card,targets,clash,foeIntent,actionLink,stance:stance||(clash?'clash':'unopposed'),copyId,targetTile});
   const draft=editable?battleDraft:{...planned};
   draft.slots??=(draft.cards||[draft]).map(actionFields);
   draft.slots.length=Math.min(draft.slots.length,slotCount);
@@ -2290,10 +2304,17 @@ function battlePanel(){
     const label=el('button',undefined,{type:'button',class:'battle-skill',disabled:!editable||!!card.id&&!cardUsable(self,card)});
     label.dataset.kind=card.role||'pass';
     label.dataset.card=card.id;
+    label.draggable=editable&&!!card.id;
+    label.ondragstart=event=>{
+      if(label.disabled||!card.id){event.preventDefault();return;}
+      if(draft.card!==card.id){Object.assign(draft,actionFields({card:card.id}));moveMode=false;refresh();}
+      event.dataTransfer.setData('application/x-conceptterra-action',card.id);
+      event.dataTransfer.effectAllowed='link';
+    };
     const art=state.profile.cards.find(entry=>entry.id===card.id)?.image;
     label.onclick=()=>{
       const next=draft.card===card.id?null:card.id;
-      Object.assign(draft,{card:next,targets:[],targetTile:null,clash:false,copyId:''});
+      Object.assign(draft,actionFields({card:next}));
       moveMode=false;
 
       refresh();
@@ -2371,6 +2392,45 @@ function battlePanel(){
   else controls.prepend(button('확정 취소 · 수정',()=>send('unplan')));
   clash.onchange=()=>{draft.stance=clash.value;draft.clash=draft.stance!=='unopposed';refresh();};
   copy.onchange=()=>{draft.copyId=copy.value;refresh();};
+
+
+  let localSignature='';
+  function updateActionLinks(slots){
+    const signature=JSON.stringify(slots);
+    if(editable&&signature!==localSignature){
+      localSignature=signature;
+      for(const entry of localNodes)entry.node.remove();
+      localNodes=[];
+      const token=fieldView.tokens.get(self.id);
+      if(token){
+        token.querySelector('.battle-draft-nodes')?.remove();
+        const row=el('div',undefined,{class:'battle-intent-nodes battle-draft-nodes'});
+        for(const [index,slot] of slots.entries()){
+          const card=self.hand.find(value=>value.id===slot.card);
+          if(!card)continue;
+          const node=el('button',String(index+1),{type:'button',class:'battle-intent-node allied','aria-label':'내 행동 '+(index+1)+' · '+card.name,draggable:'true'});
+          node.onpointerdown=event=>event.stopPropagation();
+          const chooseSlot=()=>{draft.slots[draft.slot]=actionFields(draft);draft.slot=index;Object.assign(draft,slot);};
+          node.onclick=event=>{event.stopPropagation();chooseSlot();refresh();};
+          node.ondragstart=event=>{event.stopPropagation();chooseSlot();event.dataTransfer.setData('application/x-conceptterra-action',card.id);event.dataTransfer.effectAllowed='link';};
+          row.append(node);
+          localNodes.push({unit:self,node,intent:{...slot,id:'draft:'+index,card}});
+        }
+        if(row.childElementCount)token.append(row);
+      }
+    }
+    scheduleLinks();
+  }
+  board.addEventListener('dragover',event=>{
+    if(event.dataTransfer.types.includes('application/x-conceptterra-action')&&event.target.closest('[data-tile]')){
+      event.preventDefault();event.dataTransfer.dropEffect='link';
+    }
+  });
+  board.addEventListener('drop',event=>{
+    if(!event.dataTransfer.getData('application/x-conceptterra-action'))return;
+    const target=event.target.closest('[data-intent-id],[data-unit-id],[data-tile]');
+    if(target){event.preventDefault();target.click();}
+  });
 
   function refresh(){
     const slots=slotChoices();
@@ -2464,9 +2524,8 @@ function battlePanel(){
     discardLabel.firstElementChild.textContent=overflow?'라운드 종료에 '+overflow+'장을 더 버려야 합니다':
       '라운드 종료에 버릴 카드 · '+draft.discard.length+'장';
     fieldView.overlay.replaceChildren();
-    if(target&&foe&&gridCardHasReach(intent.card,foe.pos,targetPos(target),b.walls))boardArrow(fieldView.overlay,foe.pos,targetPos(target),draft.clash?'clashing':'incoming');
-    if(center!=null)boardArrow(fieldView.overlay,pos,center,'outgoing');
-    for(const u of candidates)if(chosen.has(u.id))boardArrow(fieldView.overlay,pos,targetPos(u),draft.clash?'clashing':'outgoing');
+    linkPosition=pos;
+    updateActionLinks(slotChoices());
     allyPanel.replaceChildren(...(card?[actionPanel(draft.clash?'내 합 카드':'내 행동',card,self,card.image)]:[]));
     forecast.textContent=draft.clash?'합 예고 · '+card.name+' ↔ '+intent.card.name:recentClash?'직전 '+recentClash:'';
     const path=paths.get(pos)||[],point=gridPoint(pos);
@@ -2521,6 +2580,57 @@ function battlePanel(){
     else if(manual)status.textContent=chosen.size?'대상 '+chosen.size+'/'+card.target+' · '+names:'맵에서 대상을 선택하세요. 최대 '+card.target+'명';
     else status.textContent=(card.target==='area'?'광역 대상 · ':'자신에게 사용 · ')+names;
 
+    const pickUnit=(unit,intentNode)=>{
+      const choice=candidates.find(candidate=>candidate.id===unit.id);
+      if(!editable||!card)return false;
+      if(intentNode&&guarding){
+        const protectedUnit=b.units.find(value=>value.id===intentNode.target);
+        if(protectedUnit&&!protectedUnit.enemy&&(protectedUnit.id===self.id||candidates.includes(protectedUnit))){
+          draft.targets=protectedUnit.id===self.id?[]:[protectedUnit.id];draft.actionLink=intentNode.id||'enemy';draft.clash=false;draft.stance='unopposed';refresh();return true;
+        }
+      }
+      if(!choice||!(guarding||targetLimit))return false;
+      const ids=new Set(draft.targets.filter(id=>candidates.some(candidate=>candidate.id===id)));
+      if(!intentNode&&ids.has(unit.id)&&draft.targetTile==null&&draft.stance==='unopposed')ids.delete(unit.id);
+      else if(guarding||targetLimit===1){ids.clear();ids.add(unit.id);}
+      else if(ids.size<targetLimit||ids.has(unit.id))ids.add(unit.id);
+      else return false;
+      draft.targets=[...ids];
+      draft.targetTile=null;
+      draft.stance='unopposed';draft.clash=false;draft.foeIntent='';draft.actionLink=intentNode?(intentNode.id||'enemy'):'';
+      if(intentNode){
+        const victim=b.units.find(value=>value.id===intentNode.target);
+        const already=others.some(slot=>slot.clash&&(!intentNode.id||slot.foeIntent===intentNode.id));
+        if(unit.enemy&&!already&&card.clash&&!['guard','assist','counter'].includes(card.role)&&intentNode.reachable&&!intentNode.card.support&&
+            victim?.hp&&(!intentNode.card.unredirectable||victim.id===self.id)&&gridCardHasReach(intentNode.card,unit.pos,pos,b.walls)){
+          draft.stance=victim.id===self.id?'clash':'intercept';
+          draft.clash=true;
+          draft.foeIntent=intentNode.id||'';
+        }
+      }
+      refresh();
+      return true;
+    };
+    for(const {node,intent:scheduled,unit} of fieldView.nodes){
+      node.setAttribute('aria-pressed',String(draft.clash&&(scheduled.id?scheduled.id===draft.foeIntent:unit.id==='enemy')));
+      node.onclick=event=>{
+        event.stopPropagation();
+        if(!pickUnit(unit,scheduled)){
+          if(editable&&card?.target==='tile'&&legalTile(card,unit.pos)){draft.targetTile=unit.pos;refresh();}
+          else node.onfocus();
+        }
+      };
+    }
+    for(const [id,token] of fieldView.tokens){
+      const unit=b.units.find(value=>value.id===id);
+      token.onclick=event=>{
+        event.stopPropagation();
+        if(!pickUnit(unit)){
+          if(editable&&card?.target==='tile'&&legalTile(card,unit.pos)){draft.targetTile=unit.pos;refresh();}
+          else inspect(unit);
+        }
+      };
+    }
     fieldView.tiles.forEach((tile,i)=>{
       const targetUnit=manual?(candidates.find(u=>targetPos(u)===i)||(designated?.pos===i?designated:null)):null;
       const canAimTile=editable&&tileCapable&&!moveMode&&legalTile(card,i);
@@ -2543,7 +2653,7 @@ function battlePanel(){
       tile.setAttribute('aria-label',coord+(occupant?' · '+occupant.name:'')+(isChosen?(targetingTile?' · 광역 중심':primary?' · 주 대상':automatic?' · 예상 자동 표적':' · 선택된 대상'):secondaryTarget?' · 예상 부 대상':canAimTile?' · 광역 중심 지정 가능':targetUnit?' · 대상 지정 가능':editable&&canMove(i)?' · 이동 가능':''));
       tile.onclick=()=>{
         if(canAimTile){
-          draft.targetTile=center===i?null:i;draft.targets=[];draft.stance='unopposed';draft.clash=false;draft.foeIntent='';refresh();return;
+          draft.targetTile=center===i?null:i;draft.targets=[];draft.stance='unopposed';draft.clash=false;draft.foeIntent='';draft.actionLink='';refresh();return;
         }
         if(editable&&targetUnit&&!tileCapable){
           if(chosen.has(targetUnit.id))chosen.delete(targetUnit.id);

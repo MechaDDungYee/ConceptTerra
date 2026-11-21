@@ -404,6 +404,19 @@ export const maxPassiveEffects = 8;
 export const heldStackEffectKinds = ['conceptIncomingCut','critChance','critMultiplier','outgoingDamage','incomingDamage','moveMod','forcedMoveImmune','leaveTrail'];
 // Concept cards grant these traits to their holder for the current battle.
 export const conceptStacks = {
+  '충전 과압':{cap:5,flavor:'가라앉지 못한 무게가 깃털 끝에 맺혔다.',effects:[
+    {when:'held',kind:'incomingDamage',amount:10,amountMode:'percent',scaleStack:'count',to:'self',publicLabel:'중첩당 받는 피해 +10% · 공격하지 않은 라운드 종료 시 +1'}
+  ]},
+  '삼면점':{cap:3,flavor:'세 면이 닫히는 순간 작은 점이 하나 남았다.',effects:[
+    {when:'held',kind:'moveMod',amount:-2,scaleStack:'count',to:'self',publicLabel:'중첩당 이동력 −2 · 3면 이상 막힌 채 턴 종료 시 중첩 +1 및 중첩당 고정 피해 3'}
+  ]},
+  '바늘땀':{cap:7,flavor:'벌어진 자리를 따라 새 실이 들어갔다.',effects:[
+    {when:'struck',kind:'field:stitchTrait',amount:1,to:'self',publicLabel:'피격 시 공격 행동당 3회까지 바늘땀 +1 및 공격자 집중 부여'}
+  ]},
+  '맑은 물결':{cap:5,holdPower:10,flavor:'수면에 비친 얼굴이 조금 편안해졌다.',effects:[
+    {when:'turnEnd',kind:'field:waterTrait',amount:1,to:'self',publicLabel:'위력만큼 체력·정신력 회복 후 횟수 1 감소 · 턴 시작에 정화 시 횟수 1 추가 소모 및 보호막 4'}
+  ]},
+
   '철벽 빗장':{cap:4,flavor:'빗장이 잠기는 소리는 바깥에서도 들렸다.',effects:[
     {when:'held',kind:'incomingDamage',amount:-15,amountMode:'percent',scaleStack:'count',to:'self'},
     {when:'held',kind:'outgoingDamage',amount:-15,amountMode:'percent',scaleStack:'count',to:'self'},

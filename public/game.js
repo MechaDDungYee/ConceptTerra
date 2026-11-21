@@ -1795,13 +1795,16 @@ function battleGrid(b,self){
   overlay.setAttribute('viewBox','0 0 8 5');overlay.setAttribute('class','battle-lines');overlay.setAttribute('aria-hidden','true');
   const tiles=[];
   for(let i=0;i<gridSize;i++){
-    const {x,y}=gridPoint(i), wall=b.walls.includes(i);
+    const {x,y}=gridPoint(i), temporaryWall=b.extraWalls?.find(item=>item.index===i);
+    const wall=b.walls.includes(i)||!!temporaryWall&&(!self||temporaryWall.ownerSide!==self.enemy);
     const unit=b.units.find(u=>u.pos===i&&u.hp>0)||b.units.find(u=>u.pos===i&&!u.hp);
     const tile=el('button',undefined,{type:'button'});
     const sniper=b.units.find(unit=>unit.id===b.aimLine?.sourceId);
     const aim=sniper&&b.aimLine.index===y&&!wall&&gridLineOfSight(sniper.pos,i,b.walls);
-    tile.className='battle-cell'+(wall?' wall':'')+(aim?' rail-aim':'')+(b.zones?.includes(i)?' sanctuary-zone':'')+(b.tiles?.[i]?' slime-trail':'');
-    if(b.tiles?.[i])tile.title='점액 흙길 · 통과 시 다음 라운드 이동력 감소';
+    tile.className='battle-cell'+(wall?' wall':'')+(aim?' rail-aim':'')+(b.zones?.includes(i)?' sanctuary-zone':'')+(b.tiles?.[i]?.kind==='spring'?' spring-tile':b.tiles?.[i]?' slime-trail':'');
+    if(b.tiles?.[i]?.kind==='spring')tile.title='물웅덩이 · '+(b.tiles[i].through-b.round+1)+'라운드 남음';
+    else if(b.tiles?.[i])tile.title='점액 흙길 · 통과 시 다음 라운드 이동력 감소';
+    if(temporaryWall){tile.classList.add('temporary-wall');tile.title='임시 벽 · '+(temporaryWall.through-b.round+1)+'라운드 남음';}
     if(b.zones?.includes(i))tile.title=i===22?'성역':'포근한 광배';
     tile.setAttribute('aria-label',`${x+1}열 ${y+1}행${wall?' · 벽':unit?' · '+unit.name:''}`);
     tile.append(el('small',String.fromCharCode(65+x)+(y+1),{class:'coordinate'}));

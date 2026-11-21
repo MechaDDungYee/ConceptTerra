@@ -2537,9 +2537,9 @@ test('arithmetic supports extra terms in effects and comparison operands',async(
 test('concept cards are stronger catalogue choices and pay mental cost once on use',async()=>{
   const f=await fixture();
   const allConcepts=f.state.defaults.filter(card=>card.concept);
-  assert.equal(allConcepts.length,13);
-  const concepts=allConcepts.filter(card=>!['conceptVaultStart','conceptSnailStart','conceptSafeStart'].includes(card.id));
-  assert.equal(f.state.profile.conceptStackTraits.length,13);
+  assert.equal(allConcepts.length,17);
+  const concepts=allConcepts.filter(card=>!['conceptVaultStart','conceptSnailStart','conceptSafeStart','conceptPlummetStart','conceptTrifaceStart','conceptStitchSeam','conceptHeronSpring'].includes(card.id));
+  assert.equal(f.state.profile.conceptStackTraits.length,17);
   const {parsePower}=await import('../public/rules.js');
   const average=card=>(card.hitPowers??[card.power]).reduce((sum,value)=>{const power=parsePower(value);return sum+power.bonus+power.count*(power.sides+1)/2;},0);
   const baseline=Math.max(...f.state.defaults.filter(card=>['strike','hold','shot','rush','trace'].includes(card.id)).map(average));
@@ -3484,4 +3484,73 @@ test('snail shell leaves a trail and its generated zero-power roll shoves the en
   assert.equal(f.state.battle.tiles[10].source,'bot0');
   assert.equal(livingForm(f,'enemy').hp,999);
   assert.equal(livingForm(f,'enemy').pos,21);
+});
+
+test('plummet clears its shield, consumes overpressure, and pierces defenses',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:17,mind:80,shield:14,hand:['conceptPlummetStart']});
+    Object.assign(b.units.enemy,{pos:20,hp:999,maxHp:999,blockedRounds:2,shield:100});
+    b.walls=[];
+  });
+  await f.act('plan',{card:'conceptPlummetStart',targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f).shield,0);
+  assert.equal(livingForm(f).stacks['충전 과압'],3);
+  assert.ok(livingForm(f).hand.some(card=>card.id==='conceptPlummetDrop'));
+  const before=livingForm(f,'enemy');
+  await f.act('plan',{card:'conceptPlummetDrop',targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f).stacks['충전 과압']||0,0);
+  assert.equal(livingForm(f).blockedRounds,1);
+  assert.equal(livingForm(f,'enemy').shield,before.shield);
+  assert.ok(livingForm(f,'enemy').hp<before.hp);
+});
+test('heron tile rescues a low-health passenger and leaves a spring',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:17,mind:80,hp:40,maxHp:100,hand:['conceptHeronSpring']});
+    b.units.enemy.blockedRounds=2;
+    b.walls=[];
+  });
+  await f.act('plan',{card:'conceptHeronSpring',targetTile:17});
+  await f.act('round');
+  assert.equal(livingForm(f).hp,75);
+  assert.equal(livingForm(f).stacks['맑은 물결'],1);
+  assert.equal(f.state.battle.tiles[17].kind,'spring');
+});
+
+test('stitch attacks seven times at seven stacks and bounds reactions per action',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:17,mind:80,hand:['conceptStitchSeam']});
+    Object.assign(b.units.enemy,{pos:18,hp:999,maxHp:999,blockedRounds:2});
+    b.units.enemy.stacks['바늘땀']=7;
+    b.walls=[];
+  });
+  await f.act('plan',{card:'conceptStitchSeam',targets:['enemy']});
+  await f.act('round');
+  assert.ok(f.state.battle.log.some(line=>line.includes('7타 위력')));
+  assert.ok(livingForm(f,'enemy').hp<=999-(7*7+14));
+  assert.equal(livingForm(f).stacks['집중'],2);
+});
+test('triface gathers a stack and consumes it with the generated bloom',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:17,mind:80,hand:['conceptTrifaceStart']});
+    Object.assign(b.units.enemy,{pos:18,hp:999,maxHp:999,blockedRounds:2});
+    b.walls=[10,26];
+  });
+  await f.act('plan',{card:'conceptTrifaceStart',targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').stacks['삼면점'],2);
+  assert.ok(livingForm(f).hand.some(card=>card.id==='conceptTrifaceBloom'));
+  await f.act('plan',{card:'conceptTrifaceBloom',targets:['enemy']});
+  await f.act('round');
+  assert.equal(livingForm(f,'enemy').stacks['삼면점']||0,0);
+  assert.equal(livingForm(f,'enemy').rooted,true);
 });

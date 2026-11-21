@@ -1,5 +1,5 @@
 import {maxFlowDepth,maxFlowRepeat,maxExpressionDepth,maxMathTerms,flowMathTerms,flowArithmetic,flowComparisons,flowStats,effectConditions,
-  flagConditions,diceConditions,maxDiceTotal,hitResultTests,flowGates,maxGateInputs,timings} from './rules.js';
+  stackScanScopes,stackScanMetrics,flagConditions,diceConditions,maxDiceTotal,hitResultTests,flowGates,maxGateInputs,timings} from './rules.js';
 
 const create=(name,content,cls)=>{
   const el=document.createElement(name);
@@ -51,6 +51,7 @@ export function describeValue(node){
 
 export function describeTest(node){
   if(node.type==='hitResult')return hitResultTests[node.result];
+  if(node.type==='condition'&&node.condition==='stackScan')return (node.scope==='named'?node.names:stackScanScopes[node.scope||'allies'])+' 중 '+(node.tag||'중첩')+' '+stackScanMetrics[node.metric||'count']+' '+(node.minimum??1)+' 이상인 인원 '+flowComparisons[node.op||'gte']+' '+(node.thresholdExpr?describeValue(node.thresholdExpr):node.threshold);
   if(node.type==='condition'){
     const subject=node.subject==='self'?'자신':'카드 대상';
     const threshold=flagConditions.includes(node.condition)?'':' '+node.threshold;
@@ -356,7 +357,7 @@ export function blockWorkspace(config){
     field.append(choose('조건 블록 종류',options,type,type=>replace(safeTest(type))));
     if(type==='condition'){
       const isResult=node.type==='hitResult';
-      const conditions={...effectConditions};delete conditions[''];
+      const conditions={...effectConditions,stackScan:'특정 중첩을 가진 대상 수'};delete conditions[''];
       if(when==='hit')for(const [result,label] of Object.entries(hitResultTests))conditions['hit:'+result]=label;
       const current=isResult?'hit:'+node.result:node.condition;
       field.append(choose('전투 조건',conditions,current,condition=>{
@@ -364,7 +365,22 @@ export function blockWorkspace(config){
           {type:'condition',condition,subject:node.subject||'self',threshold:1});
       }));
       if(isResult&&node.result==='wall')field.append(create('small','넉백이나 끌어오기 뒤에 연결하세요.'));
-      if(!isResult){
+      if(!isResult&&node.condition==='stackScan'){
+        const set=(key,value)=>{node[key]=value;onChange();};
+        const scope=node.scope||'allies';
+        field.append(stackSelect(node.tag,value=>set('tag',value)),
+          choose('감지할 대상 범위',stackScanScopes,scope,value=>replace({...node,scope:value})),
+          choose('대상마다 확인할 중첩 기준',stackScanMetrics,node.metric||'count',value=>set('metric',value)),
+          number('대상 한 명당 필요한 최소 중첩',node.minimum??1,1,9999,value=>set('minimum',value)),
+          choose('감지된 인원 비교',flowComparisons,node.op||'gte',value=>set('op',value)));
+        const threshold=number('필요 인원',node.threshold??1,0,100,value=>set('threshold',value));
+        field.append(threshold,numberSocket(threshold,node.thresholdExpr,expr=>set('thresholdExpr',expr)));
+        if(scope==='named'){
+          const names=create('input');names.type='text';names.value=node.names||'';
+          names.placeholder='예: 이루어도, 이루어질';names.setAttribute('aria-label','대상 이름을 쉼표로 구분');
+          names.oninput=()=>set('names',names.value);field.append(names);
+        }
+      }else if(!isResult){
         field.append(choose('조건을 검사할 대상',{self:'자신',target:'카드 대상'},node.subject,subject=>{node.subject=subject;onChange();}));
         if(!flagConditions.includes(node.condition)){
           const dice=Object.hasOwn(diceConditions,node.condition);

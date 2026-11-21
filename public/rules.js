@@ -400,6 +400,9 @@ export const roles = {normal:'일반', chain:'연계', assist:'원호 공격', g
 export const maxCardHits = 8;
 export const maxCardEffects = 24;
 export const maxPassives = 8;
+export const maxConceptTools = 10;
+export const stackScanScopes={allies:'다른 아군',party:'아군 전체(자신 포함)',enemies:'적',everyone:'전장 전체',targets:'현재 카드의 대상들',named:'이름으로 지정한 유닛들'};
+export const stackScanMetrics={count:'중첩 횟수',power:'중첩 총 위력'};
 export const maxPassiveEffects = 8;
 export const heldStackEffectKinds = ['conceptIncomingCut','critChance','critMultiplier','outgoingDamage','incomingDamage','moveMod','forcedMoveImmune','leaveTrail'];
 // Concept cards grant these traits to their holder for the current battle.

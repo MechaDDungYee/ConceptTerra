@@ -3766,3 +3766,27 @@ test('concept tools equip independently, activate in battle, and survive charact
   assert.equal(f.state.profile.conceptTools[0].name,tool.name);
   assert.equal(f.state.profile.conceptTools[0].enabled,true);
 });
+
+test('equipment accepts ten items and a stack scan counts qualified allies rather than stacks',async()=>{
+  const f=await fixture();
+  const condition={type:'condition',condition:'stackScan',tag:'집중',scope:'allies',metric:'count',minimum:1,threshold:2,op:'gte'};
+  const tool={name:'두 사람의 호흡',enabled:true,effects:[{when:'turnStart',kind:'shield',amount:9,to:'self',
+    flow:[{kind:'if',id:1,branch:'then',test:condition}]}]};
+  await f.act('conceptTool',{tool});
+  for(let index=1;index<10;index++)await f.act('conceptTool',{tool:{...tool,name:'장신구 '+index,enabled:false}});
+  const overflow=await f.send(f.endpoint,{action:'conceptTool',tool,revision:f.state.revision},f.host.cookie);
+  assert.equal(overflow.status,400);
+  await f.act('start',{solo:true,bots:2});
+  assert.equal(livingForm(f).shield,0);
+  configureBattle(f,(b,self)=>{
+    b.units.bot0.stacks['집중']=9;
+    b.units.bot1.stacks['집중']=1;
+    self.stacks['집중']=10;
+    for(const unit of [b.units.bot0,b.units.bot1,b.units.enemy])unit.blockedRounds=3;
+  });
+  await f.act('plan',{cards:[]});await f.act('round');
+  assert.equal(livingForm(f).shield,0);
+  configureBattle(f,b=>{b.units.bot1.stacks['집중']=4;});
+  await f.act('plan',{cards:[]});await f.act('round');
+  assert.equal(livingForm(f).shield,9);
+});

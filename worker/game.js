@@ -1,5 +1,5 @@
 import {gridIndex,gridValid, gridSize, gridTileGroups, gridDistance, gridPoint, gridLineOfSight, gridPaths, gridDisplacement, gridCardInRange,gridCardHasReach, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
-import {stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,maxActivityLocations,trainReturnMind,baseHp,characterMaxHp,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, effectiveCardCost, applauseAttack, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
+import {maxConceptTools,stackScanScopes,stackScanMetrics,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,maxActivityLocations,trainReturnMind,baseHp,characterMaxHp,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, effectiveCardCost, applauseAttack, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
 class GameInputError extends Error {}
@@ -77,6 +77,16 @@ function gameFlowTest(raw,row,id,owned,depth=0,budget={left:maxGateTests}){
     return {type,left:gameFlowTest(raw.left,row,id,owned,depth+1,budget),right:gameFlowTest(raw.right,row,id,owned,depth+1,budget)};
   }
   if(type==='not')return {type,test:gameFlowTest(raw.test,row,id,owned,depth+1,budget)};
+  if(type==='condition'&&raw.condition==='stackScan'){
+    const tag=gameText(raw.tag,maxStackNameLength),scope=raw.scope??'allies',metric=raw.metric??'count',op=raw.op??'gte';
+    const minimum=raw.minimum??1,threshold=raw.threshold??1;
+    const names=typeof raw.names==='string'?[...new Set(raw.names.split(/[,\n]/).map(name=>name.trim().normalize('NFKC')).filter(Boolean))]:[];
+    if(!tag||Object.hasOwn(Object.prototype,tag)||!Object.hasOwn(stackScanScopes,scope)||!Object.hasOwn(stackScanMetrics,metric)||
+      !Object.hasOwn(flowComparisons,op)||!gameInt(minimum,1,9999)||!gameInt(threshold,0,100)||
+      scope==='named'&&(!names.length||names.length>12||names.some(name=>name.length>50)))gameFail('중첩 대상 감지 조건을 확인하세요.');
+    return {type,condition:'stackScan',subject:'self',tag,scope,metric,op,minimum,threshold,
+      ...(scope==='named'?{names:names.join(', ')}:{}),...(raw.thresholdExpr?{thresholdExpr:gameExpression(raw.thresholdExpr)}:{})};
+  }
   if(type==='condition'&&raw.condition&&Object.hasOwn(effectConditions,raw.condition)&&['self','target'].includes(raw.subject)){
     const {condition,subject}=raw;
     if(row.when==='replace'&&condition!=='cardUsed'&&!replacementConditions.includes(condition))
@@ -2600,7 +2610,7 @@ function gameExportPassives(passives,owned){
 }
 function gameImportPassives(file,existing,cards,enabled,includeTools=false){
   const tools=includeTools?(file.conceptTools===undefined?[]:file.conceptTools):[];
-  if(!Array.isArray(tools)||tools.length>maxPassives)gameFail('개념 도구 수를 확인하세요.');
+  if(!Array.isArray(tools)||tools.length>maxConceptTools)gameFail('개념 도구 수를 확인하세요.');
   if(!Array.isArray(file.passives)||existing.length+file.passives.length>maxPassives||
     !Array.isArray(file.cards)||cards.length+file.cards.length>48||
     file.cards.some(card=>!card||typeof card.id!=='string'))gameFail('패시브 또는 참조 카드 수를 확인하세요.');
@@ -3362,7 +3372,34 @@ function gameFlowValue(b,ctx,unit,node,hitIndex=ctx.hitIndex||0){
     }
   },gameFlowValue(b,ctx,unit,first,hitIndex));
 }
+function gameStackScan(b,ctx,test){
+  const names=test.names?.split(', ');
+  const targets=new Set(ctx.targets?.map(unit=>unit.id)||[]);
+  const match=unit=>{
+    const ally=unit.enemy===ctx.actor.enemy&&!unit.brainwashed;
+    switch(test.scope){
+      case 'allies':return ally&&unit.id!==ctx.actor.id;
+      case 'party':return ally;
+      case 'enemies':return !ally;
+      case 'targets':return targets.has(unit.id);
+      case 'named':return names.includes(unit.name.trim().normalize('NFKC'));
+      default:return true;
+    }
+  };
+  const count=Object.values(b.units).filter(unit=>gameAlive(unit)&&match(unit)&&
+    (test.metric==='power'?stackPotency(unit,test.tag):unit.stacks[test.tag]||0)>=test.minimum).length;
+  const threshold=test.thresholdExpr?Math.trunc(gameFlowValue(b,ctx,ctx.actor,test.thresholdExpr)):test.threshold;
+  switch(test.op){
+    case 'gt':return count>threshold;
+    case 'lt':return count<threshold;
+    case 'lte':return count<=threshold;
+    case 'eq':return count===threshold;
+    case 'ne':return count!==threshold;
+    default:return count>=threshold;
+  }
+}
 function gameFlowTestValue(b,ctx,target,test,effect){
+  if(test.type==='condition'&&test.condition==='stackScan')return gameStackScan(b,ctx,test);
   if(test.type==='hitResult')return !!ctx.hitResult&&ctx.hitResult.target===target&&ctx.hitResult[test.result]===true;
   if(test.type==='condition'){
     const subject=test.subject==='self'?ctx.actor:target;
@@ -5566,7 +5603,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
         const index=list.findIndex(tool=>tool.id===id);
         if(index<0&&(id||!creating))gameFail('변경할 개념 도구를 찾을 수 없어요.');
         if(creating){
-          if(index<0&&list.length>=maxPassives)gameFail('개념 도구는 '+maxPassives+'개까지 저장할 수 있어요.');
+          if(index<0&&list.length>=maxConceptTools)gameFail('개념 도구는 '+maxConceptTools+'개까지 저장할 수 있어요.');
           const owned=[...gameCatalogue,...ownCollection.cards,...(profile.passiveCards||[])];
           const tool=gamePassive({...input.tool,enabled:input.tool?.enabled===true},id||undefined,owned);
           if(index<0)list.push(tool);

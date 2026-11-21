@@ -1357,6 +1357,111 @@ function gameDeck(owned,ids){
   }
   return deck;
 }
+const gameCardNameKey=name=>name.normalize('NFKC').toLowerCase().replace(/[\s·ㆍ'‘’"“”]/g,'');
+const gameNormalCard=card=>card&&!card.concept&&cardState(card.requiredState)==='any'&&!card.temporary&&!card.generated;
+function gameCampaignDeck(state,id,collection){
+  const campaign=state.campaign;
+  const party=campaign?.loopCount?campaign.party.find(unit=>unit.id===id):null;
+  const owned=[...gameCatalogue,...collection.cards,...Object.values(campaign?.definitions||{})];
+  if(!party)return {owned,cards:gameDeck(owned,collection.deck)};
+  const cards=party.deck.map(cardId=>owned.find(card=>card.id===cardId));
+  if(cards.length!==deckSize||cards.some(card=>!card))gameFail('소실된 덱의 빈자리를 새 카드로 채운 뒤 출발하세요.');
+  return {owned,cards};
+}
+function gameCheckpoint(state,b,kind='auto',label=''){
+  const campaign=state.campaign??={saveVersion:2,sequence:0,station:0,party:[],checkpoints:[],loopCount:0,residue:0,
+    memory:{intel:{}},lostCards:[],definitions:{}};
+  if(b&&!Object.values(b.units).some(unit=>!unit.enemy&&!unit.bot))return;
+  if(b){
+    campaign.station++;
+    campaign.party=Object.values(b.units).filter(unit=>!unit.enemy&&!unit.bot).map(unit=>{
+      for(const id of unit.configuredDeck){
+        if(!gameCatalogue.some(card=>card.id===id)&&unit.library[id])campaign.definitions[id]=unit.library[id];
+      }
+      return {id:unit.id,name:unit.name,mind:unit.mind,deck:[...unit.configuredDeck]};
+    });
+    for(const [id,{progress}] of Object.entries(b.intel||{}))campaign.memory.intel[id]=Math.max(progress,campaign.memory.intel[id]||0);
+  }
+  if(!campaign.party.length)gameFail('열차 복귀 기록이 있어야 저장할 수 있어요.');
+  if(kind==='manual'&&campaign.checkpoints.filter(entry=>entry.kind==='manual').length>=4)gameFail('수동 저장은 네 개까지 만들 수 있어요.');
+  const checkpoint={id:'ck_'+(++campaign.sequence),kind,label:label||'열차 복귀 '+campaign.station,
+    station:campaign.station,party:structuredClone(campaign.party),lossCount:campaign.lostCards.length,
+    refilled:campaign.lostCards.flatMap(loss=>loss.replacedBy?[loss.replacedBy]:[])};
+  campaign.checkpoints.push(checkpoint);
+  while(campaign.checkpoints.length>12)campaign.checkpoints.splice(campaign.checkpoints.findIndex(entry=>entry.kind==='auto'),1);
+}
+function gameRestoreParty(campaign,checkpoint){
+  const party=structuredClone(checkpoint.party);
+  for(const [index,loss] of campaign.lostCards.entries()){
+    const unit=party.find(unit=>unit.id===loss.actor);
+    if(!unit)continue;
+    if(index>=checkpoint.lossCount){
+      const position=unit.deck.indexOf(loss.cardId);
+      if(position>=0)unit.deck.splice(position,1);
+    }
+    if(loss.replacedBy&&!checkpoint.refilled.includes(loss.replacedBy))unit.deck.push(loss.replacedBy);
+  }
+  return party;
+}
+function gameLoopRevert(state,input){
+  const campaign=state.campaign;
+  const checkpoint=campaign?.checkpoints.find(entry=>entry.id===input.checkpointId);
+  if(!checkpoint||campaign.loopCount>=12)gameFail('회귀할 수 있는 책갈피가 없어요.');
+  const party=gameRestoreParty(campaign,checkpoint);
+  const lookup=id=>gameCatalogue.find(card=>card.id===id)||campaign.definitions[id];
+  const selected=party.find(unit=>unit.id===input.target)||[...party].sort((a,c)=>c.mind-a.mind)[0];
+  const payer=[selected,...party.filter(unit=>unit!==selected)].find(unit=>unit.deck.some(id=>gameNormalCard(lookup(id))));
+  if(payer){
+    const id=input.cardId||payer.deck.find(id=>gameNormalCard(lookup(id)));
+    if(!payer.deck.includes(id)||!gameNormalCard(lookup(id)))gameFail('회귀의 대가로 낼 일반 카드를 선택하세요.');
+    payer.deck.splice(payer.deck.indexOf(id),1);
+    campaign.lostCards.push({actor:payer.id,cardId:id,name:lookup(id).name,checkpointId:checkpoint.id,replacedBy:null});
+  }
+  campaign.loopCount++;
+  campaign.residue++;
+  campaign.station=checkpoint.station;
+  campaign.party=party;
+  campaign.checkpoints=campaign.checkpoints.slice(0,campaign.checkpoints.indexOf(checkpoint)+1);
+  for(const unit of party)(state.profiles[unit.id]??={cards:[],deck:[]}).mind=unit.mind;
+  state.battle=null;
+}
+function gameLoopRefill(state,actor,input){
+  const campaign=state.campaign;
+  const unit=campaign?.party.find(unit=>unit.id===actor);
+  const loss=campaign?.lostCards.find(entry=>entry.actor===actor&&!entry.replacedBy);
+  if(!unit||!loss||unit.deck.length>=deckSize)gameFail('작성할 빈 카드 자리가 없어요.');
+  const name=gameText(input.name,21), power=parsePower(input.power), range=Number(input.range),cost=Number(input.cost);
+  const ceiling=Math.max(...gameCatalogue.filter(gameNormalCard).map(card=>cardHitPowers(card).reduce((sum,formula)=>{
+    const parsed=parsePower(formula);
+    return sum+parsed.bonus+parsed.count*parsed.sides;
+  },0)));
+  if(!name||name.length>20||!power||power.bonus+power.count*power.sides>ceiling||!gameInt(range,1,5)||!gameInt(cost,0,5))
+    gameFail('새 카드의 이름, 위력, 사거리와 정신력 소모를 확인하세요.');
+  const key=gameCardNameKey(name);
+  if(!key||campaign.lostCards.some(entry=>gameCardNameKey(entry.name)===key))gameFail('그 이름은 이미 지워졌습니다.');
+  if(unit.deck.some(id=>gameCardNameKey((campaign.definitions[id]||gameCatalogue.find(card=>card.id===id))?.name||'')===key))
+    gameFail('그 이름은 이미 이 덱에 있습니다.');
+  const id=gameId();
+  campaign.definitions[id]={...gameCard({name,power:power.formula,range:String(range),target:1,role:'normal',effects:[],
+    notes:gameText(input.text,120)},id),cost,refill:true};
+  unit.deck.push(id);
+  loss.replacedBy=id;
+}
+function gameCampaignView(state,actor,manager){
+  const campaign=state.campaign;
+  if(!campaign)return undefined;
+  return {station:campaign.station,loopCount:campaign.loopCount,residue:campaign.residue,
+    checkpoints:campaign.checkpoints.map(checkpoint=>{
+      const {id,label,kind}=checkpoint;
+      const candidates=manager?gameRestoreParty(campaign,checkpoint).map(({id,name,deck})=>({id,name,
+        cards:deck.map(cardId=>campaign.definitions[cardId]||gameCatalogue.find(card=>card.id===cardId))
+          .filter(gameNormalCard).map(({id,name})=>({id,name}))})):undefined;
+      return {id,label,kind,candidates};
+    }),
+    lostCards:campaign.lostCards.filter(loss=>manager||loss.actor===actor),
+    ownDeck:campaign.party.find(unit=>unit.id===actor)?.deck.map(id=>({id,name:(campaign.definitions[id]||gameCatalogue.find(card=>card.id===id))?.name||id})),
+    ...(manager?{party:campaign.party.map(({id,name})=>({id,name}))}:{})};
+}
 function gameBegin(state,members,settings,actor,collections) {
   const selected=members.filter(m=>m.seat>0);
   const solo=settings.solo===true;
@@ -1365,8 +1470,7 @@ function gameBegin(state,members,settings,actor,collections) {
   for(const m of selected) {
     const p=state.profiles[m.id];
     const collection=collections.get(m.id);
-    const owned=[...gameCatalogue,...collection.cards];
-    const cards=gameDeck(owned,collection.deck);
+    const {owned,cards}=gameCampaignDeck(state,m.id,collection);
     units[m.id]=gameUnit(m.id,p?.name||m.name,gameSpawn(m.seat-1,units),cards,false,false,[...owned,...(p?.passiveCards||[])]);
     units[m.id].activityLocations=gameActivityLocations(p?.activityLocations);
     units[m.id].passives=(p?.passives||[]).filter(passive=>passive.enabled);
@@ -1378,8 +1482,7 @@ function gameBegin(state,members,settings,actor,collections) {
   if(solo) {
     const p=state.profiles[actor.id];
     const collection=collections.get(actor.id);
-    const owned=[...gameCatalogue,...collection.cards];
-    const cards=gameDeck(owned,collection.deck);
+    const {owned,cards}=gameCampaignDeck(state,actor.id,collection);
     units[actor.id]=gameUnit(actor.id,p?.name||actor.name,gameSpawn(0,units),cards,false,false,[...owned,...(p?.passiveCards||[])]);
     units[actor.id].activityLocations=gameActivityLocations(p?.activityLocations);
     units[actor.id].passives=(p?.passives||[]).filter(passive=>passive.enabled);
@@ -1398,6 +1501,8 @@ function gameBegin(state,members,settings,actor,collections) {
   units.enemy.locationTags=[...gameFoe.locationTags];
   const battle={round:1,units,walls:gameWalls,log:['빈 객차. 존속의 집행체가 남은 승객을 찾아 들어왔습니다.'],result:null};
   gameObserve(battle,units.enemy,0);
+  const remembered=state.campaign?.memory.intel.enemy||0;
+  if(remembered>battle.intel.enemy.progress)gameObserve(battle,units.enemy,remembered-battle.intel.enemy.progress);
   gameNext(battle);
   return battle;
 }
@@ -1419,7 +1524,7 @@ function gameSelect(b,u,input,ai=false) {
   const card=cardId&&Object.hasOwn(u.library,cardId)?u.library[cardId]:null;
   const granted=card?.temporary&&cardUsable(u,card);
   if(cardId&&!u.hand.includes(cardId)&&!granted)gameFail('손패에 있는 카드를 선택하세요.');
-  if(card?.concept&&u.mind<card.cost)gameFail('이 개념물 카드는 정신력 '+card.cost+'이 필요합니다.');
+  if((card?.concept||card?.refill)&&u.mind<card.cost)gameFail('이 개념물 카드는 정신력 '+card.cost+'이 필요합니다.');
   if(card&&!cardUsable(u,card))gameFail('현재 상태에서 사용할 수 없는 카드입니다.');
   const goal=input.pos??u.pos;
   if(!gridValid(goal)||!gridPaths(u.pos,u.move,gameBlocked(b,u)).has(goal))gameFail('이동 가능 거리를 확인하세요.');
@@ -3141,7 +3246,7 @@ function gamePrepareAction(b,u,plan,moved){
       return;
     }
   }
-  if(card.cost){gameMental(b,u,-card.cost,true);gameLog(b,u.name+(card.concept?' 개념구':' 혹사')+' · 정신력 -'+card.cost);}
+  if(card.cost){gameMental(b,u,-card.cost,true);gameLog(b,u.name+(card.concept?' 개념구':card.refill?' 재작성 카드':' 혹사')+' · 정신력 -'+card.cost);}
   const ctx=gameContext(u,card,targets,moved);
   ctx.waitingPlan=plan;
   waiting?.set(plan,ctx);
@@ -3521,6 +3626,7 @@ function gameReturnToTrain(b,state){
     profile.mind=unit.mind;
     profile.collapsed=false;
   }
+  gameCheckpoint(state,b);
 }
 function gameAwaiting(b,members){
   return Object.values(b.units).filter(u=>!u.bot&&gameCanPlan(u)&&!b.plans[u.id]&&members.some(m=>m.id===u.id));
@@ -3634,6 +3740,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
     const data=gameView(state,version,actor,manager,members);
     data.roster=data.roster.map(({id,name,seat})=>({id,name,seat}));
     data.collectionRevision=collection.revision;
+    data.campaign=gameCampaignView(state,actor,manager);
     data.sharedCards=shares().map(({id,owner,bundle})=>({
       id,owner,author:members.find(member=>member.id===owner).name,card:bundle[0],included:bundle.slice(1).map(card=>card.name)
     }));
@@ -3890,6 +3997,18 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
         if(!saved.meta.changes)return error('보관함이 다른 화면에서 먼저 변경됐어요. 다시 시도해 주세요.',409);
         return view(revision,{cards,deck,stackNames,stackTraits,revision:ownCollection.revision+1},editedCardId);
       }
+      case 'loopCheckpoint':
+        if(!manager||gameActive(b))gameFail('GM만 열차에서 책갈피를 남길 수 있어요.');
+        gameCheckpoint(state,null,'manual',gameText(input.label,40));
+        break;
+      case 'loopRevert':
+        if(!manager||gameActive(b))gameFail('GM만 열차에서 회귀할 수 있어요.');
+        gameLoopRevert(state,input);
+        break;
+      case 'loopRefill':
+        if(gameActive(b))gameFail('열차에서만 빈 카드 자리를 작성할 수 있어요.');
+        gameLoopRefill(state,actor,input);
+        break;
       case 'start': {
         if(!manager)return error('GM 또는 방장만 시작할 수 있어요.',403);
         if(gameActive(b))gameFail('이미 전투 중이에요.');
@@ -3905,6 +4024,8 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       case 'requestEdit': {
         if(!gameActive(b)||!gameAlive(b.units[actor]))gameFail('전투에 참여 중일 때 변경을 요청할 수 있어요.');
         const cards=[...gameCatalogue,...ownCollection.cards];
+        if(state.campaign?.loopCount&&state.campaign.party.some(unit=>unit.id===actor))
+          gameFail('회귀로 작성된 덱은 이번 여정 동안 전투 중에 바꿀 수 없어요.');
         const deck=gameDeck(cards,ownCollection.deck);
         const passives=(profile.passives||[]).filter(passive=>passive.enabled);
         const library=Object.fromEntries([...cards,...(profile.passiveCards||[])].map(({image,...card})=>[card.id,card]));

@@ -39,7 +39,7 @@ function field(label,control,cls){const x=el('label',label,{class:cls});x.append
 function area(name,value,max){const x=el('textarea',value,{name,rows:2,maxlength:max});return x;}
 function formFor(action,read){
   const form=el('form',undefined,{class:'game-form'});
-  form.onsubmit=async e=>{e.preventDefault();try{await send(action,await read(form,new FormData(form)));}catch(err){errors.textContent=err.message;}};
+  form.onsubmit=async e=>{if(e.defaultPrevented)return;e.preventDefault();try{await send(action,await read(form,new FormData(form)));}catch(err){errors.textContent=err.message;}};
   form.addEventListener('input',()=>{draftDirty=true;});
   return form;
 }
@@ -1588,8 +1588,58 @@ function cards(){
   const layout=group(preview,editor,library,...(studio?[]:[shared]));
   layout.append(cataloguePreview.popup);layout.classList.add('forge');return layout;
 }
+function trainCheckpoints(){
+  const campaign=state.campaign;
+  if(!campaign?.checkpoints.length)return null;
+  const box=section('열차 책갈피',note('복귀 '+campaign.station+'회 기록 · 회귀 '+campaign.loopCount+'/12 · 잔재 '+campaign.residue));
+  if(state.manager){
+    const mark=formFor('loopCheckpoint',(_,data)=>({label:data.get('label')}));
+    mark.append(field('책갈피 이름',input('label','','text',{maxlength:40})),submit('수동 책갈피 남기기'));
+    box.append(mark);
+    if(campaign.loopCount<12){
+      const form=formFor('loopRevert',(_,data)=>({checkpointId:data.get('checkpointId'),target:data.get('target'),cardId:data.get('cardId')}));
+      const bookmark=select('checkpointId',campaign.checkpoints.map(item=>[item.id,item.label]),campaign.checkpoints.at(-1).id);
+      const target=select('target',[],'');
+      const card=select('cardId',[],'');
+      const populate=()=>{
+        const entry=campaign.checkpoints.find(item=>item.id===bookmark.value);
+        const candidates=entry?.candidates||[];
+        target.replaceChildren(el('option','자동 선택',{value:''}),...candidates.map(item=>el('option',item.name,{value:item.id})));
+        updateCards();
+      };
+      const updateCards=()=>{
+        const candidates=campaign.checkpoints.find(item=>item.id===bookmark.value)?.candidates||[];
+        const cards=candidates.find(item=>item.id===target.value)?.cards||[];
+        card.replaceChildren(el('option','덱에서 자동 선택',{value:''}),...[...new Map(cards.map(item=>[item.id,item.name]))].map(([id,name])=>el('option',name,{value:id})));
+      };
+      target.onchange=updateCards;
+      bookmark.onchange=populate;
+      populate();
+      form.append(field('돌아갈 책갈피',bookmark),field('대가를 낼 승객',target),field('영구히 소실될 카드 1장',card),
+        note('관찰 기록을 유지하고 저장점으로 돌아갑니다. 덱에서 일반 카드 한 장이 영구히 사라집니다.'),submit('카드를 지불하고 회귀'));
+      form.addEventListener('submit',event=>{
+        if(!window.confirm('선택한 책갈피로 돌아가고 일반 카드 한 장을 영구 소실할까요?'))event.preventDefault();
+      },true);
+      box.append(form);
+    }else box.append(note('회귀가 봉인되었습니다.'));
+  }
+  const loss=campaign.lostCards.find(entry=>entry.actor===state.me&&!entry.replacedBy);
+  if(loss){
+    box.append(note('「'+loss.name+'」 소실 · 새 일반 카드를 작성해야 출발할 수 있습니다.'));
+    const refill=formFor('loopRefill',(_,data)=>Object.fromEntries(data));
+    refill.append(field('새 카드 이름',input('name','','text',{maxlength:20,required:true})),
+      field('위력',input('power','1d6+2','text',{maxlength:18,required:true})),
+      field('사거리',input('range',1,'number',{min:1,max:5,required:true})),
+      field('정신력 대가',input('cost',0,'number',{min:0,max:5,required:true})),
+      field('카드 문구',area('text','',120)),submit('빈자리에 새 카드 작성'));
+    box.append(refill);
+  }
+  return box;
+}
 function startPanel(){
   const root=section('빈 객차',note('눈을 뜨자 객차에는 남은 승객들뿐입니다. 존속의 집행체가 열차에 들어옵니다.'));
+  const train=trainCheckpoints();
+  if(train)root.append(train);
   if(!state.manager){root.append(note('GM 또는 방장이 전투를 시작할 때까지 기다려 주세요.'));return root;}
   const form=formFor('start',(_,data)=>({solo:data.has('solo'),bots:Number(data.get('bots'))}));
   const solo=input('solo','1','checkbox',{checked:!state.roster.length,disabled:!!state.roster.length});

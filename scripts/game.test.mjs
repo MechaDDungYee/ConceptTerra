@@ -3141,3 +3141,34 @@ test('player stamina determines starting HP and left-wall seats stay distinct',a
   assert.equal(livingForm(f,guest.body.me).hp,100);
   assert.equal(livingForm(f,guest.body.me).pos,8);
 });
+
+test('train rewind keeps observation, permanently removes a copy, and requires a newly named replacement',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    self.mind=45;
+    b.intel.enemy={progress:58,overlap:0,tier:2};
+  });
+  await f.act('reset');
+  const checkpointId=f.state.campaign.checkpoints[0].id;
+  const source=f.state.campaign.checkpoints[0].candidates[0].cards[0];
+  await f.act('loopRevert',{checkpointId,cardId:source.id});
+  assert.equal(f.state.campaign.loopCount,1);
+  assert.equal(f.state.campaign.ownDeck.length,9);
+  const send=(action,payload)=>f.send(f.endpoint,{action,revision:f.state.revision,...payload},f.host.cookie);
+  assert.equal((await send('start',{solo:true,bots:0})).status,400);
+  const replacement={name:'새로 쓴 객차 기록',power:'1d6',range:1,cost:0};
+  assert.equal((await send('loopRefill',{...replacement,name:[...source.name].join(' ')})).status,400);
+  await f.act('loopRefill',replacement);
+  const authored=f.state.campaign.lostCards[0].replacedBy;
+  assert.equal(f.state.campaign.ownDeck.length,10);
+  await f.act('start',{solo:true,bots:0});
+  assert.equal(livingForm(f).mind,45);
+  assert.equal(livingForm(f,'enemy').intelProgress,58);
+  await f.act('reset');
+  const next=f.state.campaign.checkpoints[0].candidates[0].cards.find(card=>card.id!==authored&&card.id!==source.id);
+  await f.act('loopRevert',{checkpointId,cardId:next.id});
+  assert.equal(f.state.campaign.ownDeck.length,9);
+  assert.ok(f.state.campaign.ownDeck.some(card=>card.id===authored));
+  assert.equal(f.state.campaign.lostCards.length,2);
+});

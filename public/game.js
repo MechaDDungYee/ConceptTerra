@@ -1,3 +1,4 @@
+import {battleMusicSettings,syncBattleMusic} from './battle-music.js';
 import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
 import {accountPanel} from './account.js';
@@ -1833,6 +1834,7 @@ function startPanel(){
   const root=section('빈 객차',note('눈을 뜨자 객차에는 남은 승객들뿐입니다. 존속의 집행체가 열차에 들어옵니다.'));
   const saves=saveSlotsPanel();
   if(saves)root.append(saves);
+  root.append(battleSettingsButton());
   const train=trainCheckpoints();
   if(train)root.append(train);
   if(!state.manager){root.append(note('GM 또는 방장이 전투를 시작할 때까지 기다려 주세요.'));return root;}
@@ -2041,6 +2043,14 @@ function unitIntelInspection(unit){
   }else content.append(group('패시브',100),group('정신력 회복 조건',100),group('정신력 감소 조건',100));
   return content;
 }
+function battleSettingsButton(){
+  return button('⚙ 설정',()=>{
+    const dialog=battleDialog('전투 설정',battleMusicSettings(()=>state.battle,{el,button,field,input,select}));
+    dialog.addEventListener('close',()=>dialog.remove(),{once:true});
+    document.body.append(dialog);
+    dialog.showModal();
+  });
+}
 function battlePanel(){
   const b=state.battle;
   if(!b)return startPanel();
@@ -2135,6 +2145,7 @@ function battlePanel(){
   for(const [key,label] of [['character','캐릭터'],['cards','카드 · 덱'],['dialogue','대화창 열기']]){
     nav.append(button(label,()=>document.querySelector('#tabs [data-tab="'+key+'"]').click()));
   }
+  nav.append(battleSettingsButton());
   board.append(fieldView.frame,topbar,nav,fieldView.tools,allyPanel,intentPreview,forecast,battleDialoguePanel());
   const poisonAmount=u=>(u.poison||0)+(u.damageOverTime||[]).reduce((sum,dot)=>sum+dot.amount,0);
   const unitStats=el('div',undefined,{class:'stack'});
@@ -2898,6 +2909,7 @@ function dialoguePanel(){
   return root;
 }
 function render(){
+  syncBattleMusic(state?.battle);
   if(!state)return;
   for(const list of panel.querySelectorAll('.card-list-scroll'))cardListPositions.set(list.ariaLabel,list.scrollTop);
   panel.closest('main').classList.toggle('card-studio-page',tab==='cards');
@@ -2928,6 +2940,7 @@ try{
         const sameBattle=chatChanged&&['battle','roster','pendingEdits','saveSlots','profile','manager'].every(key=>JSON.stringify(next[key])===JSON.stringify(state[key]));
         const newRound=next.battle?.round!==state.battle?.round||next.battle?.phase!==state.battle?.phase;
         state=next;
+        syncBattleMusic(state.battle);
         if(newRound)battleDraft=null;
         if(tab==='battle'&&sameBattle&&battleDialogue?.root.isConnected)battleDialoguePanel();
         else if(tab==='battle'||!draftDirty){draftDirty=false;render();}

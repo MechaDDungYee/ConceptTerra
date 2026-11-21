@@ -1,7 +1,7 @@
 import {execFileSync} from 'node:child_process';
 import {mkdir, readFile, writeFile, copyFile, readdir} from 'node:fs/promises';
 const assets = {};
-for (const [name, type] of [['index.html','text/html'],['style.css','text/css'],['app.js','text/javascript'],['account.js','text/javascript'],['game.html','text/html'],['game.js','text/javascript'],['blocks.js','text/javascript'],['game.css','text/css'],['rules.js','text/javascript'],['grid.js','text/javascript'],['battle-camera.js','text/javascript']]) {
+for (const [name, type] of [['index.html','text/html'],['style.css','text/css'],['app.js','text/javascript'],['account.js','text/javascript'],['game.html','text/html'],['game.js','text/javascript'],['blocks.js','text/javascript'],['game.css','text/css'],['rules.js','text/javascript'],['grid.js','text/javascript'],['battle-camera.js','text/javascript'],['battle-music.js','text/javascript']]) {
   if(type==='text/javascript')execFileSync(process.execPath,['--check','public/'+name],{stdio:'inherit'});
   assets['/'+name] = {type: type+'; charset=utf-8', body: await readFile('public/'+name,'utf8')};
 }

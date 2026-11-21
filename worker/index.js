@@ -8,7 +8,7 @@ const baseHeaders = {
   'Cache-Control': 'no-store',
   'Referrer-Policy': 'no-referrer',
   'X-Content-Type-Options': 'nosniff',
-  'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self' https://chatgpt.com"
+  'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; media-src 'self' https://raw.githubusercontent.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self' https://chatgpt.com"
 };
 const json = (body, status = 200, headers) => {
   const response = Response.json(body, {status, headers:baseHeaders});

@@ -83,8 +83,8 @@ async function send(action,payload={}){
       render();
     }
     if(action==='cardClone')panel.querySelector('input[name="name"]')?.focus();
-    feedback.textContent={plan:'행동을 확정했어요.',unplan:'행동을 수정할 수 있어요.',round:'라운드 처리를 마쳤어요.',card:'카드 보관함에 저장했어요.',deck:'전투 덱을 저장했어요.',cardClone:'카드 사본을 만들었어요.',cardDelete:'카드를 삭제했어요.',cardShare:'이 방에 카드를 공유했어요.',cardUnshare:'공유를 해제했어요.',cardTake:'공유 카드를 보관함에 가져왔어요.',cardImport:'파일의 카드를 보관함에 가져왔어요.',passive:'패시브를 저장했어요.',passiveClone:'패시브 사본을 만들었어요.',passiveShare:'이 방에 패시브를 공유했어요.',passiveUnshare:'패시브 공유를 해제했어요.',passiveTake:'패시브를 가져왔어요. 장착하면 전투에서 발동해요.',
-      characterAccountSave:'계정에 캐릭터를 저장했어요.',characterAccountSelect:'캐릭터를 불러왔어요.',requestEdit:'GM에게 변경 적용을 요청했어요.'}[action]||'반영했어요.';
+    feedback.textContent=action==='round'?'':({plan:'행동을 확정했어요.',unplan:'행동을 수정할 수 있어요.',card:'카드 보관함에 저장했어요.',deck:'전투 덱을 저장했어요.',cardClone:'카드 사본을 만들었어요.',cardDelete:'카드를 삭제했어요.',cardShare:'이 방에 카드를 공유했어요.',cardUnshare:'공유를 해제했어요.',cardTake:'공유 카드를 보관함에 가져왔어요.',cardImport:'파일의 카드를 보관함에 가져왔어요.',passive:'패시브를 저장했어요.',passiveClone:'패시브 사본을 만들었어요.',passiveShare:'이 방에 패시브를 공유했어요.',passiveUnshare:'패시브 공유를 해제했어요.',passiveTake:'패시브를 가져왔어요. 장착하면 전투에서 발동해요.',
+      characterAccountSave:'계정에 캐릭터를 저장했어요.',characterAccountSelect:'캐릭터를 불러왔어요.',requestEdit:'GM에게 변경 적용을 요청했어요.'}[action]||'반영했어요.');
     return true;
   }catch(err){
     errors.textContent=err.message;
@@ -2464,6 +2464,7 @@ function battlePanel(){
     }
     scheduleLinks();
   }
+  const dropTargets=new WeakMap();
   board.addEventListener('dragover',event=>{
     if(event.dataTransfer.types.includes('application/x-conceptterra-action')&&event.target.closest('[data-tile]')){
       event.preventDefault();event.dataTransfer.dropEffect='link';
@@ -2472,7 +2473,7 @@ function battlePanel(){
   board.addEventListener('drop',event=>{
     if(!event.dataTransfer.getData('application/x-conceptterra-action'))return;
     const target=event.target.closest('[data-intent-id],[data-unit-id],[data-tile]');
-    if(target){event.preventDefault();target.click();}
+    if(target){event.preventDefault();dropTargets.get(target)?.();}
   });
 
   function refresh(){
@@ -2495,7 +2496,7 @@ function battlePanel(){
     const card=self.hand.find(c=>c.id===draft.card);
     const tileCapable=gridCanAimTile(card)&&(!collapsed||card?.target==='tile');
     const targetingTile=card?.target==='tile'||tileCapable&&draft.targetTile!=null;
-    tileMode.hidden=!editable||!tileCapable;
+    tileMode.hidden=true;
     tileMode.textContent=moveMode?'대상 칸 선택':'이동 칸 선택';
     const guarding=card?.role==='guard';
     const countering=card?.role==='counter';
@@ -2613,14 +2614,14 @@ function battlePanel(){
       :'자동 엄호 · 아군을 눌러 지정하거나 그대로 확정하세요.';
     else if(countering)status.textContent=counterHelp;
     else if(targetingTile)status.textContent=moveMode?'이동할 칸을 누르세요.':
-      center==null?'기본 사거리 안에서 광역 중심 칸을 선택하세요. 빈 칸도 선택할 수 있어요.':
+      center==null?'카드나 행동 노드를 광역 중심 칸으로 끌어다 놓으세요. 빈 칸도 지정할 수 있어요.':
         '광역 중심 '+(primary?.name||'빈 칸')+(secondary.length?' · 예상 부 대상 '+secondary.map(unit=>unit.name).join(', '):' · 예상 부 대상 없음');
     else if(card.splash)status.textContent=primary
       ?'주 대상 '+primary.name+(secondary.length?' · 예상 부 대상 '+secondary.map(unit=>unit.name).join(', '):' · 범위 안에 부 대상 없음')
-      :candidates.length?'맵에서 주 대상을 한 명 선택하세요.':'사거리 안에 주 대상이 없어요.';
+      :candidates.length?'카드나 행동 노드를 주 대상에게 끌어다 놓으세요.':'사거리 안에 주 대상이 없어요.';
     else if(automatic&&candidates.length)status.textContent=card.target==='self'?'자신에게 사용':'예상 자동 표적 · '+names+' · 행동 시 다시 계산';
     else if(!candidates.length)status.textContent=tileCapable?'사거리 안의 칸을 지정할 수 있어요.':'사거리 안에 대상이 없어요. 이동할 칸이나 카드를 바꿔 보세요.';
-    else if(manual)status.textContent=chosen.size?'대상 '+chosen.size+'/'+card.target+' · '+names:'맵에서 대상을 선택하세요. 최대 '+card.target+'명';
+    else if(manual)status.textContent=chosen.size?'대상 '+chosen.size+'/'+card.target+' · '+names:'카드나 행동 노드를 대상에게 끌어다 놓으세요. 최대 '+card.target+'명';
     else status.textContent=(card.target==='area'?'광역 대상 · ':'자신에게 사용 · ')+names;
 
     const pickUnit=(unit,intentNode)=>{
@@ -2656,27 +2657,26 @@ function battlePanel(){
     };
     for(const {node,intent:scheduled,unit} of fieldView.nodes){
       node.setAttribute('aria-pressed',String(draft.clash&&(scheduled.id?scheduled.id===draft.foeIntent:unit.id==='enemy')));
-      node.onclick=event=>{
-        event.stopPropagation();
+      node.onclick=event=>{event.stopPropagation();node.onfocus();};
+      dropTargets.set(node,()=>{
         if(!pickUnit(unit,scheduled)){
           if(editable&&card?.target==='tile'&&legalTile(card,unit.pos)){draft.targetTile=unit.pos;refresh();}
           else node.onfocus();
         }
-      };
+      });
     }
     for(const [id,token] of fieldView.tokens){
       const unit=b.units.find(value=>value.id===id);
-      token.onclick=event=>{
-        event.stopPropagation();
+      token.onclick=event=>{event.stopPropagation();inspect(unit);};
+      dropTargets.set(token,()=>{
         if(!pickUnit(unit)){
           if(editable&&card?.target==='tile'&&legalTile(card,unit.pos)){draft.targetTile=unit.pos;refresh();}
-          else inspect(unit);
         }
-      };
+      });
     }
     fieldView.tiles.forEach((tile,i)=>{
       const targetUnit=manual?(candidates.find(u=>targetPos(u)===i)||(designated?.pos===i?designated:null)):null;
-      const canAimTile=editable&&tileCapable&&!moveMode&&legalTile(card,i);
+      const canAimTile=editable&&tileCapable&&legalTile(card,i);
       const isChosen=targetingTile?center===i:guarding?designated?.pos===i:candidates.some(u=>targetPos(u)===i&&chosen.has(u.id));
       const inspected=unitAt(i);
       tile.classList.toggle('reachable',editable&&canMove(i));
@@ -2694,18 +2694,14 @@ function battlePanel(){
       const position=gridPoint(i),coord=String.fromCharCode(65+position.x)+(position.y+1);
       const occupant=targetUnit||inspected;
       tile.setAttribute('aria-label',coord+(occupant?' · '+occupant.name:'')+(isChosen?(targetingTile?' · 광역 중심':primary?' · 주 대상':automatic?' · 예상 자동 표적':' · 선택된 대상'):secondaryTarget?' · 예상 부 대상':canAimTile?' · 광역 중심 지정 가능':targetUnit?' · 대상 지정 가능':editable&&canMove(i)?' · 이동 가능':''));
-      tile.onclick=()=>{
+      dropTargets.set(tile,()=>{
         if(canAimTile){
           draft.targetTile=center===i?null:i;draft.targets=[];draft.stance='unopposed';draft.clash=false;draft.foeIntent='';draft.actionLink='';refresh();return;
         }
-        if(editable&&targetUnit&&!tileCapable){
-          if(chosen.has(targetUnit.id))chosen.delete(targetUnit.id);
-          else if(guarding||targetLimit===1){chosen.clear();chosen.add(targetUnit.id);}
-          else if(chosen.size<targetLimit)chosen.add(targetUnit.id);
-          else {status.textContent='최대 '+targetLimit+'명까지 선택할 수 있어요. 선택한 대상을 다시 누르면 해제돼요.';return;}
-          draft.targets=[...chosen];refresh();return;
-        }
-        if(editable&&(!targetingTile||moveMode)&&canMove(i)){draft.pos=i;moveMode=false;refresh();return;}
+        if(editable&&targetUnit&&!tileCapable)pickUnit(targetUnit);
+      });
+      tile.onclick=()=>{
+        if(editable&&canMove(i)){draft.pos=i;refresh();return;}
         if(inspected)inspect(inspected);
       };
     });

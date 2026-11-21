@@ -561,6 +561,35 @@ const gameDistance=(a,b)=>gridDistance(a.pos,b.pos);
 const gameReach=(card,a,b)=>gridCardInRange(card,a.pos,b.pos);
 const gameLog=(b,message)=>{b.log.push(message);b.log=b.log.slice(-65);};
 
+const handTarget=4, handLimit=12;
+function gameDiscardSelection(hand,input,ai){
+  if(ai||input==null)return [];
+  const ids=typeof input==='string'?[input]:input;
+  if(!Array.isArray(ids)||ids.length>handLimit||ids.some(id=>typeof id!=='string'))gameFail('버릴 손패를 확인하세요.');
+  const available=[...hand];
+  for(const id of ids){
+    const index=available.indexOf(id);
+    if(index<0)gameFail('사용할 카드와 버릴 카드가 겹치거나 손패에 없어요.');
+    available.splice(index,1);
+  }
+  return ids;
+}
+function gameHandCleanup(b,unit,discard){
+  const ids=typeof discard==='string'?[discard]:discard||[];
+  const removed=[];
+  for(const id of ids){
+    const index=unit.hand.indexOf(id);
+    if(index>=0)removed.push(...unit.hand.splice(index,1));
+  }
+  if(removed.length)gamePlaceCards(b,unit,'grave',removed);
+  const excess=unit.hand.length-handLimit;
+  if(excess>0){
+    if(!unit.bot&&!unit.enemy)gameFail('라운드를 진행하려면 '+excess+'장을 더 버려야 합니다.');
+    const lowest=[...unit.hand].sort((a,c)=>(parsePower(unit.library[a]?.power)?.bonus||0)-(parsePower(unit.library[c]?.power)?.bonus||0));
+    for(const id of lowest.slice(0,excess))unit.hand.splice(unit.hand.indexOf(id),1);
+    gamePlaceCards(b,unit,'grave',lowest.slice(0,excess));
+  }
+}
 const gameZoneEvents={hand:'toHand',deck:'toDeck',grave:'toGrave',exile:'toExile'};
 function gameCardZoneEvents(b,unit,ids,when){
   if(!b||!ids.length)return;
@@ -615,7 +644,7 @@ function gameUnit(id,name,pos,cards,bot=false,enemy=false,owned=cards) {
   const library=Object.fromEntries(owned.map(({image,...card})=>[card.id,card]));
   const unit={id,name,pos,startingCards:[...new Set(cards.map(card=>card.id))],hp:enemy?54:40,maxHp:enemy?54:40,mind:50,shield:0,reduce:0,move:2,nextMove:0,stacks:{},hand:[],deck:gameShuffle(cards.map(c=>c.id)),grave:[],exile:[],library,bot,enemy,zero:null,collapsed:false};
   unit.configuredDeck=cards.map(card=>card.id).sort();
-  if(!enemy)gameDraw(unit,4);
+  if(!enemy)gameDraw(unit,handTarget);
   return unit;
 }
 function gameRenewThrough(round,previous,duration,effect,fallback='refresh'){
@@ -1070,6 +1099,9 @@ function gameNext(b) {
     const opening=party.map(unit=>[unit,[...unit.hand]]);
     gameDeckEffects(b,'battleStart');
     for(const [unit,ids] of opening)gameCardZoneEvents(b,unit,ids,'cardDrawn');
+  }else for(const unit of party){
+    if(gameAlive(unit))gameDraw(unit,Math.max(0,handTarget-unit.hand.length)+(unit.lateDraw||0),b);
+    delete unit.lateDraw;
   }
   gameDeckEffects(b,'turnStart');
   b.intent.reachable=gameActionLimit(enemy)>0&&gameReach(gameFoe,enemy,victim);
@@ -1243,7 +1275,7 @@ function gameSelect(b,u,input,ai=false) {
   if(card?.effects.some(e=>e.kind==='copyChosen')&&!u.hand.some((id,index)=>id===copyId&&index!==u.hand.indexOf(cardId))){
     gameFail('손패에서 복제할 카드를 선택하세요.');
   }
-  const discard=!ai&&u.hand.some((id,index)=>id===input.discard&&index!==u.hand.indexOf(cardId))?input.discard:null;
+  const discard=gameDiscardSelection(u.hand.filter((_,index)=>index!==u.hand.indexOf(cardId)),input.discard,ai);
   if(card?.target==='tile'){
     if(!gridValid(input.targetTile)||b.walls.includes(input.targetTile)||!gridCardInRange(card,goal,input.targetTile))
       gameFail('기본 사거리 안에서 광역 중심 칸을 선택하세요.');
@@ -1290,7 +1322,7 @@ function gameSelectTurn(b,u,input,ai=false){
     }
     return plan;
   });
-  return {...chosen[0],cards:chosen,discard:hand.includes(discard)&&!ai?discard:null};
+  return {...chosen[0],cards:chosen,discard:gameDiscardSelection(hand,discard,ai)};
 }
 function gameBotPlan(b,u,allowClash=true) {
   const enemy=b.units.enemy;
@@ -3263,8 +3295,7 @@ function gameResolve(b) {
       if(u.crisisProofs>=crisisRounds)gameAwaken(b,u,crisisRecovery);
       else if(b.round>=u.collapseRound)gameConceptualize(b,u);
     }
-    const discard=b.plans[u.id]?.discard;
-    if(discard&&u.hand.includes(discard)){u.hand.splice(u.hand.indexOf(discard),1);gamePlaceCards(b,u,'grave',[discard]);}
+    gameHandCleanup(b,u,b.plans[u.id]?.discard);
     if(u.zero==='spent'){
       if(u.zeroRound!==undefined&&u.zeroRound<b.round&&gameAlive(u))gameConceptualize(b,u);
       else u.zeroRound=b.round;
@@ -3272,8 +3303,7 @@ function gameResolve(b) {
     u.rooted=!!u.rootNext;
     u.move=u.rooted?0:bounded(2+u.nextMove,0,7);
     u.rootNext=false;u.nextMove=0;
-    if(gameAlive(u))gameDraw(u,Math.max(0,4-u.hand.length)+(u.lateDraw||0),b);
-    if(u.lateDraw)u.lateDraw=0;
+
   }
   for(const unit of Object.values(b.units)){
     for(const [kind,status] of Object.entries(unit.mindStatuses||{})){

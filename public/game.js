@@ -1901,7 +1901,7 @@ function battlePanel(){
       const next=draft.card===card.id?null:card.id;
       Object.assign(draft,{card:next,targets:[],targetTile:null,clash:false,copyId:''});
       moveMode=false;
-      if(draft.discard===next&&realHand.filter(c=>c.id===next).length<2)draft.discard='';
+
       refresh();
     };
     const head=el('span',card.role?roles[card.role]:'기본 행동',{class:'compact-card-header'});
@@ -1923,9 +1923,25 @@ function battlePanel(){
   const tileMode=button('이동 칸 선택',()=>{moveMode=!moveMode;refresh();});
   const clash=input('clash','1','checkbox',{disabled:!editable});
   const clashLabel=field('예고 공격과 합',clash,'inline');
-  const discard=select('discard',[['','없음'],...new Map(realHand.map(c=>[c.id,c.name]))],draft.discard||'');
-  discard.disabled=!editable;
-  const discardLabel=field('라운드 종료에 버릴 카드',discard,'battle-discard');
+  if(!Array.isArray(draft.discard))draft.discard=draft.discard?[draft.discard]:[];
+  const discarded=new Map();
+  const discardLabel=el('details',undefined,{class:'battle-discard'});
+  discardLabel.append(el('summary','라운드 종료에 버릴 카드 선택'));
+  const counts=new Map();
+  for(const card of realHand){
+    const index=counts.get(card.id)||0;
+    counts.set(card.id,index+1);
+    const control=input(undefined,'1','checkbox',{});
+    control.checked=draft.discard.filter(id=>id===card.id).length>index;
+    discardLabel.append(field(card.name,control,'inline'));
+    const copies=discarded.get(card.id)||[];
+    copies.push(control);
+    discarded.set(card.id,copies);
+    control.onchange=()=>{
+      draft.discard=[...discarded].flatMap(([id,choices])=>choices.filter(choice=>choice.checked).map(()=>id));
+      refresh();
+    };
+  }
   const copy=select('copyId',[['','선택']],draft.copyId||'');
   copy.disabled=!editable;
   const copyLabel=field('복제할 손패 카드',copy,'battle-discard');
@@ -1937,12 +1953,12 @@ function battlePanel(){
   if(collapsed)vowInfo.textContent='붕괴 · 카드와 이동 위치를 선택할 수 있어요. 공격 표적은 피아 구분 없이 사거리 내에서 가까운 순서로 결정돼요.';
   vow.onchange=()=>{draft.vow=vow.value;refresh();};
   const commit=button('행동 확정',()=>{
-    if(commit.disabled)return;
-    send('plan',{vow:draft.vow,cards:slotChoices().filter(slot=>slot.card),pos:draft.pos,discard:draft.discard||null});
+    if(commit.disabled||realHand.length-slotChoices().filter(slot=>slot.card&&realHand.some(card=>card.id===slot.card)).length-draft.discard.length>12)return;
+    send('plan',{vow:draft.vow,cards:slotChoices().filter(slot=>slot.card),pos:draft.pos,discard:draft.discard});
   },true);
   const cancel=button('선택 초기화',()=>{
     draft.slots=Array.from({length:slotCount},()=>actionFields());
-    Object.assign(draft,actionFields({card:actionLimit?null:''}),{slot:0,pos:self.pos,discard:''});
+    Object.assign(draft,actionFields({card:actionLimit?null:''}),{slot:0,pos:self.pos,discard:[]});
     moveMode=false;
     refresh();
   });
@@ -1954,7 +1970,6 @@ function battlePanel(){
   if(editable)controls.prepend(cancel,commit);
   else controls.prepend(button('확정 취소 · 수정',()=>send('unplan')));
   clash.onchange=()=>{draft.clash=clash.checked;refresh();};
-  discard.onchange=()=>{draft.discard=discard.value;};
   copy.onchange=()=>{draft.copyId=copy.value;refresh();};
 
   function refresh(){
@@ -2020,10 +2035,17 @@ function battlePanel(){
     clash.checked=!!draft.clash;
     clash.disabled=!editable||!canClash;
     const selected=slotChoices().filter(slot=>slot.card);
-    for(const option of discard.options)option.disabled=!!option.value&&
-      selected.filter(slot=>slot.card===option.value).length>=handCount(option.value);
-    if([...discard.options].some(option=>option.value===draft.discard&&option.disabled))draft.discard='';
-    discard.value=draft.discard||'';
+    for(const [id,choices] of discarded){
+      const remaining=handCount(id)-selected.filter(slot=>slot.card===id).length;
+      for(const [index,choice] of choices.entries()){
+        choice.disabled=!editable||index>=remaining;
+        choice.checked=index<remaining&&draft.discard.filter(cardId=>cardId===id).length>index;
+      }
+    }
+    draft.discard=[...discarded].flatMap(([id,choices])=>choices.filter(choice=>choice.checked).map(()=>id));
+    const overflow=Math.max(0,realHand.length-selected.length-draft.discard.length-12);
+    discardLabel.firstElementChild.textContent=overflow?'라운드 종료에 '+overflow+'장을 더 버려야 합니다':
+      '라운드 종료에 버릴 카드 · '+draft.discard.length+'장';
     fieldView.overlay.replaceChildren();
     if(target&&foe&&gridCardInRange(b.intent.card,foe.pos,targetPos(target)))boardArrow(fieldView.overlay,foe.pos,targetPos(target),draft.clash?'clashing':'incoming');
     if(center!=null)boardArrow(fieldView.overlay,pos,center,'outgoing');

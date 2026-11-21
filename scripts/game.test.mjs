@@ -3030,3 +3030,16 @@ test('perforation strikes build capped persistent marks and the finisher spends 
   }
   assert.equal(livingForm(f,'enemy').stacks['절취선'],6);
 });
+
+test('round cleanup discards multiple copies and only tops up the remaining hand',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{hand:['strike','strike','guard','hold','shot'],deck:['rush'],grave:[]});
+    b.units.enemy.blockedRounds=1;
+  });
+  await f.act('plan',{cards:[],discard:['strike','strike']});
+  await f.act('round');
+  assert.deepEqual(livingForm(f).hand.map(c=>c.id),['guard','hold','shot','rush']);
+  assert.equal(livingForm(f).graveCount,2);
+});

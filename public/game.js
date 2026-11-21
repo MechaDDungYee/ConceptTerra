@@ -810,12 +810,13 @@ function effectRow(row,refresh,scoped,passive,stack){
     const unit=select(key+'Mode',[['fixed','고정값'],['percent','비율 (%)']],row[key+'Mode']||(key==='axisCount'?row.amountMode:'')||'fixed');
     const basis=select(key+'Basis',Object.entries(stackRatioBases),row[key+'Basis']||row.ratioBasis||'ownStackCurrent');
     const basisTag=stackSelect(row[key+'Tag']||row.ratioStackTag||'',undefined,key+'Tag');
+    basisTag.required=false;
     const ratioOptions=el('div',undefined,{class:'stack'});
     ratioOptions.append(field('비율 계산 기준',basis),searchableSelect('비율 기준 중첩',basisTag));
     const part=el('fieldset',undefined,{class:'effect-block effect-amount-part','data-part':'amount'});
     const legend=el('legend',label);
     part.append(legend,field('수치 단위',unit),field(label,control),ratioOptions);
-    axisParts.push({part,legend,label,unit,ratioOptions});
+    axisParts.push({part,legend,label,unit,ratioOptions,basisTag});
     axisFields.append(part);
   }
   const capFields=stackGrantEffects.includes(row.kind)
@@ -841,6 +842,7 @@ function effectRow(row,refresh,scoped,passive,stack){
   const bases=Object.entries(effectRatioBases).filter(([key])=>Object.hasOwn(stackRatioBases,key)===stackRatio);
   const ratioBasis=select('ratioBasis',[...(stackRatio?[]:[['','기본 계산 방식']]),...bases],row.ratioBasis||(stackRatio?'ownStackCurrent':''));
   const ratioStackTag=stackSelect(row.ratioStackTag||'',undefined,'ratioStackTag');
+  ratioStackTag.required=false;
   const ratioStackField=searchableSelect('비율 기준 중첩',ratioStackTag);
   const ratioBasisField=field('비율 계산 기준',ratioBasis);
   const basis=el('small','',{class:'minor'});
@@ -945,7 +947,8 @@ function effectRow(row,refresh,scoped,passive,stack){
     priorityField.hidden=totalHelp.hidden=!total;
     if(consuming){
       amount.max=total?maxCollectiveStackConsume:maxStatusStacks;
-      amountLabel.hidden=amount.disabled=all;
+      amountLabel.hidden=all;
+      amount.disabled=dualAxes||all;
       if(!total&&Number(amount.value)>maxStatusStacks)amount.value=maxStatusStacks;
     }
     const beforeUse=planningTimings.includes(when.value)||cardZoneTimings.includes(when.value);
@@ -1003,12 +1006,12 @@ function effectRow(row,refresh,scoped,passive,stack){
     tagHelp.textContent=basicStacks[e.tag]?basicStackInfo(basicStacks[e.tag]).join(" · "):conceptStacks[e.tag]?.description||'';
     threshold.style.display=e.condition&&!flagConditions.includes(e.condition)?'':'none';
     axisFields.hidden=all;
-    ratioStackField.hidden=mode.value!=='percent'||!Object.hasOwn(stackRatioBases,ratioBasis.value);
-    for(const {part,legend,label,unit,ratioOptions} of axisParts){
+    ratioStackField.hidden=ratioStackTag.disabled=ratioBasis.disabled||!Object.hasOwn(stackRatioBases,ratioBasis.value);
+    for(const {part,legend,label,unit,ratioOptions,basisTag} of axisParts){
       const percent=unit.value==='percent';
       part.dataset.unit=percent?'percent':'fixed';
       legend.textContent=label+' · '+(percent?'비율값 파츠':'고정값 파츠');
-      ratioOptions.hidden=!percent;
+      ratioOptions.hidden=basisTag.disabled=!percent||all;
     }
     if(x.amountPart&&!dualAxes){
       x.amountPart.hidden=all;
@@ -1029,6 +1032,7 @@ function effectRow(row,refresh,scoped,passive,stack){
     const partNode=dualAxes?axisFields:part('수치 파츠','amount',modeLabel,amountLabel,ratioBasisField,ratioStackField,healthField,basis);
     if(dualAxes){
       const legacy=el('div',undefined,{hidden:true});
+      amount.disabled=true;
       legacy.append(modeLabel,amountLabel,ratioBasisField,ratioStackField,healthField,basis);
       partNode.append(legacy);
       x.dualAxes=true;
@@ -1684,7 +1688,33 @@ function cards(){
     note('카드 결정 시와 행동 확정 시 효과는 라운드 처리 시작에 실행돼요. 그 전에 예약을 취소하면 발동하지 않아요.'),workspace.node);
   const hitEditor=el('section',undefined,{class:'stack full'});
   hitEditor.append(el('h3','타격'),el('p','각 타격의 위력을 더해 합을 판정해요. 2d+5는 6면체 주사위 2개에 5를 더한다는 뜻이에요.',{id:'power-formula-guide',class:'notice minor'}),hitList,addHit);
-  makeCard.append(globalEditor,hitEditor,submit(c.id?'변경한 카드 저장':'카드 완성'));
+  const saveCard=submit(c.id?'변경한 카드 저장':'카드 완성');
+  const saveError=el('p','',{class:'error full',role:'alert',hidden:true});
+  const showSaveError=message=>{
+    saveError.textContent=message;
+    saveError.hidden=!message;
+  };
+  makeCard.addEventListener('invalid',event=>{
+    const control=event.target;
+    if(makeCard.querySelector(':invalid:not(form):not(fieldset)')!==control)return;
+    const label=control.labels?.[0]?.firstChild?.textContent.trim()||control.getAttribute('aria-label');
+    showSaveError((label?label+' · ':'')+control.validationMessage);
+    for(let parent=control.parentElement;parent&&parent!==makeCard;parent=parent.parentElement){
+      if(parent.tagName==='DETAILS')parent.open=true;
+    }
+  },true);
+  const save=makeCard.onsubmit;
+  makeCard.onsubmit=async event=>{
+    if(busy){event.preventDefault();return;}
+    showSaveError('');
+    errors.textContent='';
+    saveCard.disabled=true;
+    try{
+      await save(event);
+      if(makeCard.isConnected)showSaveError(errors.textContent);
+    }finally{saveCard.disabled=false;}
+  };
+  makeCard.append(globalEditor,hitEditor,saveCard,saveError);
   makeCard.addEventListener('input',refresh);makeCard.addEventListener('change',refresh);refresh();
   const deck=formFor('deck',(_,data)=>({
     cards:[...data].flatMap(([id,count])=>Array(Number(count)).fill(id))

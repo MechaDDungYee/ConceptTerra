@@ -1,0 +1,70 @@
+{
+  "format": "conceptterra-character",
+  "version": 1,
+  "character": {
+    "name": "윤서린 · 신호 점검원",
+    "country": "제6국",
+    "status": "하위층 시민",
+    "wall": "",
+    "activityLocations": [
+      "제6국 루스",
+      "제6국 외곽"
+    ],
+    "job": "신호 점검원",
+    "goal": "어긋난 신호를 찾아 객차를 안전하게 돌려보낸다.",
+    "concept": "울림이 남은 금속을 짚어 마지막 신호의 방향을 읽는다.",
+    "stats": [
+      45,
+      75,
+      60,
+      45,
+      50,
+      25
+    ],
+    "mind": 50,
+    "art": {}
+  },
+  "passives": [
+    {
+      "name": "출발 전 점검",
+      "enabled": true,
+      "effects": [
+        {
+          "kind": "shield",
+          "when": "battleStart",
+          "to": "self",
+          "amount": 5
+        }
+      ]
+    }
+  ],
+  "conceptTools": [
+    {
+      "name": "휴대 신호계",
+      "enabled": true,
+      "effects": [
+        {
+          "kind": "shield",
+          "when": "handEntered",
+          "to": "self",
+          "amount": 2,
+          "zoneCard": "specific",
+          "zoneOwner": "self",
+          "zoneCardId": "character-guide-signal"
+        }
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "id": "character-guide-signal",
+      "name": "신호 점검",
+      "role": "normal",
+      "target": "self",
+      "range": "0",
+      "power": "0",
+      "clash": false,
+      "effects": []
+    }
+  ]
+}

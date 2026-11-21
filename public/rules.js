@@ -1,3 +1,14 @@
+export const battleMusicTracks={
+  dark:'어두운 곳에서 더욱 빛나는',
+  bright1:'밝은 곳에서 더더욱 빛나는 1차전',
+  bright2:'밝은 곳에서 더더욱 빛나는 2차전',
+  bright3:'밝은 곳에서 더더욱 빛나는 3차전',
+  decomposer:'세계의 분해자',
+  contempt:'수억 가지의 시선과 단 하나의 경멸',
+  invitee:'언제나 초대받는 사람',
+  artist:'예술가',
+  attendance:'출근 확인반'
+};
 export const maxPortraitDataLength=320000;
 export const maxPortraitSide=1920;
 export const statuses = ['비시민권자','월정커','하위층 시민','중산층 시민','고위층 시민'];

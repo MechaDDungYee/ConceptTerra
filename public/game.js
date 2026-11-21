@@ -62,7 +62,7 @@ async function send(action,payload={}){
     const submitAction=()=>request({action,revision:state.revision,collectionRevision:state.collectionRevision,...payload});
     try{state=await submitAction();}
     catch(error){
-      if(action!=='dialogue'||error.status!==409)throw error;
+      if(!['dialogue','battleMusic'].includes(action)||error.status!==409)throw error;
       state=await request();
       state=await submitAction();
     }
@@ -1728,13 +1728,19 @@ function cards(){
   const count=el('output','',{class:'deck-count','aria-live':'polite'});
   const saveDeck=submit('덱 저장');
   const quantities=[];
+  const clearDeck=button('덱 선택 전체 취소',()=>{
+    for(const quantity of quantities)quantity.value='0';
+    draftDirty=true;
+    update();
+  });
   const update=()=>{
     const total=quantities.reduce((sum,control)=>sum+Number(control.value),0);
     count.textContent=total+' / '+deckSize+'장';
     saveDeck.disabled=total!==deckSize;
+    clearDeck.disabled=total===0;
   };
   deck.append(el('div',undefined,{class:'row deck-summary'}));
-  deck.firstChild.append(count,note('카드 한 종류당 최대 '+deckCopyLimit+'장'));
+  deck.firstChild.append(count,note('카드 한 종류당 최대 '+deckCopyLimit+'장'),clearDeck);
   const cataloguePreview=libraryPreview();
   const ownedList=cardList('보관함 카드 목록',cataloguePreview);
   deck.append(ownedList);
@@ -2121,8 +2127,8 @@ function unitIntelInspection(unit){
 }
 function battleSettingsButton(){
   return button('⚙ 설정',()=>{
-    const dialog=battleDialog('전투 설정',battleMusicSettings(()=>state.battle,{el,button,field,input,select}));
-    dialog.addEventListener('close',()=>{closeBattleMusicSettings(state.battle);dialog.remove();},{once:true});
+    const dialog=battleDialog('전투 설정',battleMusicSettings(()=>state,track=>send('battleMusic',{track}),{el,button,field,input,select}));
+    dialog.addEventListener('close',()=>{closeBattleMusicSettings(state.battle,state.battleMusic);dialog.remove();},{once:true});
     document.body.append(dialog);
     dialog.showModal();
   });
@@ -3000,7 +3006,7 @@ function dialoguePanel(){
   return root;
 }
 function render(){
-  syncBattleMusic(state?.battle);
+  syncBattleMusic(state?.battle,state?.battleMusic);
   if(!state)return;
   for(const list of panel.querySelectorAll('.card-list-scroll'))cardListPositions.set(list.ariaLabel,list.scrollTop);
   panel.closest('main').classList.toggle('card-studio-page',tab==='cards');
@@ -3026,12 +3032,12 @@ try{
     try{
       const next=await request();
       if(busy||state!==before)return;
-      if(next.revision!==state.revision||next.collectionRevision!==state.collectionRevision||next.manager!==state.manager||JSON.stringify(next.roster)!==JSON.stringify(state.roster)||JSON.stringify(next.saveSlots)!==JSON.stringify(state.saveSlots)){
+      if(next.revision!==state.revision||next.collectionRevision!==state.collectionRevision||next.manager!==state.manager||next.canSetBattleMusic!==state.canSetBattleMusic||JSON.stringify(next.roster)!==JSON.stringify(state.roster)||JSON.stringify(next.saveSlots)!==JSON.stringify(state.saveSlots)){
         const chatChanged=next.dialogue?.at(-1)?.id!==state.dialogue?.at(-1)?.id;
         const sameBattle=chatChanged&&['battle','roster','pendingEdits','saveSlots','profile','manager'].every(key=>JSON.stringify(next[key])===JSON.stringify(state[key]));
         const newRound=next.battle?.round!==state.battle?.round||next.battle?.phase!==state.battle?.phase;
         state=next;
-        syncBattleMusic(state.battle);
+        syncBattleMusic(state.battle,state.battleMusic);
         if(newRound)battleDraft=null;
         if(tab==='battle'&&sameBattle&&battleDialogue?.root.isConnected)battleDialoguePanel();
         else if(tab==='battle'||!draftDirty){draftDirty=false;render();}

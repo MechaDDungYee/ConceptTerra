@@ -3,7 +3,7 @@ import {mkdir, readFile, writeFile, copyFile, readdir} from 'node:fs/promises';
 import * as rulesModule from '../public/rules.js';
 import * as gridModule from '../public/grid.js';
 const assets = {};
-for(const name of ['guide.md','example-cards.json','example-passives.json','example-stacks.json']){
+for(const name of ['guide.md','character-guide.md','example-cards.json','example-passives.json','example-stacks.json','example-character.json']){
   const path='authoring/'+name;
   assets['/'+path]={type:(name.endsWith('.md')?'text/markdown':'application/json')+'; charset=utf-8',
     body:await readFile('public/'+path,'utf8')};
@@ -44,7 +44,9 @@ const reference={
     stackDefinitions:validationSection('function gameStackName(','function gameUpgradeStackTrait('),
     stackImport:validationSection("          case 'stackImport':","          case 'card':"),
     cardImport:validationSection('function gameImportCards(','function gameActivityLocations('),
-    passiveImport:validationSection('function gameImportPassives(','function gameLoadCharacter(')
+    characterFields:validationSection('function gameProfileFields(','function gameExportPassives('),
+    passiveImport:validationSection('function gameImportPassives(','function gameLoadCharacter('),
+    characterImport:validationSection('function gameLoadCharacter(','function gameDeck(')
   }
 };
 assets['/authoring/reference.json']={type:'application/json; charset=utf-8',body:JSON.stringify(reference,null,2)};

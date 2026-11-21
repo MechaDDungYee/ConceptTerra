@@ -4151,7 +4151,7 @@ test('homepage authoring downloads ship working examples for all three upload fo
   const f=await fixture();
   const get=path=>worker.fetch(new Request('https://game.test'+path),{DB:f.DB});
   const home=await (await get('/')).text();
-  for(const name of ['guide.md','reference.json','example-cards.json','example-passives.json','example-stacks.json']){
+  for(const name of ['guide.md','character-guide.md','reference.json','example-cards.json','example-passives.json','example-stacks.json','example-character.json']){
     assert.match(home,new RegExp('/authoring/'+name.replace('.','\\.')+'" download'));
   }
   const reference=await (await get('/authoring/reference.json')).json();
@@ -4167,6 +4167,13 @@ test('homepage authoring downloads ship working examples for all three upload fo
   assert.ok(f.state.profile.cards.some(card=>card.name==='신호탄 확인'));
   assert.ok(f.state.profile.passives.some(passive=>passive.name==='객차 순찰'));
   assert.ok(f.state.profile.stackTraits.some(trait=>trait.name==='잔류 신호'));
+  const characterFile=await (await get('/authoring/example-character.json')).json();
+  await f.act('characterImport',{file:characterFile});
+  assert.equal(f.state.profile.name,characterFile.character.name);
+  assert.deepEqual(f.state.profile.stats,characterFile.character.stats);
+  assert.equal(f.state.profile.passives[0].enabled,true);
+  assert.equal(f.state.profile.conceptTools[0].enabled,true);
+  assert.equal(f.state.profile.conceptTools[0].effects[0].zoneCardId,f.state.profile.passiveCards[0].id);
 });
 
 test('overload accepts custom integer costs including zero, and pays the saved value in combat',async()=>{
@@ -4191,4 +4198,22 @@ test('overload accepts custom integer costs including zero, and pays the saved v
     const rejected=await f.send(f.endpoint,{action:'card',collectionRevision:f.state.collectionRevision,card:{...card,cost}},f.host.cookie);
     assert.equal(rejected.status,400);
   }
+});
+
+test('only the GM seat can change the shared battle track',async()=>{
+  const f=await fixture();
+  assert.equal(f.state.canSetBattleMusic,true);
+  await f.act('battleMusic',{track:'artist'});
+  const guest=await f.send(f.room+'/join',{name:'승객'});
+  await f.send(f.room+'/seat',{id:guest.body.me,seat:1},f.host.cookie);
+  const passenger=await f.send(f.endpoint,undefined,guest.cookie);
+  assert.equal(passenger.body.canSetBattleMusic,false);
+  assert.equal(passenger.body.battleMusic,'artist');
+  const denied=await f.send(f.endpoint,{action:'battleMusic',revision:passenger.body.revision,track:'dark'},guest.cookie);
+  assert.equal(denied.status,403);
+  await f.act('start',{solo:false,bots:0});
+  assert.equal(f.state.battleMusic,'artist');
+  await f.act('battleMusic',{track:'auto'});
+  const changed=await f.send(f.endpoint,undefined,guest.cookie);
+  assert.equal(changed.body.battleMusic,'auto');
 });

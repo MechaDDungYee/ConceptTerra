@@ -1,7 +1,7 @@
 import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
 import {accountPanel} from './account.js';
-import {gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridCardInRange,gridCardHasReach,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
+import {gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridLineOfSight,gridCardInRange,gridCardHasReach,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
 import {stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTagGroups,maxActivityLocations,characterMaxHp,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
 const studio=location.pathname==='/studio';
@@ -1652,7 +1652,7 @@ function startPanel(){
     bots.value=String(Math.min(old,max));
   };
   solo.onchange=refresh;refresh();bots.value=String(4-state.roster.length-Number(solo.checked));
-  const encounter=select('encounter',[['','객차 연습 전투'],['stop01','첫 정류장 · 불 꺼진 제6국 외곽 막다른 골목'],['collector01','외상 장부의 수금원 · 잿빛 세관 창고'],['judge01','눈 먼 심판자 · 법원 지하 보관고']],'');
+  const encounter=select('encounter',[['','객차 연습 전투'],['stop01','첫 정류장 · 불 꺼진 제6국 외곽 막다른 골목'],['collector01','외상 장부의 수금원 · 잿빛 세관 창고'],['judge01','눈 먼 심판자 · 법원 지하 보관고'],['railguard01','선로 보안반 · 신호가 끊긴 폐선로']],'');
   form.append(field('조우 선택',encounter),field('내 캐릭터로 혼자 연습',solo,'inline'),field('자동 행동 봇 동료',bots),submit('전투 시작'));
   root.append(form,note('봇은 빈 플레이어 자리를 채우고 라운드 처리 시 이동·공격·합·원호를 자동 선택합니다.'));
   return root;
@@ -1747,7 +1747,9 @@ function battleGrid(b,self){
     const {x,y}=gridPoint(i), wall=b.walls.includes(i);
     const unit=b.units.find(u=>u.pos===i&&u.hp>0)||b.units.find(u=>u.pos===i&&!u.hp);
     const tile=el('button',undefined,{type:'button'});
-    tile.className='battle-cell'+(wall?' wall':'')+(b.zones?.includes(i)?' sanctuary-zone':'');
+    const sniper=b.units.find(unit=>unit.id===b.aimLine?.sourceId);
+    const aim=sniper&&b.aimLine.index===y&&!wall&&gridLineOfSight(sniper.pos,i,b.walls);
+    tile.className='battle-cell'+(wall?' wall':'')+(aim?' rail-aim':'')+(b.zones?.includes(i)?' sanctuary-zone':'');
     if(b.zones?.includes(i))tile.title=i===22?'성역':'포근한 광배';
     tile.setAttribute('aria-label',`${x+1}열 ${y+1}행${wall?' · 벽':unit?' · '+unit.name:''}`);
     tile.append(el('small',String.fromCharCode(65+x)+(y+1),{class:'coordinate'}));
@@ -1791,11 +1793,12 @@ function battlePanel(){
     controls.append(advance);
   }
   if(state.manager&&b.phase==='finished')controls.append(button('다음 전투 준비',()=>send('reset'),true));
+  if(b.encounter?.subdueOrder?.length)controls.append(note('제압 순서 · '+b.encounter.subdueOrder.map(key=>({leader:'지휘관',shield:'방패병',sniper:'저격수'})[key]).join(' → ')));
   if(self?.judgmentMark)controls.append(note('죄인의 표식 · 심판자에게 받는 피해 +35% · 직접 합 위력 −6'));
   if(b.encounter?.rank?.length)controls.append(note('직전 라운드 피해 순위 · '+b.encounter.rank.map(item=>item.name+' '+item.damage).join(' / ')));
   if(b.encounter?.negotiating)controls.append(note('협상 파훼 · 수금원 공격 정지 · 받는 피해 +25%'));
   if(b.outcome){
-    const result=({peace:'평화 해소',break:'강제 격파',paid:'완납',seized:'강제 회수',installment:'분할 납부',balance:'균형 회복',blunt:'강제 판결',level:'수평의 정적'})[b.outcome.kind]||'조우 실패';
+    const result=({peace:'평화 해소',break:'강제 격파',paid:'완납',seized:'강제 회수',installment:'분할 납부',balance:'균형 회복',blunt:'강제 판결',level:'수평의 정적',clearLine:'조준선 해제',cutCommand:'지휘 차단',railSubdued:'보안반 제압',inspect:'검문 응답'})[b.outcome.kind]||'조우 실패';
     controls.append(note(result+(b.outcome.extract?' · 추출 '+b.outcome.extract.total+'/'+b.outcome.extract.need:'')+
       (b.outcome.orb?' · 개념구 획득':'')));
   }
@@ -1835,7 +1838,13 @@ function battlePanel(){
   const recentClash=b.log.slice().reverse().find(line=>line.startsWith('합 '));
   if(recentClash)forecast.textContent='직전 '+recentClash;
 
-  if(b.phase==='planning'&&target){
+  if(b.phase==='planning'&&b.intentQueue?.length){
+    for(const intent of b.intentQueue){
+      const attacker=b.units.find(unit=>unit.id===intent.attacker);
+      const victim=b.units.find(unit=>unit.id===intent.target);
+      if(attacker&&victim)enemyPanel.append(actionPanel(attacker.name+' → '+victim.name,intent.card,attacker));
+    }
+  }else if(b.phase==='planning'&&target){
     enemyPanel.append(actionPanel('적 예고 · '+target.name,b.intent.card,foe));
     if(!b.intent.reachable)enemyPanel.append(note('현재 사거리 밖'));
   }
@@ -1986,7 +1995,7 @@ function battlePanel(){
   const editable=!self.ready;
   const actionLimit=self.actionLimit??baseActions;
   const slotCount=Math.max(1,actionLimit);
-  const actionFields=({card=null,targets=[],clash=false,stance,copyId='',targetTile=null}={})=>({card,targets,clash,stance:stance||(clash?'clash':'unopposed'),copyId,targetTile});
+  const actionFields=({card=null,targets=[],clash=false,stance,foeIntent='',copyId='',targetTile=null}={})=>({card,targets,clash,foeIntent,stance:stance||(clash?'clash':'unopposed'),copyId,targetTile});
   const draft=editable?battleDraft:{...planned};
   draft.slots??=(draft.cards||[draft]).map(actionFields);
   draft.slots.length=Math.min(draft.slots.length,slotCount);
@@ -2044,6 +2053,12 @@ function battlePanel(){
   const tileMode=button('이동 칸 선택',()=>{moveMode=!moveMode;refresh();});
   const clash=select('stance',[['unopposed','일방행동'],['clash','합'],['intercept','가로채기']],draft.stance||'unopposed');
   const clashLabel=field('공격 방식',clash,'inline');
+  const foeIntent=select('foeIntent',(b.intentQueue||[]).map(intent=>[intent.id,
+    (b.units.find(unit=>unit.id===intent.attacker)?.name||'적')+' · '+intent.card.name]),draft.foeIntent||'');
+  const foeIntentLabel=field('합을 걸 예고',foeIntent,'inline');
+  foeIntentLabel.hidden=!b.intentQueue;
+  foeIntent.disabled=!editable;
+  foeIntent.onchange=()=>{draft.foeIntent=foeIntent.value;refresh();};
   if(!Array.isArray(draft.discard))draft.discard=draft.discard?[draft.discard]:[];
   const discarded=new Map();
   const discardLabel=el('details',undefined,{class:'battle-discard'});
@@ -2083,7 +2098,7 @@ function battlePanel(){
     moveMode=false;
     refresh();
   });
-  setup.append(moveInfo,tileMode,clashLabel,discardLabel,copyLabel);
+  setup.append(moveInfo,tileMode,clashLabel,foeIntentLabel,discardLabel,copyLabel);
   if(crisis)setup.prepend(vowLabel);
   dock.insertBefore(hand,controls);
   dock.insertBefore(setup,hand);
@@ -2146,13 +2161,18 @@ function battlePanel(){
     const splashCenter=targetingTile?center:primary?.pos;
     const designated=guarding&&b.units.find(u=>chosen.has(u.id));
     const coverInRange=designated&&candidates.includes(designated);
-    const clashTaken=others.some(slot=>slot.clash);
-    const incoming=b.intent?.reachable&&target&&foe&&gridCardHasReach(b.intent.card,foe.pos,targetPos(target),b.walls);
-    const canClash=!collapsed&&card?.clash&&!['guard','assist','counter'].includes(card.role)&&incoming&&chosen.has(foe?.id)&&!clashTaken&&(!b.intent.card.unredirectable||b.intent.target===self.id);
+    const intentQueue=b.intentQueue||[];
+    const intent=intentQueue.find(item=>item.id===draft.foeIntent)||intentQueue[0]||b.intent;
+    const foe=b.units.find(unit=>unit.id===(intent?.attacker||'enemy'));
+    const target=b.units.find(unit=>unit.id===intent?.target);
+    if(intent?.id){draft.foeIntent=intent.id;foeIntent.value=intent.id;}
+    const clashTaken=others.some(slot=>slot.clash&&(!intent?.id||slot.foeIntent===intent.id));
+    const incoming=intent?.reachable&&!intent.card.support&&target&&foe&&gridCardHasReach(intent.card,foe.pos,targetPos(target),b.walls);
+    const canClash=!collapsed&&card?.clash&&!['guard','assist','counter'].includes(card.role)&&incoming&&chosen.has(foe?.id)&&!clashTaken&&(!intent.card.unredirectable||intent.target===self.id);
     if(editable){
       draft.targets=manual?[...chosen]:[];
-      const canIntercept=canClash&&b.intent.target!==self.id&&
-        gridCardHasReach(b.intent.card,foe.pos,pos,b.walls);
+      const canIntercept=canClash&&intent.target!==self.id&&
+        gridCardHasReach(intent.card,foe.pos,pos,b.walls);
       clash.options[1].disabled=!canClash;
       clash.options[2].disabled=!canIntercept;
       if(!canClash||draft.stance==='intercept'&&!canIntercept){
@@ -2161,7 +2181,7 @@ function battlePanel(){
       }
     }
     clashLabel.hidden=collapsed||!card?.clash||['guard','assist','counter'].includes(card.role);
-    clashLabel.title=clashTaken?'다른 참가자가 이미 합을 확정했어요.':'합을 걸려면 적을 선택하세요.';
+    clashLabel.title=clashTaken?'이 예고에 이미 다른 행동을 예약했어요.':'합을 걸려면 적을 선택하세요.';
     clash.value=draft.stance||'unopposed';
     clash.disabled=!editable;
     const selected=slotChoices().filter(slot=>slot.card);
@@ -2177,11 +2197,11 @@ function battlePanel(){
     discardLabel.firstElementChild.textContent=overflow?'라운드 종료에 '+overflow+'장을 더 버려야 합니다':
       '라운드 종료에 버릴 카드 · '+draft.discard.length+'장';
     fieldView.overlay.replaceChildren();
-    if(target&&foe&&gridCardHasReach(b.intent.card,foe.pos,targetPos(target),b.walls))boardArrow(fieldView.overlay,foe.pos,targetPos(target),draft.clash?'clashing':'incoming');
+    if(target&&foe&&gridCardHasReach(intent.card,foe.pos,targetPos(target),b.walls))boardArrow(fieldView.overlay,foe.pos,targetPos(target),draft.clash?'clashing':'incoming');
     if(center!=null)boardArrow(fieldView.overlay,pos,center,'outgoing');
     for(const u of candidates)if(chosen.has(u.id))boardArrow(fieldView.overlay,pos,targetPos(u),draft.clash?'clashing':'outgoing');
     allyPanel.replaceChildren(...(card?[actionPanel(draft.clash?'내 합 카드':'내 행동',card,self,card.image)]:[]));
-    forecast.textContent=draft.clash?'합 예고 · '+card.name+' ↔ '+b.intent.card.name:recentClash?'직전 '+recentClash:'';
+    forecast.textContent=draft.clash?'합 예고 · '+card.name+' ↔ '+intent.card.name:recentClash?'직전 '+recentClash:'';
     const path=paths.get(pos)||[],point=gridPoint(pos);
     if(path.length)fieldView.tiles[pos].append(marker);
     else marker.remove();
@@ -2201,7 +2221,12 @@ function battlePanel(){
       if(!collapsed&&gridTargetLimit(choice)){
         if(!slot.targets.length||slot.targets.some(id=>!legal.some(u=>u.id===id)))return true;
       }
-      return slot.clash&&(!incoming||clashTaken&&index===draft.slot);
+      if(!slot.clash)return false;
+      if(b.intentQueue){
+        const scheduled=b.intentQueue.find(item=>item.id===slot.foeIntent);
+        return !scheduled?.reachable||scheduled.card.support||!slot.targets.includes(scheduled.attacker);
+      }
+      return !incoming||clashTaken&&index===draft.slot;
     });
     const ready=invalidSlot<0&&(!actionLimit||selected.length>0||slotChoices().some(slot=>slot.card===''));
     commit.disabled=!ready||crisis&&!draft.vow;

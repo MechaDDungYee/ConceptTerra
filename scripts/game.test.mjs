@@ -3313,3 +3313,33 @@ test('blind judge marks the actual damage leader and permits a nonattacking reso
   assert.equal(f.state.battle.phase,'finished');
   assert.equal(f.state.battle.outcome.kind,'level');
 });
+
+test('rail squad rotates independent decks, keeps fighting after a member falls and resolves each intent once',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0,encounter:'railguard01'});
+  const first=f.state.battle;
+  assert.deepEqual(first.units.filter(unit=>unit.enemy).map(unit=>unit.hp),[220,200,150]);
+  assert.deepEqual(first.intentQueue.map(intent=>intent.card.id),['railBlock','railWall','railScope']);
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:18,baseActions:2,hand:['strike','strike']});
+    self.library.strike={...self.library.strike,power:'60',range:'1~4',effects:[],clash:true};
+    b.units.enemy.hp=12;
+    b.units.railShield.pos=12;
+    b.units.railSniper.pos=22;
+    b.walls=[];
+    b.intentQueue[0].reachable=true;
+    b.intentQueue[2].reachable=true;
+    b.intentQueue[2].card={...b.intentQueue[2].card,id:'railPierce',range:'1~5',power:'1',
+      unredirectable:false,support:false,effects:[]};
+  });
+  const same={card:'strike',targets:['enemy'],stance:'clash',foeIntent:'enemy'};
+  const rejected=await f.send(f.endpoint,{action:'plan',revision:f.state.revision,cards:[same,same]},f.host.cookie);
+  assert.equal(rejected.status,400);
+  await f.act('plan',{cards:[same,{card:'strike',targets:['railSniper'],stance:'clash',foeIntent:'railSniper'}]});
+  await f.act('round');
+  assert.equal(f.state.battle.phase,'planning');
+  assert.equal(livingForm(f,'enemy').subdued,true);
+  assert.equal(f.state.battle.encounter.subdueOrder[0],'leader');
+  assert.equal(f.state.battle.log.filter(line=>line.startsWith('합 방장')).length,2);
+  assert.deepEqual(f.state.battle.intentQueue.map(intent=>intent.card.id),['railBash','railPierce']);
+});

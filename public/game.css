@@ -335,3 +335,5 @@ body:has(.battle-dummy) > main > :is(#error,#feedback):not(:empty){
 .stack-gain-limits{display:grid;gap:6px}.stack-gain-limits>label{margin-top:6px}
 
 .battle-cell.sanctuary-zone:not(.wall){box-shadow:inset 0 0 0 2px #a0bb89,inset 0 0 1rem #6e986c66}
+
+.battle-cell.rail-aim:not(.wall){box-shadow:inset 0 0 0 2px #dd9061,inset 0 0 1rem #af4f3f70}

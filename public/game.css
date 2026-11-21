@@ -37,6 +37,8 @@
 }
 .battle-board-3d .battle-cell{aspect-ratio:auto;border:1px solid #ffffff23;transform:translateZ(1px);transform-style:preserve-3d;cursor:inherit}
 .battle-board-3d .battle-cell[aria-disabled=false]{cursor:pointer}
+/* A filter on the tile flattens its upright 3D token. */
+.battle-board-3d .battle-cell:hover:not(:disabled){filter:none;border-color:#ffffff65}
 .battle-board-3d .battle-token{position:absolute;inset:auto;width:calc(var(--tile-w)*.92);transform:translateZ(13px) rotateZ(var(--counter-rot,0deg)) rotateX(var(--counter-tilt,-60deg));pointer-events:auto;overflow:visible}
 .battle-board-3d .battle-token span{background:#141e23e8;padding:2px;border-radius:3px}
 .battle-board-3d .battle-lines{transform:translateZ(2px)}

@@ -310,6 +310,9 @@ export const locationTagAliases=Object.fromEntries(locationTagGroups.국가.map(
 export const revealThresholds=[25,50,100];
 export const maxActivityLocations=6;
 export const trainReturnMind=25;
+export const baseHp=100;
+export const maxHpBounds=[60,150];
+export const characterMaxHp=stamina=>Math.min(maxHpBounds[1],Math.max(maxHpBounds[0],baseHp+(stamina??50)-50));
 export const maxStatusStacks = 999;
 const basicStackDefinitions = {
   '침식':{when:'turnEnd',damage:'physical',description:'턴 종료마다 총 중첩 위력만큼 물리 피해를 받습니다.'},

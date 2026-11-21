@@ -1,5 +1,5 @@
 import {gridValid, gridSize, gridTileGroups, gridDistance, gridPaths, gridDisplacement, gridCardInRange,gridCardHasReach, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
-import {stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,maxActivityLocations,trainReturnMind,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
+import {stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,maxActivityLocations,trainReturnMind,baseHp,characterMaxHp,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
 class GameInputError extends Error {}
@@ -690,7 +690,7 @@ function gameDraw(unit,count,b) {
 }
 function gameUnit(id,name,pos,cards,bot=false,enemy=false,owned=cards) {
   const library=Object.fromEntries(owned.map(({image,...card})=>[card.id,card]));
-  const unit={id,name,pos,startingCards:[...new Set(cards.map(card=>card.id))],hp:enemy?54:40,maxHp:enemy?54:40,mind:50,shield:0,reduce:0,move:2,nextMove:0,stacks:{},hand:[],deck:gameShuffle(cards.map(c=>c.id)),grave:[],exile:[],library,bot,enemy,zero:null,collapsed:false};
+  const unit={id,name,pos,startingCards:[...new Set(cards.map(card=>card.id))],hp:enemy?54:baseHp,maxHp:enemy?54:baseHp,mind:50,shield:0,reduce:0,move:2,nextMove:0,stacks:{},hand:[],deck:gameShuffle(cards.map(c=>c.id)),grave:[],exile:[],library,bot,enemy,zero:null,collapsed:false};
   unit.configuredDeck=cards.map(card=>card.id).sort();
   if(!enemy)gameDraw(unit,handTarget);
   return unit;
@@ -1119,7 +1119,12 @@ function gamePowerShares(rolled,modifier,percent,stages){
   });
 }
 const gameWalls=[11,27];
-const gameSpawns=[16,9,25,33];
+const gameSpawns=[0,8,16,24];
+function gameSpawn(seat,units,walls=gameWalls){
+  const start=gameSpawns[seat];
+  const options=[start,start+1,start+2,...Array.from({length:gridSize},(_,index)=>index)];
+  return options.find(pos=>!walls.includes(pos)&&!Object.values(units).some(unit=>unit.pos===pos));
+}
 function gameBlocked(b,u) {
   return new Set([...b.walls,...Object.values(b.units).filter(v=>v.id!==u.id&&gameAlive(v)).map(v=>v.pos)]);
 }
@@ -1362,10 +1367,11 @@ function gameBegin(state,members,settings,actor,collections) {
     const collection=collections.get(m.id);
     const owned=[...gameCatalogue,...collection.cards];
     const cards=gameDeck(owned,collection.deck);
-    units[m.id]=gameUnit(m.id,p?.name||m.name,gameSpawns[m.seat-1],cards,false,false,[...owned,...(p?.passiveCards||[])]);
+    units[m.id]=gameUnit(m.id,p?.name||m.name,gameSpawn(m.seat-1,units),cards,false,false,[...owned,...(p?.passiveCards||[])]);
     units[m.id].activityLocations=gameActivityLocations(p?.activityLocations);
     units[m.id].passives=(p?.passives||[]).filter(passive=>passive.enabled);
     units[m.id].stackDefinitions=Object.fromEntries(collection.stackTraits.map(trait=>[trait.name,trait]));
+    units[m.id].hp=units[m.id].maxHp=characterMaxHp(p?.stats?.[2]);
     if(p?.mind!==undefined)units[m.id].mind=p.mind;
     if(units[m.id].mind===0)units[m.id].zero='pending';
   }
@@ -1374,10 +1380,11 @@ function gameBegin(state,members,settings,actor,collections) {
     const collection=collections.get(actor.id);
     const owned=[...gameCatalogue,...collection.cards];
     const cards=gameDeck(owned,collection.deck);
-    units[actor.id]=gameUnit(actor.id,p?.name||actor.name,gameSpawns[0],cards,false,false,[...owned,...(p?.passiveCards||[])]);
+    units[actor.id]=gameUnit(actor.id,p?.name||actor.name,gameSpawn(0,units),cards,false,false,[...owned,...(p?.passiveCards||[])]);
     units[actor.id].activityLocations=gameActivityLocations(p?.activityLocations);
     units[actor.id].passives=(p?.passives||[]).filter(passive=>passive.enabled);
     units[actor.id].stackDefinitions=Object.fromEntries(collection.stackTraits.map(trait=>[trait.name,trait]));
+    units[actor.id].hp=units[actor.id].maxHp=characterMaxHp(p?.stats?.[2]);
     if(p?.mind!==undefined)units[actor.id].mind=p.mind;
     if(units[actor.id].mind===0)units[actor.id].zero='pending';
   }

@@ -62,10 +62,10 @@ test('planning events apply once at resolution and a marked card spends its mark
   configureBattle(f,(b,self)=>{self.hand=[id];b.units.enemy.blockedRounds=1;});
   await f.act('plan',{card:id,targets:[]});
   await f.act('unplan');
-  assert.equal(livingForm(f).hp,40);
+  assert.equal(livingForm(f).hp,100);
   await f.act('plan',{card:id,targets:[]});
   await f.act('round');
-  assert.equal(livingForm(f).hp,37);
+  assert.equal(livingForm(f).hp,97);
   assert.equal(livingForm(f).cardMarks[id],undefined);
 });
 
@@ -210,7 +210,7 @@ test('card start effects trigger once per card type and base effects spend their
   await f.act('round');
   const self=livingForm(f);
   assert.equal(self.hp,16);
-  assert.equal(self.shield,18); // 5 start + 8 lost-HP base + 2 paid-health bonus + 3 next turn.
+  assert.equal(self.shield,48); // 5 start + 38 lost-HP base + 2 paid-health bonus + 3 next turn.
   assert.equal(self.mind,62);
 });
 
@@ -268,7 +268,7 @@ test('scoped effects reach living units outside attack range and consume their c
   });
   await f.act('plan',{card:id});
   await f.act('round');
-  assert.equal(livingForm(f).hp,38);
+  assert.equal(livingForm(f).hp,98);
   assert.equal(livingForm(f).shield,0);
   assert.equal(livingForm(f,'bot0').shield,4);
   assert.equal(livingForm(f,'bot1').shield,4);
@@ -303,12 +303,12 @@ test('effect limits are saved per effect, reset at their period, and skip unmet 
     return livingForm(f).shield;
   }
   await f.act('start',{solo:true,bots:0});
-  assert.equal(await turn(40),7);
+  assert.equal(await turn(100),7);
   assert.equal(await turn(20),12);
   assert.equal(await turn(20),14);
   await f.act('reset');
   await f.act('start',{solo:true,bots:0});
-  assert.equal(await turn(40),7);
+  assert.equal(await turn(100),7);
 });
 
 test('a group spends one activation and a turn limit blocks repeated applications in the same turn',async()=>{
@@ -492,7 +492,7 @@ test('built-in stacks cap focus, boost critical damage, and resolve fixed and me
   assert.equal(self.stacks.집중,99);
   assert.equal(self.stacks['잔류 손상'],1);
   assert.equal(livingForm(f,'enemy').hp,34);
-  assert.equal(self.hp,40);
+  assert.equal(self.hp,100);
   assert.equal(self.shield,14);
   assert.equal(self.mind,41);
 });
@@ -690,7 +690,7 @@ test('solo session saves profile, custom card and deck, resolves bot rounds and 
   assert.equal(me.name,'서린');
   assert.equal(me.hand.length,4);
   assert.ok(f.state.battle.units.filter(u=>u.id!==me.id).every(u=>u.hand===undefined));
-  await f.act('plan',{pos:18});
+  await f.act('plan',{pos:2});
   await f.act('round');
   assert.equal(f.state.battle.round,2);
   assert.ok(f.state.battle.log.some(line=>/회수원|호송병|기록원/.test(line)));
@@ -736,6 +736,7 @@ test('the prototype grid measures orthogonal distance and routes around walls', 
 test('a targeted action must be valid before it can lock the round and can be reopened',async()=>{
   const f=await fixture();
   await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{self.pos=16;b.units.enemy.pos=20;b.intent.reachable=true;});
   const {me,battle}=f.state;
   const unit=battle.units.find(u=>u.id===me);
   const card=unit.hand.find(c=>c.target===1&&c.role!=='guard');
@@ -805,7 +806,7 @@ test('cover persists out of range and replaces only an unopposed attack',async()
     const first=await hostAct('round');
     assert.equal(first.battle.units.find(u=>u.id===guard.id).coverCount,designate==='ally'?0:1);
     assert.equal(first.battle.units.find(u=>u.id===guard.id).graveCount,1);
-    assert.equal(first.battle.units.find(u=>u.id===ally.id).hp,designate==='ally'?40:32);
+    assert.equal(first.battle.units.find(u=>u.id===ally.id).hp,designate==='ally'?100:92);
     if(designate==='ally'){
       assert.ok(first.battle.log.some(line=>line.includes('보호 대상 대신 합')));
       continue;
@@ -818,9 +819,9 @@ test('cover persists out of range and replaces only an unopposed attack',async()
     if(manual||designate==='other')assert.equal(coverLog,undefined);
     else{
       assert.ok(coverLog?.includes('보호 대상 대신 합'));
-      assert.equal(second.battle.units.find(u=>u.id===ally.id).hp,32);
+      assert.equal(second.battle.units.find(u=>u.id===ally.id).hp,92);
       const roll=Number(second.battle.log.find(line=>line.endsWith('(원호 방어)')).match(/ : (\d+)/)[1]);
-      assert.equal(second.battle.units.find(u=>u.id===guard.id).hp,roll>power?40-roll:40);
+      assert.equal(second.battle.units.find(u=>u.id===guard.id).hp,roll>power?100-roll:100);
     }
   }
 });
@@ -964,7 +965,7 @@ test('tactical effects resolve clash margins, temporary shields, retaliation, an
   configure(2,['draw','guard','trace','hold']);
   await f.act('plan',{pos:16});
   await f.act('round');
-  assert.equal(me().hp,37);
+  assert.equal(me().hp,97);
   assert.equal(me().thorns,0);
   assert.equal(foe().hp,36);
   assert.equal(foe().rooted,false);
@@ -1051,7 +1052,7 @@ test('signed power ratios combine with fixed modifiers and health effects use ma
   configure();
   await f.act('plan',{card:card.id,pos:16,targets:['enemy']});
   await f.act('round');
-  assert.equal(me().hp,24);
+  assert.equal(me().hp,30);
   assert.equal(foe().hp,29);
   assert.equal(me().nextPowerPercent,25);
   configure();
@@ -1099,7 +1100,7 @@ test('damage modifiers stack before shields and deferred damage settles once nex
   await f.act('plan',{card:card.id,pos:16,targets:['enemy']});
   await f.act('round');
   assert.equal(foe().hp,38);
-  assert.equal(me().hp,36);
+  assert.equal(me().hp,96);
   assert.deepEqual(me().damageDebt,[{round:2,amount:3}]);
   assert.equal(me().handCount,4);
   assert.equal(me().incomingDamagePercent,undefined);
@@ -1107,7 +1108,7 @@ test('damage modifiers stack before shields and deferred damage settles once nex
   configure('0',false);
   await f.act('plan',{card:erase.id,pos:16});
   await f.act('round');
-  assert.equal(me().hp,34);
+  assert.equal(me().hp,94);
   assert.equal(me().shield,10);
   assert.deepEqual(me().damageDebt,[]);
 });
@@ -1140,7 +1141,7 @@ test('fixed and percentage deferral split damage across rounds without losing re
     await f.act('plan',{card:card.id,pos:16});
     await f.act('round');
     assert.deepEqual(me().damageDebt,installments.map((damage,i)=>({round:i+2,amount:damage})));
-    let hp=30+installments.reduce((a,b)=>a+b,0);
+    let hp=90+installments.reduce((a,b)=>a+b,0);
     assert.equal(me().hp,hp);
     for(const installment of installments){
       configure('0');
@@ -1168,7 +1169,7 @@ test('special effects survive the round boundary and clash memory waits for a cl
   const configure=(power,initial=false)=>{
     const saved=JSON.parse(db.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(code).first().state);
     const {units,intent}=saved.battle, self=units[f.state.me];
-    self.hand=[card.id,'guard','draw','hold'];self.mind=50;
+    self.pos=16;self.hand=[card.id,'guard','draw','hold'];self.mind=50;
     units.enemy.pos=20;
     if(initial)self.damageDebt=[{round:2,amount:2}];
     intent.card={...intent.card,power};intent.reachable=true;
@@ -1179,7 +1180,7 @@ test('special effects survive the round boundary and clash memory waits for a cl
   configure('12',true);
   await f.act('plan',{card:card.id,pos:17,targets:['enemy'],clash:true});
   await f.act('round');
-  assert.equal(me().hp,33);
+  assert.equal(me().hp,93);
   assert.equal(me().clashMemory,4);
   assert.deepEqual(me().damageDebt,[]);
   configure('0');
@@ -1265,7 +1266,7 @@ test('health and mind costs fund scaled rewards only after payment',async()=>{
     assert.equal(result.status,200,JSON.stringify(result.body));
     return result.body.battle.units;
   };
-  for(const [hp,mind,expected] of [[40,50,[36,40,28,3,36]],[4,9,[4,9,20,0,32]]]){
+  for(const [hp,mind,expected] of [[40,50,[30,40,40,3,36]],[4,9,[4,9,20,0,32]]]){
     configure(hp,mind);
     await submit(f.host.cookie,{action:'plan',card:card.id,pos:16,targets:['enemy']});
     await submit(guest.cookie,{action:'plan',pos:17});
@@ -1900,7 +1901,7 @@ test('GM adjusts the base limit and a later slot may be the only action to clash
   assert.equal(f.state.battle.clashActor,f.state.me);
   await f.act('round');
   assert.equal(livingForm(f,'enemy').hp,34);
-  assert.equal(livingForm(f).hp,40);
+  assert.equal(livingForm(f).hp,100);
   assert.equal(livingForm(f).actionLimit,2);
 });
 
@@ -1979,7 +1980,7 @@ test('saved and equipped character passives trigger at the start, on hit, and on
   await f.act('plan',{card:id,targets:['enemy']});
   await f.act('round');
   assert.equal(livingForm(f,'enemy').stacks.표식,1);
-  assert.equal(livingForm(f,me).hp,38);
+  assert.equal(livingForm(f,me).hp,98);
   assert.ok(f.state.battle.log.some(line=>line.includes('패시브 「회수원의 버팀목」 발동')));
   await f.act('reset');
   await f.act('passive',{passive:{...passives[0],name:'이름 수정'}});
@@ -2014,7 +2015,7 @@ test('a conditional replacement spends only the original card and executes the r
   assert.equal(livingForm(f,'enemy').hp,46);
   assert.deepEqual(livingForm(f,'enemy').stacks,{교체:1});
   assert.ok(f.state.battle.log.some(line=>line.includes('원래 공격 → 교체 공격으로 발동')));
-  await run(40);
+  await run(100);
   assert.equal(livingForm(f,'enemy').hp,52);
   assert.deepEqual(livingForm(f,'enemy').stacks,{원본:1});
 });
@@ -2671,7 +2672,7 @@ test('ordinary effects can resolve before replacement and costs can run at card 
   configureBattle(f,(b,self)=>{self.hand=[id];b.units.enemy.blockedRounds=1;});
   await f.act('plan',{card:id,targets:[]});
   await f.act('round');
-  assert.equal(livingForm(f).hp,37);
+  assert.equal(livingForm(f).hp,97);
   assert.equal(livingForm(f).shield,6);
 });
 
@@ -2878,13 +2879,13 @@ test('life steal converts mental damage to health using the selected resistance 
     const id=f.state.profile.cards[0].id;
     await f.act('start',{solo:true,bots:0});
     configureBattle(f,(b,self)=>{
-      Object.assign(self,{hand:[id],hp:20,mind:50,mindStatuses:{mindGuard:{amount:50,through:1}}});
+      Object.assign(self,{hand:[id],hp:30,mind:50,mindStatuses:{mindGuard:{amount:50,through:1}}});
       b.units.enemy.blockedRounds=1;
     });
     await f.act('plan',{card:id,targets:[]});
     await f.act('round');
     assert.equal(livingForm(f).mind,46);
-    assert.equal(livingForm(f).hp,20+expected);
+    assert.equal(livingForm(f).hp,30+expected);
   }
 });
 
@@ -3125,4 +3126,18 @@ test('a fully collapsed passenger only recovers at train return',async()=>{
   assert.equal(livingForm(f).mind,0);
   await f.act('reset');
   assert.equal(f.state.profile.mind,25);
+});
+
+test('player stamina determines starting HP and left-wall seats stay distinct',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'동료'});
+  await f.send(f.room+'/seat',{id:f.state.me,seat:1},f.host.cookie);
+  await f.send(f.room+'/seat',{id:guest.body.me,seat:2},f.host.cookie);
+  await f.act('profile',{name:'체력 시험',country:'제6국',status:'하위층 시민',stats:[38,50,62,50,50,50]});
+  await f.act('start',{bots:0});
+  assert.equal(livingForm(f).hp,112);
+  assert.equal(livingForm(f).maxHp,112);
+  assert.equal(livingForm(f).pos,0);
+  assert.equal(livingForm(f,guest.body.me).hp,100);
+  assert.equal(livingForm(f,guest.body.me).pos,8);
 });

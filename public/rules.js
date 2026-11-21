@@ -1,5 +1,5 @@
-export const maxPortraitDataLength=180000;
-export const maxPortraitSide=1440;
+export const maxPortraitDataLength=320000;
+export const maxPortraitSide=1920;
 export const statuses = ['비시민권자','월정커','하위층 시민','중산층 시민','고위층 시민'];
 // Each entry defines the name, default timing, default recipient, and card text.
 export const baseActions = 1;

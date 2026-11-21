@@ -4004,11 +4004,11 @@ test('an attack without a splash shape has no secondary tile range',async()=>{
 
 test('portrait uploads accept a larger payload through the artwork route',async()=>{
   const f=await fixture();
-  const image='data:image/png;base64,'+'AQID'.repeat(20000);
+  const image='data:image/png;base64,'+'AQID'.repeat(60000);
   const saved=await f.send(f.endpoint+'?import=1',{action:'art',slot:'normal.idle',image,revision:f.state.revision},f.host.cookie);
   assert.equal(saved.status,200);
   assert.ok(saved.body.profile.artSlots.includes('normal.idle'));
   const response=await worker.fetch(new Request('https://game.test'+f.endpoint+'?unit='+f.state.me+'&art=normal.idle',{headers:{Cookie:f.host.cookie}}),{DB:f.DB});
   assert.equal(response.status,200);
-  assert.equal((await response.arrayBuffer()).byteLength,60000);
+  assert.equal((await response.arrayBuffer()).byteLength,180000);
 });

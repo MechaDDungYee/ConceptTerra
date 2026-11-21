@@ -1042,6 +1042,12 @@ async function imageData(file,maxSize=32000,maxSide=280,quality=.66){
     canvas.height=Math.max(1,Math.round(bitmap.height*scale));
     canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);
     result=canvas.toDataURL('image/webp',quality);
+    if(quality>.66&&result.length>maxSize){
+      for(const reduced of [.77,.68,.59]){
+        result=canvas.toDataURL('image/webp',reduced);
+        if(result.length<=maxSize)break;
+      }
+    }
     if(result.length<=maxSize)break;
     scale*=.8;
   }

@@ -3371,3 +3371,63 @@ test('campaign slots and authenticated files restore a saved round for the room 
   assert.equal(imported.body.battle.round,1);
   assert.equal(imported.body.battle.intent.card.id,'collectReceipt');
 });
+
+test('bright plaza keeps phase one concealed and washes a full party back to the train',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'관찰자'});
+  await f.act('start',{solo:true,bots:0,encounter:'blight01'});
+  assert.equal(livingForm(f,'enemy').hp,666);
+  assert.equal(f.state.battle.encounter.stage,1);
+  const view=await f.send(f.endpoint,undefined,guest.cookie);
+  assert.equal(view.body.battle.encounter.stage,undefined);
+  assert.equal(view.body.battle.encounter.holder,undefined);
+  configureBattle(f,(b,self)=>{
+    self.stacks['황홀한 빛']=4;
+    b.intent.card={...b.intent.card,id:'blissWhisper'};
+  });
+  await f.act('plan',{cards:[]});
+  await f.act('round');
+  assert.equal(f.state.battle.result,'패배');
+  assert.equal(f.state.battle.outcome.kind,'brainwashed');
+  assert.ok(f.state.battle.log.some(line=>line.includes('황홀한 빛 5 · 세뇌')));
+
+  assert.equal(f.state.profile.mind,25);
+});
+
+test('bright plaza changes decks, absolves a controlled passenger, and transforms the existing card',async()=>{
+  const f=await fixture();
+  const row=f.DB.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(f.host.body.code).first();
+  const saved=JSON.parse(row?.state||'{"profiles":{}}');
+  saved.profiles[f.state.me]={cards:[],deck:[],orbs:['orbDarkHalo']};
+  await f.act('profile',{name:'광배 승객',country:'제6국',status:'하위층 시민',stats:[50,50,50,50,50,50]});
+  const state=JSON.parse(f.DB.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(f.host.body.code).first().state);
+  state.profiles[f.state.me]={...state.profiles[f.state.me],...saved.profiles[f.state.me]};
+  f.DB.prepare('UPDATE game_states SET state = ? WHERE room_code = ?').bind(JSON.stringify(state),f.host.body.code).run();
+  await f.act('start',{solo:true,bots:1,encounter:'blight01'});
+  configureBattle(f,(b,self)=>{
+    const bot=b.units.bot0;
+    Object.assign(self,{pos:18,mind:1});
+    Object.assign(bot,{pos:17,mind:0,brainwashed:true,collapsed:true,controlledIndex:0});
+    bot.stacks['황홀한 빛']=5;
+    b.units.enemy.pos=21;
+    b.units.enemy.blockedRounds=1;
+    b.walls=[];
+  });
+  await f.act('plan',{cards:[]});
+  await f.act('round');
+  assert.equal(f.state.battle.encounter.stage,2);
+  assert.equal(f.state.battle.encounter.deckSize,6);
+  assert.equal(livingForm(f,'conceptDawn').hp,1225);
+  assert.equal(livingForm(f).hand.find(card=>card.id==='conceptForgive').cost,0);
+  await f.act('plan',{card:'conceptForgive',targets:['bot0']});
+  await f.act('round');
+  assert.equal(f.state.battle.encounter.stage,3);
+  assert.equal(livingForm(f,'conceptDawn').hp,0);
+  assert.equal(livingForm(f,'bot0').collapsed,false);
+  assert.ok(livingForm(f,'bot0').mind>=25);
+  assert.equal(livingForm(f).hand.find(card=>card.id==='conceptForgive').name,'사면 · 거짓을 삼키는 밤');
+  await f.act('plan',{card:'conceptForgive',targets:['enemy']});
+  await f.act('round');
+  assert.equal(f.state.battle.outcome.kind,'swallowed');
+  assert.equal(f.state.battle.result,'승리');
+});

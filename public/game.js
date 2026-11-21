@@ -1703,7 +1703,7 @@ function startPanel(){
     bots.value=String(Math.min(old,max));
   };
   solo.onchange=refresh;refresh();bots.value=String(4-state.roster.length-Number(solo.checked));
-  const encounter=select('encounter',[['','객차 연습 전투'],['stop01','첫 정류장 · 불 꺼진 제6국 외곽 막다른 골목'],['collector01','외상 장부의 수금원 · 잿빛 세관 창고'],['judge01','눈 먼 심판자 · 법원 지하 보관고'],['railguard01','선로 보안반 · 신호가 끊긴 폐선로']],'');
+  const encounter=select('encounter',[['','객차 연습 전투'],['stop01','첫 정류장 · 불 꺼진 제6국 외곽 막다른 골목'],['collector01','외상 장부의 수금원 · 잿빛 세관 창고'],['judge01','눈 먼 심판자 · 법원 지하 보관고'],['railguard01','선로 보안반 · 신호가 끊긴 폐선로'],['blight01','밝은 곳에서 더더욱 빛나는 · 빛이 남은 광장']],'');
   form.append(field('조우 선택',encounter),field('내 캐릭터로 혼자 연습',solo,'inline'),field('자동 행동 봇 동료',bots),submit('전투 시작'));
   root.append(form,note('봇은 빈 플레이어 자리를 채우고 라운드 처리 시 이동·공격·합·원호를 자동 선택합니다.'));
   return root;
@@ -2205,7 +2205,7 @@ function battlePanel(){
       if(collapsed&&choice.role!=='guard')return collapseTargets(choice,{...self,pos},b.units,b.walls);
       return b.units.filter(u=>u.hp>0&&gridCardHasReach(choice,pos,targetPos(u),b.walls)&&
         (choice.role==='guard'?!u.enemy&&u.id!==self.id:choice.target==='self'?u.id===self.id:
-          choice.targetSide==='ally'?u.enemy===self.enemy&&(choice.includeSelf||u.id!==self.id):u.enemy));
+          choice.targetSide==='any'?true:choice.targetSide==='ally'?u.enemy===self.enemy&&(choice.includeSelf||u.id!==self.id):u.enemy));
     };
     const candidates=candidatesFor(card);
     const targetLimit=gridTargetLimit(card);

@@ -595,6 +595,7 @@ export const deckSize = 10;
 export const deckCopyLimit = 3;
 
 export const cardFileFormat='conceptterra-card-library';
+export const stackFileFormat='conceptterra-stacks';
 export const passiveFileFormat='conceptterra-passives';
 export const characterFileFormat='conceptterra-character';
 export const maxCardFileBytes=1_200_000;

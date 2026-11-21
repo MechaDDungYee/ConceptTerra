@@ -454,6 +454,12 @@ function gameStackGainLimits(input){
   }
   return result;
 }
+function gameStackName(value){
+  const name=typeof value==='string'?value.trim():'';
+  if(!name||name.length>maxStackNameLength||Object.hasOwn(Object.prototype,name))
+    gameFail('중첩 이름을 '+maxStackNameLength+'자 이내로 입력해 주세요.');
+  return name;
+}
 function gameStackTrait(input,owned){
   const effects=input.effects??[];
   if(!Array.isArray(effects)||effects.length>maxPassiveEffects+1||
@@ -5700,6 +5706,18 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
     return {character:{...gameProfileFields({...saved,name:saved.name||self.name},saved.mind),art:saved.art||{}},
       passives,conceptTools,cards};
   };
+  if(input?.action==='stackExport'){
+    try{
+      const names=input.name?ownCollection.stackNames.filter(name=>name===input.name):ownCollection.stackNames;
+      if(!names.length)gameFail('다운로드할 중첩이 없어요.');
+      const stacks=names.map(name=>ownCollection.stackTraits.find(trait=>trait.name===name)||{name,effects:[]});
+      const visible=manager?stacks:gamePublicView(stacks);
+      const owned=[...gameUnlockedCards(state.profiles[actor]||{}),...ownCollection.cards];
+      const cards=gameExportPassives(visible.map((trait,index)=>({...trait,id:'stack-export:'+index})),owned).cards;
+      const data={format:stackFileFormat,version:1,stacks:visible,cards};
+      return json(manager?data:gamePublicView(data));
+    }catch(e){if(e instanceof GameInputError)return error(e.message);throw e;}
+  }
   if(['passiveExport','characterExport'].includes(input?.action)){
     try{
       const saved=gameView(state,revision,actor,manager,members).profile;
@@ -5783,7 +5801,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       return view();
     }
   }
-  const collectionEdit=['card','deck','cardClone','cardDelete','cardImport','cardTake','stackCreate','stackEdit'].includes(input.action);
+  const collectionEdit=['card','deck','cardClone','cardDelete','cardImport','cardTake','stackCreate','stackEdit','stackImport'].includes(input.action);
   if(['characterAccountSave','characterAccountSelect'].includes(input.action)&&!account)
     return error('캐릭터 보관함을 사용하려면 ChatGPT로 로그인하세요.',401);
   if(collectionEdit?input.collectionRevision!==ownCollection.revision:input.revision!==revision){
@@ -5973,15 +5991,14 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       case 'cardImport':
       case 'stackCreate':
       case 'stackEdit':
+      case 'stackImport':
       case 'cardTake': {
         const {cards,deleted,stackNames,stackTraits}=ownCollection;
         let {deck}=ownCollection,editedCardId;
         const owned=[...gameCatalogue,...gameUnlockedCards(profile),...cards];
         switch(input.action){
           case 'stackCreate': {
-            const name=typeof input.name==='string'?input.name.trim():'';
-            if(!name||name.length>maxStackNameLength||Object.hasOwn(Object.prototype,name))
-              gameFail('중첩 이름을 '+maxStackNameLength+'자 이내로 입력해 주세요.');
+            const name=gameStackName(input.name);
             if(stackNames.includes(name)||Object.hasOwn(basicStacks,name)||Object.hasOwn(conceptStacks,name))gameFail('이미 등록한 중첩이에요.');
             if(stackNames.length>=maxCustomStacks)gameFail('중첩은 '+maxCustomStacks+'개까지 등록할 수 있어요.');
             stackNames.push(name);
@@ -5992,6 +6009,34 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
             const trait=gameStackTrait(input,owned);
             const index=stackTraits.findIndex(item=>item.name===trait.name);
             if(index<0)stackTraits.push(trait);else stackTraits[index]=trait;
+            break;
+          }
+          case 'stackImport': {
+            const file=input.file;
+            if(file?.format!==stackFileFormat||file.version!==1||!Array.isArray(file.stacks)||!file.stacks.length||
+              file.stacks.length+stackNames.length>maxCustomStacks||!Array.isArray(file.cards))
+              gameFail('중첩 파일 형식 또는 보관 한도('+maxCustomStacks+'개)를 확인하세요.');
+            const names=new Set(stackNames);
+            const incoming=file.stacks.map(trait=>{
+              const name=gameStackName(trait?.name);
+              if(names.has(name)||Object.hasOwn(basicStacks,name)||Object.hasOwn(conceptStacks,name))
+                gameFail('이미 등록된 중첩이 있어요. '+name);
+              names.add(name);
+              if(!Array.isArray(trait.effects))gameFail('중첩 효과를 확인하세요.');
+              return {...trait,name};
+            });
+            if(file.cards.some(card=>!card||typeof card.id!=='string'))gameFail('참조 카드 파일 형식을 확인하세요.');
+            if(cards.length+file.cards.length>24)gameFail('참조 카드를 포함해 제작 카드는 최대 24장까지 보관할 수 있어요.');
+            const ids=new Map(file.cards.map(card=>[card.id,gameId()]));
+            const unlocked=gameUnlockedCards(profile);
+            const imported=file.cards.length?gameImportCards(file.cards,[...unlocked,...cards],false,ids,
+              24+unlocked.length):[];
+            const known=[...owned,...imported];
+            const traits=incoming.map(trait=>gameStackTrait({...trait,
+              effects:trait.effects.map(effect=>mapEffectCardReferences(effect,id=>ids.get(id)||id))},known));
+            cards.push(...imported);
+            stackNames.push(...traits.map(trait=>trait.name));
+            stackTraits.push(...traits);
             break;
           }
           case 'card': {

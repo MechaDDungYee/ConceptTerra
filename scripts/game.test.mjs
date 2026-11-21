@@ -4111,3 +4111,38 @@ test('target-relative instant movement ranks the enemies matching the stack rang
     assert.equal(livingForm(f).pos,destination,moveTest);
   }
 });
+
+test('stack files preserve effects and limits, carry card dependencies, and reject duplicates',async()=>{
+  const source=await fixture(),destination=await fixture();
+  await source.act('card',{card:{name:'기준 카드',power:'0',role:'normal',target:'self',range:'0',effects:[]}});
+  const oldId=source.state.profile.cards[0].id;
+  await source.act('stackCreate',{name:'내보낼 표식'});
+  await source.act('stackCreate',{name:'설정 없는 표식'});
+  await source.act('stackEdit',{name:'내보낼 표식',flavor:'기록',stackAxesMode:'power',holdPower:25,
+    gainLimits:{stackBattlePower:10},effects:[
+      {kind:'shield',when:'handEntered',to:'self',amount:3,zoneCard:'specific',zoneCardId:oldId}
+    ]});
+  const individual=await source.send(source.endpoint,{action:'stackExport',name:'내보낼 표식'},source.host.cookie);
+  assert.equal(individual.status,200);
+  assert.deepEqual(individual.body.stacks.map(stack=>stack.name),['내보낼 표식']);
+  assert.equal(individual.body.cards[0].id,oldId);
+  const all=await source.send(source.endpoint,{action:'stackExport'},source.host.cookie);
+  assert.equal(all.status,200);
+  await destination.act('stackImport',{file:all.body});
+  const profile=destination.state.profile;
+  assert.deepEqual(profile.customStacks,['내보낼 표식','설정 없는 표식']);
+  const trait=profile.stackTraits.find(item=>item.name==='내보낼 표식');
+  assert.equal(trait.flavor,'기록');
+  assert.equal(trait.stackAxesMode,'power');
+  assert.equal(trait.holdPower,25);
+  assert.equal(trait.gainLimits.stackBattlePower,10);
+  const newId=profile.cards.find(card=>card.name==='기준 카드').id;
+  assert.notEqual(newId,oldId);
+  assert.equal(trait.effects[0].zoneCardId,newId);
+  const duplicate=await destination.send(destination.endpoint,{action:'stackImport',collectionRevision:destination.state.collectionRevision,
+    file:{...all.body,stacks:[{name:'새 표식',effects:[]},...all.body.stacks]}},destination.host.cookie);
+  assert.equal(duplicate.status,400);
+  const reload=await destination.send(destination.endpoint,undefined,destination.host.cookie);
+  assert.deepEqual(reload.body.profile.customStacks,profile.customStacks);
+  assert.equal(reload.body.profile.cards.length,1);
+});

@@ -3,7 +3,7 @@ import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
 import {accountPanel} from './account.js';
 import {gridCanAimTile,gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridLineOfSight,gridCardInRange,gridCardHasReach,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
-import {instantMoveModes,instantMoveDirections,instantMoveOffsets,instantMoveAnchors,instantMoveOrders,instantMoveStackTests,instantMoveStackMetrics,maxPortraitDataLength,maxPortraitSide,keywordOwnedZones,keywordScanModes,stackScanScopes,maxConceptTools,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTagGroups,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
+import {instantMoveModes,instantMoveDirections,instantMoveOffsets,instantMoveAnchors,instantMoveOrders,instantMoveStackTests,instantMoveStackMetrics,maxPortraitDataLength,maxPortraitSide,keywordOwnedZones,keywordScanModes,stackScanScopes,maxConceptTools,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTagGroups,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,stackFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
 const studio=location.pathname==='/studio';
 const code=location.pathname.split('/')[2], endpoint=studio?'/api/studio':'/api/rooms/'+code+'/game';
@@ -47,7 +47,7 @@ function formFor(action,read){
 }
 function submit(text){return el('button',text,{class:'primary'});}
 async function request(body){
-  const large=['art','dialogueEnemyArt','cardImport','passiveImport','characterImport','importSave'].includes(body?.action);
+  const large=['art','dialogueEnemyArt','cardImport','stackImport','passiveImport','characterImport','importSave'].includes(body?.action);
   const r=await fetch(endpoint+(large?'?import=1':''),body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const data=await r.json().catch(()=>({}));
   if(!r.ok)throw Object.assign(new Error(data.error||'세션 연결을 확인하세요.'),{status:r.status});
@@ -66,9 +66,9 @@ async function send(action,payload={}){
       state=await request();
       state=await submitAction();
     }
-    if(action==='stackCreate'||action==='stackEdit'){
+    if(['stackCreate','stackEdit','stackImport'].includes(action)){
       updateStackControls();
-      feedback.textContent=action==='stackCreate'?'중첩을 만들었어요.':'중첩 효과를 저장했어요.';
+      feedback.textContent=action==='stackCreate'?'중첩을 만들었어요.':action==='stackImport'?'파일의 중첩을 보관함에 가져왔어요.':'중첩 효과를 저장했어요.';
       return true;
     }
     if(action==='card'||action==='cardDelete'&&payload.id===edit)edit=null;
@@ -89,7 +89,7 @@ async function send(action,payload={}){
     return true;
   }catch(err){
     errors.textContent=err.message;
-    if(err.status===409){state=await request().catch(()=>state);if(action==='stackCreate'||action==='stackEdit')updateStackControls();else if(!draftDirty||tab==='battle')render();}
+    if(err.status===409){state=await request().catch(()=>state);if(['stackCreate','stackEdit','stackImport'].includes(action))updateStackControls();else if(!draftDirty||tab==='battle')render();}
   }finally{busy=false;}
 }
 const selectSearches=new WeakMap();
@@ -132,6 +132,7 @@ function updateStackControls(){
     list.replaceChildren(...(names.length?names.map(name=>el('span',name)):[el('small','등록한 중첩이 없어요.')]));
   }
   for(const control of panel.querySelectorAll('[data-stack-trait-select]'))fillStackTraitSelect(control);
+  for(const control of panel.querySelectorAll('[data-download-stacks]'))control.disabled=!state.profile.customStacks?.length;
 }
 function fillStackTraitSelect(control){
   const value=control.value;
@@ -189,7 +190,7 @@ function stackManager(){
         gainLimits:Object.fromEntries(
         [...limits.querySelectorAll('input')].filter(control=>control.value!=='').map(control=>[control.name,Number(control.value)])),effects:workspace.rows()}))draftDirty=false;
     };
-    editor.append(traitForm);
+    editor.append(button('선택한 중첩 다운로드',()=>downloadCharacterFile('stack',chosen)),traitForm);
   };
   const catalogue=el('details',undefined,{class:'stack'});
   catalogue.append(el('summary','기본 키워드와 부 키워드'));
@@ -198,7 +199,7 @@ function stackManager(){
     entry.append(el('summary',name+(trait.sub?' · 부 키워드':'')),...basicStackInfo(trait).map(note));
     catalogue.append(entry);
   }
-  root.append(el('summary','중첩 관리'),form,list,picker,editor,catalogue);
+  root.append(el('summary','중첩 관리'),form,characterFileControls('stack',false,!names.length),list,picker,editor,catalogue);
   return root;
 }
 function character(){
@@ -1340,19 +1341,20 @@ function cardList(label,preview){
 }
 async function downloadCharacterFile(kind,id){
   try{
-    const data=await request({action:kind+'Export',id});
+    const data=await request({action:kind+'Export',...(kind==='stack'?{name:id}:{id})});
     const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
-    const name=data.character?.name||data.passives?.[0]?.name||'콘셉트테라';
+    const name=data.character?.name||data.passives?.[0]?.name||(data.stacks?.length===1?data.stacks[0].name:null)||'콘셉트테라';
     const anchor=el('a',undefined,{href:url,download:name.replace(/[<>:"/\\|?*]/g,'_')+'-'+kind+'.json'});
     document.body.append(anchor);anchor.click();anchor.remove();
     setTimeout(()=>URL.revokeObjectURL(url),1000);
   }catch(err){errors.textContent=err.message;}
 }
 function characterFileControls(kind,locked,empty=false){
-  const label=kind==='character'?'캐릭터 전체':'패시브';
+  const label=kind==='character'?'캐릭터 전체':kind==='stack'?'중첩':'패시브';
   const actions=el('div',undefined,{class:'row library-file-actions'});
-  const download=button(label+' 다운로드',()=>downloadCharacterFile(kind));
+  const download=button((kind==='stack'?'전체 중첩':label)+' 다운로드',()=>downloadCharacterFile(kind));
   download.disabled=empty;
+  if(kind==='stack')download.dataset.downloadStacks='';
   const file=input(undefined,'','file',{accept:'.json,application/json',hidden:true});
   const upload=button(label+' 업로드',()=>file.click());
   upload.disabled=locked;
@@ -1363,7 +1365,7 @@ function characterFileControls(kind,locked,empty=false){
     try{
       if(selected.size>maxCardFileBytes)throw new Error('파일 크기가 너무 커요.');
       const data=JSON.parse(await selected.text());
-      if(data?.format!==(kind==='character'?characterFileFormat:passiveFileFormat)||data.version!==1)
+      if(data?.format!==(kind==='character'?characterFileFormat:kind==='stack'?stackFileFormat:passiveFileFormat)||data.version!==1)
         throw new Error('콘셉트테라 '+label+' JSON 파일을 선택하세요.');
       if(kind==='character'&&!confirm('이 방의 캐릭터 시트, 일러스트, 패시브를 파일 내용으로 교체할까요?'))return;
       await send(kind+'Import',{file:data});

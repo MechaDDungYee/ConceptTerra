@@ -4146,3 +4146,25 @@ test('stack files preserve effects and limits, carry card dependencies, and reje
   assert.deepEqual(reload.body.profile.customStacks,profile.customStacks);
   assert.equal(reload.body.profile.cards.length,1);
 });
+
+test('homepage authoring downloads ship working examples for all three upload formats',async()=>{
+  const f=await fixture();
+  const get=path=>worker.fetch(new Request('https://game.test'+path),{DB:f.DB});
+  const home=await (await get('/')).text();
+  for(const name of ['guide.md','reference.json','example-cards.json','example-passives.json','example-stacks.json']){
+    assert.match(home,new RegExp('/authoring/'+name.replace('.','\\.')+'" download'));
+  }
+  const reference=await (await get('/authoring/reference.json')).json();
+  assert.ok(reference.ruleOptions.effects.shield);
+  assert.ok(reference.builtInCards.some(card=>card.id==='strike'));
+  assert.ok(reference.serverValidation.stackImport.includes('stackFileFormat'));
+  const guide=await get('/authoring/guide.md');
+  assert.match(guide.headers.get('content-type'),/text\/markdown/);
+  for(const [name,action] of [['cards','cardImport'],['passives','passiveImport'],['stacks','stackImport']]){
+    const file=await (await get('/authoring/example-'+name+'.json')).json();
+    await f.act(action,{file});
+  }
+  assert.ok(f.state.profile.cards.some(card=>card.name==='신호탄 확인'));
+  assert.ok(f.state.profile.passives.some(passive=>passive.name==='객차 순찰'));
+  assert.ok(f.state.profile.stackTraits.some(trait=>trait.name==='잔류 신호'));
+});

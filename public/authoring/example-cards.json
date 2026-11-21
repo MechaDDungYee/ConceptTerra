@@ -1,0 +1,38 @@
+{
+  "format": "conceptterra-card-library",
+  "version": 1,
+  "cards": [
+    {
+      "id": "guide-signal",
+      "name": "신호탄 확인",
+      "role": "normal",
+      "target": 1,
+      "range": "1~3",
+      "hitPowers": [
+        "2d6+1",
+        "4"
+      ],
+      "clash": true,
+      "flavor": "“아직 이어지고 있어.”",
+      "effects": [
+        {
+          "kind": "stack",
+          "when": "use",
+          "to": "self",
+          "amount": 1,
+          "tag": "집중",
+          "stackAxes": true,
+          "axisPower": 12,
+          "axisCount": 2
+        },
+        {
+          "kind": "shield",
+          "when": "hit",
+          "to": "self",
+          "amount": 3,
+          "hitIndex": 2
+        }
+      ]
+    }
+  ]
+}

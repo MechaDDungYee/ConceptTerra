@@ -1,0 +1,35 @@
+{
+  "format": "conceptterra-stacks",
+  "version": 1,
+  "stacks": [
+    {
+      "name": "잔류 신호",
+      "flavor": "꺼진 표지 아래 아직 신호가 남아 있다.",
+      "stackAxesMode": "both",
+      "holdPower": 100,
+      "holdCount": 5,
+      "gainLimits": {
+        "stackTurnCount": 2
+      },
+      "effects": [
+        {
+          "kind": "critChance",
+          "when": "held",
+          "to": "self",
+          "amount": 2,
+          "scaleStack": "count"
+        },
+        {
+          "kind": "consume",
+          "when": "turnEnd",
+          "to": "self",
+          "tag": "잔류 신호",
+          "amount": 1,
+          "stackAxes": true,
+          "axisCount": 1
+        }
+      ]
+    }
+  ],
+  "cards": []
+}

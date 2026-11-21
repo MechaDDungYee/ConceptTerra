@@ -1,0 +1,24 @@
+{
+  "format": "conceptterra-passives",
+  "version": 1,
+  "passives": [
+    {
+      "name": "객차 순찰",
+      "flavor": "발소리로 다음 칸을 기억한다.",
+      "enabled": false,
+      "effects": [
+        {
+          "kind": "shield",
+          "when": "turnStart",
+          "to": "self",
+          "amount": 3,
+          "limit": {
+            "period": "turn",
+            "count": 1
+          }
+        }
+      ]
+    }
+  ],
+  "cards": []
+}

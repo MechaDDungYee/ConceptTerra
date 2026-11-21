@@ -18,3 +18,4 @@ header,main,footer{width:min(1120px,calc(100% - 72px));margin:auto}header{height
 .local-account-form{max-width:26rem}
 .battle-edits{margin-bottom:12px}
 .battle-edits > button{justify-self:start}
+.authoring-guide{margin-top:16px}.authoring-downloads a{display:inline-flex;align-items:center;min-height:40px;padding:8px 12px;border:1px solid var(--line);border-radius:4px;text-decoration:none}.authoring-downloads a:hover,.authoring-downloads a:focus-visible{border-color:var(--acid);text-decoration:underline}

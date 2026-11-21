@@ -552,7 +552,20 @@ function effectSentence(e,extra=[]){
       ' '+(e.tag||'지정 중첩')+' '+consumed+' 소모'+
       (e.to==='allEnemies'&&e.consumeScope==='total'?' · '+stackConsumePriorities[e.consumePriority||'lowestHp']+' 우선':'')
     :null;
-  const text=(amplifyText||consumeText||ratioText||(added?target+' · '+added:phrases[e.kind]||effects[e.kind]+' '+(ratio?.[1]===0?signedAmount(number):number)))+(fixed?' · '+fixed:'')+(e.scaleDiscard?' · 수치 × 대가로 버린 카드 수':e.scaleResource?' · 수치 × '+resourceScales[e.scaleResource]:'');
+  const stackAxisText=e.stackAxes&&['stack','consume','remove'].includes(e.kind)?(()=>{
+    const numbers=[['axisPower','위력'],['axisCount','횟수']].flatMap(([key,label])=>{
+      const expr=e.numberExprs?.[key];
+      const value=expr?describeValue(expr):e[key];
+      if(value==null)return [];
+      if(e[key+'Mode']!=='percent')return [label+' '+value];
+      const basis=stackRatioBases[e[key+'Basis']]||'중첩';
+      return [label+' '+(e[key+'Tag']||e.tag||'지정 중첩')+' · '+basis+' 기준 '+value+'%'];
+    });
+    const action={stack:'부여',consume:'소모',remove:'제거'}[e.kind];
+    return target+(e.kind==='stack'?'에게':'에게서')+' '+(e.tag||'지정 중첩')+
+      (numbers.length?' '+numbers.join(' · '):'')+' '+action;
+  })():null;
+  const text=(stackAxisText||amplifyText||consumeText||ratioText||(added?target+' · '+added:phrases[e.kind]||effects[e.kind]+' '+(ratio?.[1]===0?signedAmount(number):number)))+(fixed?' · '+fixed:'')+(e.scaleDiscard?' · 수치 × 대가로 버린 카드 수':e.scaleResource?' · 수치 × '+resourceScales[e.scaleResource]:'');
   const payment=e.scaleCost;
   const paymentBase=e.scaleDiscard?'현재 손패':e.scaleResource==='mind'?'최대 정신력':healthBases[payment?.healthBasis||'max'];
   const resource=e.scaleDiscard?'손패':e.scaleResource==='mind'?'정신력':'체력';
@@ -561,8 +574,7 @@ function effectSentence(e,extra=[]){
     .map(([key,[label,defaultValue]])=>label+' '+(e[key]??defaultValue)).join(' · ');
   let summary=(tuning?text+' · '+tuning:text)+paymentText;
   if(stackGrantEffects.includes(e.kind)){
-    if(e.stackAxes)summary+=' · 위력 '+(e.axisPower??'유지')+' · 횟수 '+(e.axisCount??'유지');
-    else if(e.stackPower||e.kind==='stack')summary+=' · 1회당 위력 '+(e.stackPower||1);
+    if(!e.stackAxes&&(e.stackPower||e.kind==='stack'))summary+=' · 1회당 위력 '+(e.stackPower||1);
     if(e.stackPowerCap)summary+=' · 1회당 위력 최대 '+e.stackPowerCap;
     if(e.stackCap)summary+=' · 최대 '+e.stackCap+'회';
     for(const [key,[label]] of Object.entries(stackGainLimits)){

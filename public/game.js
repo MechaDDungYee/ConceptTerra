@@ -1236,7 +1236,7 @@ function renderCardFace(preview,card){
   if(unstoppable)body.append(note('저지불가 · 합 패배 시 최소 위력으로 공격'));
   if(role==='guard')body.append(note(coverHelp));
   if(role==='counter')body.append(note(counterHelp));
-  if(role==='overload'||cost&&card.concept)body.append(note('정신력 −'+cost+(card.concept?' · 부족하면 사용 불가':'')));
+  if(!(card.revealHidden||[]).includes('cost')&&(role==='overload'||cost&&card.concept))body.append(note('정신력 −'+cost+(card.concept?' · 부족하면 사용 불가':'')));
   const {popup,keyword}=cardKeywordHelp(preview);
   const description=el('div',undefined,{class:'forge-description',tabindex:0,role:'region','aria-label':'카드 설명'});
   const stackNames=new Set(rows.flatMap(effectStackNames));
@@ -1250,6 +1250,7 @@ function renderCardFace(preview,card){
     description.append(stacks);
   }
   for(const hint of card.publicHints||[])description.append(note(hint));
+  if(card.revealHidden?.includes('effects'))description.append(note('효과는 관찰이 쌓이면 열립니다.'));
   for(const effect of rows){
     const line=el('p',undefined,{class:'forge-effect'});
     const phase=effectConditionText(effect)+effectTiming(effect);
@@ -1962,35 +1963,6 @@ function powerBounds(card, modifier=0) {
   },[0,0]);
   return [Math.max(0,min+modifier),Math.max(0,max+modifier)];
 }
-function actionPanel(title,card,unit,art){
-  const side=el('aside',undefined,{class:'battle-card-detail stack','aria-label':title});
-  side.append(el('h3',title));
-  if(!card){side.append(note('손패에서 행동 카드를 선택하세요.'));return side;}
-  const hidden=card.revealHidden||[];
-  if(unit.enemy&&unit.revealTier!=null){
-    side.dataset.revealTier=unit.revealTier;
-    side.append(note('관찰 '+unit.revealTier+'단계 · '+unit.intelProgress+'/100'+(state.manager?' · GM 전체 열람':'')));
-  }
-  const [min,max]=hidden.includes('power')?['???','???']:powerBounds(card,(unit.enemy?0:mentalPower(Math.max(0,unit.mind-card.cost)))+(unit.nextPower||0)+(unit.awakening?awakeningPower:0)).map(value=>applyPowerRatio(value,unit.nextPowerPercent||0));
-  const values=el('div',undefined,{class:'battle-power-preview'});
-  for(const [key,value] of [['최소 위력',min],['최대 위력',max]]){
-    const item=el('span',key);item.append(el('b',value));values.append(item);
-  }
-  side.append(values,el('strong',card.name),note(unit.name+' · 사거리 '+gridCardRangeLabel(card)));
-  if(cardHitPowers(card).length>1)side.append(note(cardHitPowers(card).map((power,i)=>(i+1)+'타 '+power).join(' · ')));
-  if(card.unredirectable)side.append(note('대상 변경 불가'));
-  if(card.unstoppable)side.append(note('저지불가 · 합 패배 시 최소 위력으로 공격'));
-  if(card.role==='guard')side.append(note(coverHelp));
-  if(card.role==='counter')side.append(note(counterHelp));
-  if(card.splash)side.append(note((card.target==='tile'?'선택한 칸 주변 · ':card.hitTargets?'부 대상 범위 · ':'주 대상 적중 시 · 주변 ')+gridCardRangeLabel(card.splash)));
-  if(art)side.append(el('img',undefined,{src:art,alt:'',class:'battle-action-art'}));
-  for(const hint of card.publicHints||[])side.append(note(hint));
-  if(hidden.includes('effects'))side.append(note('효과는 관찰이 쌓이면 열립니다.'));
-  for(const effect of card.effects)side.append(note(effectConditionText(effect)+effectTiming(effect)+' · '+effectSentence(effect)));
-  if(card.cost)side.append(note('정신력 −'+card.cost));
-  if(card.notes)side.append(note(card.notes));
-  return side;
-}
 function battleDialog(title,content){
   const dialog=el('dialog',undefined,{class:'vn-log-modal','aria-label':title});
   const window=el('div',undefined,{class:'vn-log-window'});
@@ -2200,35 +2172,77 @@ function battlePanel(){
   topbar.append(heading,meters,menu);
   const links=document.createElementNS('http://www.w3.org/2000/svg','svg');
   links.setAttribute('class','battle-action-links');links.setAttribute('aria-hidden','true');board.append(links);
-  const allyPanel=el('div',undefined,{class:'battle-side left'});
   const intentPreview=el('div',undefined,{class:'battle-intent-preview',hidden:true});
   const forecast=el('div',undefined,{class:'clash-forecast','aria-live':'polite'});
   const recentClash=b.log.slice().reverse().find(line=>line.startsWith('합 '));
   if(recentClash)forecast.textContent='직전 '+recentClash;
 
-  for(const {node,intent,unit} of fieldView.nodes){
+  let previewNode,previewTimer;
+  const cancelPreviewHide=()=>clearTimeout(previewTimer);
+  const hideIntentPreview=()=>{
+    cancelPreviewHide();
+    previewNode=null;
+    intentPreview.hidden=true;
+  };
+  const queuePreviewHide=()=>{
+    cancelPreviewHide();
+    previewTimer=setTimeout(()=>{
+      if(intentPreview.matches(':hover')||intentPreview.contains(document.activeElement)||
+        intentPreview.querySelector(':popover-open'))return;
+      hideIntentPreview();
+    },180);
+  };
+  intentPreview.addEventListener('pointerenter',cancelPreviewHide);
+  intentPreview.addEventListener('pointerleave',queuePreviewHide);
+  intentPreview.addEventListener('focusin',cancelPreviewHide);
+  intentPreview.addEventListener('focusout',queuePreviewHide);
+  intentPreview.addEventListener('keydown',event=>{
+    if(event.key==='Escape'&&!intentPreview.querySelector(':popover-open')){
+      event.stopPropagation();
+      previewNode?.focus();
+      hideIntentPreview();
+    }
+  });
+  const bindIntentPreview=({node,intent,unit})=>{
     const show=()=>{
-      const victim=b.units.find(value=>value.id===intent.target);
-      intentPreview.replaceChildren(actionPanel(unit.name+(victim?' → '+victim.name:''),intent.card,unit));
+      cancelPreviewHide();
+      if(previewNode===node&&!intentPreview.hidden)return;
+      previewNode=node;
+      const victim=b.units.find(value=>value.id===(intent.target??intent.targets?.[0]));
+      const title=unit.name+(victim?' → '+victim.name:'');
+      const face=el('article',undefined,{class:'forge-preview','aria-label':intent.card.name});
+      renderCardFace(face,intent.card);
+      face.querySelector('[popover]')?.addEventListener('toggle',event=>{
+        if(event.newState==='closed')queuePreviewHide();
+      });
+      intentPreview.replaceChildren(el('p',title,{class:'battle-intent-preview-title'}),face);
       intentPreview.hidden=false;
       const rect=node.getBoundingClientRect();
+      const margin=8,gap=8;
       const width=intentPreview.offsetWidth;
-      intentPreview.style.left=Math.max(8,Math.min(innerWidth-width-8,rect.left+rect.width/2-width/2))+'px';
-      intentPreview.style.top=Math.max(8,Math.min(innerHeight-intentPreview.offsetHeight-8,rect.bottom+9))+'px';
+      const below=innerHeight-rect.bottom-margin-gap,above=rect.top-margin-gap;
+      const useBelow=below>=intentPreview.scrollHeight||below>=above;
+      intentPreview.style.maxHeight=Math.max(0,useBelow?below:above)+'px';
+      intentPreview.style.left=Math.max(margin,Math.min(innerWidth-width-margin,rect.left+rect.width/2-width/2))+'px';
+      intentPreview.style.top=(useBelow?rect.bottom+gap:rect.top-gap-intentPreview.offsetHeight)+'px';
+      intentPreview.scrollTop=0;
     };
-    node.onpointerenter=show;
-    node.onfocus=show;
-    node.onpointerleave=()=>{intentPreview.hidden=true;};
-    node.onblur=()=>{intentPreview.hidden=true;};
-    node.onclick=event=>{event.stopPropagation();show();};
-  }
+    node.addEventListener('pointerenter',show);
+    node.addEventListener('focus',show);
+    node.addEventListener('pointerleave',queuePreviewHide);
+    node.addEventListener('blur',queuePreviewHide);
+    node.addEventListener('click',event=>{event.stopPropagation();show();});
+    node.addEventListener('dragstart',hideIntentPreview);
+    node.addEventListener('keydown',event=>{if(event.key==='Escape')hideIntentPreview();});
+  };
+  for(const entry of fieldView.nodes)bindIntentPreview(entry);
   const nav=el('nav',undefined,{class:'battle-session-nav','aria-label':'전투 중 세션 메뉴'});
   nav.append(el('a','← 방으로',{href:'/room/'+code}));
   for(const [key,label] of [['character','캐릭터'],['cards','카드 · 덱'],['dialogue','대화창 열기']]){
     nav.append(button(label,()=>document.querySelector('#tabs [data-tab="'+key+'"]').click()));
   }
   nav.append(battleSettingsButton());
-  board.append(fieldView.frame,topbar,nav,fieldView.tools,allyPanel,intentPreview,forecast,battleDialoguePanel());
+  board.append(fieldView.frame,topbar,nav,fieldView.tools,intentPreview,forecast,battleDialoguePanel());
   const poisonAmount=u=>(u.poison||0)+(u.damageOverTime||[]).reduce((sum,dot)=>sum+dot.amount,0);
   const unitStats=el('div',undefined,{class:'stack'});
   for(const u of b.units){
@@ -2568,7 +2582,10 @@ function battlePanel(){
     const signature=JSON.stringify(slots);
     if(editable&&signature!==localSignature){
       localSignature=signature;
-      for(const entry of localNodes)entry.node.remove();
+      for(const entry of localNodes){
+        if(entry.node===previewNode)hideIntentPreview();
+        entry.node.remove();
+      }
       localNodes=[];
       const token=fieldView.tokens.get(self.id);
       if(token){
@@ -2583,7 +2600,9 @@ function battlePanel(){
           node.onclick=event=>{event.stopPropagation();chooseSlot();refresh();};
           node.ondragstart=event=>{event.stopPropagation();chooseSlot();event.dataTransfer.setData('application/x-conceptterra-action',card.id);event.dataTransfer.effectAllowed='link';};
           row.append(node);
-          localNodes.push({unit:self,node,intent:{...slot,id:'draft:'+index,card}});
+          const entry={unit:self,node,intent:{...slot,id:'draft:'+index,card}};
+          localNodes.push(entry);
+          bindIntentPreview(entry);
         }
         if(row.childElementCount)token.append(row);
       }
@@ -2708,7 +2727,6 @@ function battlePanel(){
     fieldView.overlay.replaceChildren();
     linkPosition=pos;
     updateActionLinks(slotChoices());
-    allyPanel.replaceChildren(...(card?[actionPanel(draft.clash?'내 합 카드':'내 행동',card,self,card.image)]:[]));
     forecast.textContent=draft.clash?'합 예고 · '+card.name+' ↔ '+intent.card.name:recentClash?'직전 '+recentClash:'';
     const path=paths.get(pos)||[],point=gridPoint(pos);
     if(path.length)fieldView.tiles[pos].append(marker);
@@ -2795,11 +2813,10 @@ function battlePanel(){
     };
     for(const {node,intent:scheduled,unit} of fieldView.nodes){
       node.setAttribute('aria-pressed',String(draft.clash&&(scheduled.id?scheduled.id===draft.foeIntent:unit.id==='enemy')));
-      node.onclick=event=>{event.stopPropagation();node.onfocus();};
       dropTargets.set(node,()=>{
         if(!pickUnit(unit,scheduled)){
           if(editable&&card?.target==='tile'&&legalTile(card,unit.pos)){draft.targetTile=unit.pos;refresh();}
-          else node.onfocus();
+          else node.focus();
         }
       });
     }

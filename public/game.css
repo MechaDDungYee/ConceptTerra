@@ -39,11 +39,7 @@
 .battle-board-3d .battle-cell[aria-disabled=false]{cursor:pointer}
 /* A filter on the tile flattens its upright 3D token. */
 .battle-board-3d .battle-cell:hover:not(:disabled){filter:none;border-color:#ffffff65}
-.battle-board-3d .battle-token{position:absolute;inset:auto;width:calc(var(--tile-w)*.92);transform:translateZ(13px) rotateZ(var(--counter-rot,0deg)) rotateX(var(--counter-tilt,-60deg));pointer-events:auto;overflow:visible}
-/* Keep the upright artwork and its labels above the tile plane. */
-.battle-board-3d .battle-token:has(> .battle-unit-sprite){
-  transform:translateZ(13px) rotateZ(var(--counter-rot,0deg)) rotateX(var(--counter-tilt,-60deg)) translateY(-50%);
-}
+.battle-board-3d .battle-token{position:absolute;inset:auto;width:calc(var(--tile-w)*.92);transform:translateZ(13px) rotateZ(var(--counter-rot,0deg)) rotateX(var(--counter-tilt,-60deg)) translateY(-50%);pointer-events:auto;overflow:visible}
 .battle-board-3d .battle-token span{background:#141e23e8;padding:2px;border-radius:3px}
 .battle-board-3d .battle-lines{transform:translateZ(2px)}
 
@@ -58,14 +54,10 @@ body:has(.battle-dummy) > main > :is(#error,#feedback):not(:empty){
 .battle-dummy .field-frame,.battle-dummy .battle-field{position:absolute;inset:0;width:100%;height:100%;max-width:none;margin:0;border:0}
 .battle-dummy .field-frame{z-index:-1;background:radial-gradient(ellipse at 51% 46%,#36474d,#141d24 56%,#080d13 94%)}
 .battle-dummy .battle-board-3d{--tile-w:clamp(23px,min(9.5cqw,12dvh),113px);top:47%}
-.battle-topbar,.battle-session-nav,.battle-camera-tools,.battle-side,.clash-forecast,.battle-result-strip{position:absolute}
+.battle-topbar,.battle-session-nav,.battle-camera-tools,.clash-forecast,.battle-result-strip{position:absolute}
 .battle-session-nav{top:var(--hud-edge);left:var(--hud-edge);display:flex;align-items:center;gap:5px;z-index:3}
 .battle-session-nav :is(a,button){padding:6px 8px;font-size:.74rem;background:#151e28e6;border:1px solid #54616a;border-radius:4px;color:#e6edf3;text-decoration:none}
 .battle-dummy .battle-camera-tools{top:calc(var(--hud-edge) + 44px);left:var(--hud-edge)}
-.battle-side{top:46%;transform:translateY(-50%);width:clamp(105px,15vw,220px);z-index:2}
-.battle-side.left{left:var(--hud-edge)}
-.battle-side.right{right:var(--hud-edge)}
-.battle-side:empty{display:none}
 .battle-dock{position:absolute;bottom:0;left:0;right:0;z-index:4;display:grid;justify-items:center;gap:5px;padding:4px var(--hud-edge) max(8px,env(safe-area-inset-bottom));background:linear-gradient(transparent,#090e15e8 55%);pointer-events:none}
 .battle-dock > *{pointer-events:auto;max-width:100%}
 .battle-dock > .battle-hand{width:min(100%,1050px)}
@@ -93,14 +85,6 @@ body:has(.battle-dummy) > main > :is(#error,#feedback):not(:empty){
 .battle-menu[open]>div>button{display:block;width:100%;margin:4px 0}
 .battle-menu form{display:grid;padding:5px 0;max-width:160px}
 .battle-menu input,.battle-menu select{max-width:100%;font-size:.75rem}
-.battle-card-detail{padding:10px;background:#121a22f5;border:1px solid #566575;border-radius:4px;overflow-wrap:anywhere;max-height:340px;overflow:auto}
-.battle-side.right .battle-card-detail{border-color:#855750}
-.battle-card-detail h3,.battle-card-detail p{margin:0}
-.battle-card-detail h3{font-size:.8rem;color:#ccdbe3}
-.battle-card-detail strong{color:#fff0c7}
-.battle-power-preview{display:flex;gap:6px;justify-content:space-between}
-.battle-power-preview span{font-size:.66rem}
-.battle-power-preview b{display:block;font-size:1.15rem;color:#ffda83}
 .battle-action-art{max-width:100%;max-height:110px;object-fit:contain}
 .clash-forecast{top:calc(var(--hud-edge) + 92px);left:50%;transform:translateX(-50%);max-width:75vw;color:#ffdf9e;text-align:center;font-size:.82rem;pointer-events:none}
 .clash-forecast:empty{display:none}
@@ -140,11 +124,9 @@ body:has(.battle-dummy) > main > :is(#error,#feedback):not(:empty){
   .battle-topbar{top:calc(var(--hud-edge) + 33px);left:var(--hud-edge)}
   .battle-topbar h2{font-size:.96rem}
   .battle-topbar .tag{display:none}
-  .battle-side{top:calc(var(--hud-edge) + 128px);transform:none;width:min(39vw,160px)}
   .battle-result-strip{top:var(--hud-edge);max-width:30vw}
   .battle-result-strip span{display:none}
   .clash-forecast{top:auto;bottom:min(44dvh,242px);font-size:.72rem}
-  .battle-card-detail{padding:6px;max-height:100px;gap:3px}
   .battle-topbar{gap:6px;padding:5px;flex-wrap:wrap}
   .battle-meters span{font-size:.63rem;padding:2px 4px}
   .battle-card-fan{justify-content:safe center;overflow-x:auto;padding-top:12px;gap:4px}
@@ -159,7 +141,6 @@ body:has(.battle-dummy) > main > :is(#error,#feedback):not(:empty){
   .battle-dummy .battle-board-3d{top:43%;--tile-w:clamp(22px,min(9cqw,10dvh),78px)}
   .battle-card-fan .battle-skill{min-height:76px}
   .battle-skill .hand-art{height:22px}
-  .battle-card-detail{max-height:130px}
 }
 
 .effect-palette > input[type=search]{margin:0 12px;width:calc(100% - 24px)}
@@ -375,7 +356,9 @@ body:has(.battle-dummy) > main > :is(#error,#feedback):not(:empty){
 .battle-intent-nodes{position:absolute;bottom:calc(100% + 8px);left:50%;display:flex;gap:4px;transform:translateX(-50%);z-index:6;padding:2px}
 .battle-intent-node{display:grid;place-items:center;flex:none;width:24px;height:25px;padding:0;border:0;border-radius:0;background:#59352a;color:#ffe9bc;box-shadow:inset 0 0 0 1px #ecc681;clip-path:polygon(50% 0%,93% 24%,93% 76%,50% 100%,7% 76%,7% 24%);font-size:12px;cursor:pointer;pointer-events:auto}
 .battle-intent-node:is(:hover,:focus-visible,[aria-pressed=true]){background:#ffe1a4;color:#332418;filter:none}
-.battle-intent-preview{position:fixed;z-index:55;width:min(235px,calc(100vw - 16px));max-height:calc(100vh - 16px);overflow:hidden;pointer-events:none}
+.battle-intent-preview{position:fixed;z-index:55;width:min(310px,calc(100vw - 16px));max-height:calc(100dvh - 16px);overflow:auto;overscroll-behavior:contain;border-radius:14px;background:#121a16}
+.battle-intent-preview .forge-preview{width:100%;box-shadow:none}
+.battle-intent-preview-title{margin:0;padding:7px 12px;color:#e8eff3;font-size:.8rem;overflow-wrap:anywhere}
 .battle-intent-preview[hidden]{display:none}
 
 .battle-dialogue{position:absolute;top:38%;right:var(--hud-edge);z-index:5;width:min(250px,calc(100vw - 2 * var(--hud-edge)));background:#111a23ef;border:1px solid #596c7a;border-radius:7px;color:#edf2f3;font-size:.8rem}

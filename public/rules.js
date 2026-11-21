@@ -309,6 +309,7 @@ export const locationTags=Object.values(locationTagGroups).flat();
 export const locationTagAliases=Object.fromEntries(locationTagGroups.국가.map((tag,i)=>['제'+(i+1)+'국',tag]));
 export const revealThresholds=[25,50,100];
 export const maxActivityLocations=6;
+export const trainReturnMind=25;
 export const maxStatusStacks = 999;
 const basicStackDefinitions = {
   '침식':{when:'turnEnd',damage:'physical',description:'턴 종료마다 총 중첩 위력만큼 물리 피해를 받습니다.'},
@@ -389,7 +390,7 @@ export const healthBases = {max:'최대 체력',current:'현재 체력',missing:
 export const healthRatioEffects = Object.keys(ratioEffects).filter(kind=>ratioEffects[kind][2]?.endsWith('최대 체력'));
 export const effectLimitPeriods = {none:'제한 없음',turn:'턴당',battle:'전투당'};
 export const maxEffectActivations = 99;
-export const timings = {held:'보유 시',base:'기본 적용 효과',battleStart:'전투 시작 시',turnStart:'턴 시작 시',turnEnd:'턴 종료 시',cardDrawn:'카드를 뽑았을 시',toGrave:'카드가 묘지로 갔을 시',toDeck:'카드가 덱으로 갔을 시',toExile:'카드가 제외되었을 시',toHand:'카드가 손패로 돌아오거나 지급될 시',handEntered:'카드가 손패에 들어왔을 시 (뽑기 포함)',zoneEntered:'카드가 어느 곳으로든 이동했을 시',decide:'카드 결정 시',confirm:'행동 확정 시',replace:'카드 교체 판정 시',use:'사용 시', clash:'합 진행 시', roll:'주사위 판정 시', win:'합 승리 시', lose:'합 패배 시', tie:'합 동점 시', unopposed:'일방공격 시', counter:'반격 발동 시', hit:'적중 시',critical:'치명타 적중 시',noncritical:'치명타 미적중 시', damage:'피해 발생 시', wall:'벽 충돌 시', consume:'중첩 소모 시', attackEnd:'공격 종료 시', struck:'피격 시', hurt:'피격으로 체력 피해를 받을 때', end:'처리 후'};
+export const timings = {trainReturn:'열차 복귀 시',held:'보유 시',base:'기본 적용 효과',battleStart:'전투 시작 시',turnStart:'턴 시작 시',turnEnd:'턴 종료 시',cardDrawn:'카드를 뽑았을 시',toGrave:'카드가 묘지로 갔을 시',toDeck:'카드가 덱으로 갔을 시',toExile:'카드가 제외되었을 시',toHand:'카드가 손패로 돌아오거나 지급될 시',handEntered:'카드가 손패에 들어왔을 시 (뽑기 포함)',zoneEntered:'카드가 어느 곳으로든 이동했을 시',decide:'카드 결정 시',confirm:'행동 확정 시',replace:'카드 교체 판정 시',use:'사용 시', clash:'합 진행 시', roll:'주사위 판정 시', win:'합 승리 시', lose:'합 패배 시', tie:'합 동점 시', unopposed:'일방공격 시', counter:'반격 발동 시', hit:'적중 시',critical:'치명타 적중 시',noncritical:'치명타 미적중 시', damage:'피해 발생 시', wall:'벽 충돌 시', consume:'중첩 소모 시', attackEnd:'공격 종료 시', struck:'피격 시', hurt:'피격으로 체력 피해를 받을 때', end:'처리 후'};
 export const roles = {normal:'일반', chain:'연계', assist:'원호 공격', guard:'원호 방어', counter:'반격', overload:'혹사'};
 export const maxCardHits = 8;
 export const maxCardEffects = 24;
@@ -433,7 +434,7 @@ export const conceptStacks = {
     {when:'held',kind:'incomingDamage',to:'self',amount:5,amountMode:'percent',scaleStack:'count'}
   ]}
 };
-export const passiveRoundTimings = ['battleStart','turnStart','turnEnd'];
+export const passiveRoundTimings = ['battleStart','turnStart','turnEnd','trainReturn'];
 export const planningTimings=['decide','confirm'];
 export const cardZoneTimings=['cardDrawn','toGrave','toDeck','toExile','toHand','handEntered','zoneEntered'];
 export const zoneCardFilters={same:'이 카드',other:'이 카드 이외의 카드',any:'아무 카드',specific:'목록에서 지정한 카드',named:'이름으로 지정한 카드'};

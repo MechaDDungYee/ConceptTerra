@@ -1,5 +1,5 @@
 import {gridValid, gridSize, gridTileGroups, gridDistance, gridPaths, gridDisplacement, gridCardInRange,gridCardHasReach, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
-import {stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,maxActivityLocations,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
+import {stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,maxActivityLocations,trainReturnMind,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
 class GameInputError extends Error {}
@@ -357,7 +357,7 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
   gameValidateFlow(entries);
   const hitFlavors=Array.isArray(input.hitFlavors)?hitPowers.map((_,index)=>gameText(input.hitFlavors[index],180)):[];
   const flavor=gameText(input.flavor,300);
-  return {id,name,...gameVisibility(input,true),power:hitPowers[0],...(flavor?{flavor}:{}),...(hitFlavors.some(Boolean)?{hitFlavors}:{}),...(hitPowers.length>1?{hitPowers}:{}),...(hitTargets?{hitTargets}:{}),range,...(rangeShape?{rangeShape}:{}),target,...(splash?{splash}:{}),requiredState,clash:!counter&&target!=='tile'&&input.clash===true,unstoppable:!counter&&target!=='tile'&&input.unstoppable===true&&input.clash===true&&!['guard','assist'].includes(input.role)&&target!=='self',role:input.role,cost:input.role==='overload'?bounded(Number(input.cost)||20,10,30):0,notes:gameText(input.notes,300),effects:entries,image};
+  return {id,name,...gameVisibility(input,true),unredirectable:input.unredirectable===true,power:hitPowers[0],...(flavor?{flavor}:{}),...(hitFlavors.some(Boolean)?{hitFlavors}:{}),...(hitPowers.length>1?{hitPowers}:{}),...(hitTargets?{hitTargets}:{}),range,...(rangeShape?{rangeShape}:{}),target,...(splash?{splash}:{}),requiredState,clash:!counter&&target!=='tile'&&input.clash===true,unstoppable:!counter&&target!=='tile'&&input.unstoppable===true&&input.clash===true&&!['guard','assist'].includes(input.role)&&target!=='self',role:input.role,cost:input.role==='overload'?bounded(Number(input.cost)||20,10,30):0,notes:gameText(input.notes,300),effects:entries,image};
 }
 function gamePassive(input,id=gameId(),owned=[],stack=false){
   const limit=maxPassiveEffects+Number(stack);
@@ -593,7 +593,7 @@ function gamePublicView(value){
   if(Array.isArray(value))return value.map(gamePublicView);
   if(!value||typeof value!=='object')return value;
   if(value.gmOnly){
-    const fields=['id','name','power','range','rangeShape','target','role','cost','requiredState','clash','unstoppable','splash','cap'];
+    const fields=['id','name','power','range','rangeShape','target','role','cost','requiredState','clash','unstoppable','unredirectable','splash','cap'];
     const result=Object.fromEntries(fields.filter(key=>Object.hasOwn(value,key)).map(key=>[key,value[key]]));
     if(value.publicName)result.name=value.publicName;
     if(value.publicHint)result.publicHints=[value.publicHint];
@@ -1433,6 +1433,7 @@ function gameSelect(b,u,input,ai=false) {
     return {card:cardId,pos:goal,targets:[],clash:false,...(copyId?{copyId}:{}),discard};
   }
   const clash=input.clash===true;
+  if(clash&&b.intent.card.unredirectable&&b.intent.target!==u.id)gameFail('대상 변경 불가 공격은 가로챌 수 없어요.');
   if(clash&&(['assist','guard','counter'].includes(card?.role)||!card?.clash||!b.intent.reachable||!gameAlive(b.units[b.intent.target])))gameFail('이 행동으로는 현재 합을 걸 수 없어요.');
   const guarding=card?.role==='guard';
   const targetLimit=gridTargetLimit(card);
@@ -2268,6 +2269,10 @@ function gameApplyVisibleEffect(b,ctx,when,target,depth,effect,u,applied,consume
         if(!u.enemy)u.collapseResist=Math.min(99,(u.collapseResist||0)+n);
         break;
       case 'clearCollapse':
+        if(u.collapsed&&gameActive(b)){
+          gameLog(b,u.name+' · 붕괴는 열차 복귀 전에는 풀리지 않습니다.');
+          break;
+        }
         if(!u.enemy&&(u.collapsed||u.zero)){
           u.collapsed=false;
           u.mind=Math.max(u.mind,Math.min(n,100));
@@ -3019,6 +3024,7 @@ function gameUnopposedAttack(b,ctx){
   gameHit(b,ctx,gameActionPower(b,ctx));
 }
 function gameCover(b,attacker,target){
+  if(b.intent.card.unredirectable)return false;
   const options=[];
   for(const unit of Object.values(b.units)){
     if(unit===target||unit.enemy!==target.enemy||!gameAlive(unit)||unit.blockedRounds||(unit.zero&&unit.zero!=='crisis'))continue;
@@ -3114,7 +3120,7 @@ function gamePrepareAction(b,u,plan,moved){
   }
   if(!temporary)u.hand.splice(handIndex,1);
   const originalTargets=original.target==='tile'?gameGroupUnits(gameTileGroups(b,original,u,plan.targetTile)):['guard','counter'].includes(original.role)?[u]:u.collapsed?[]:!gridTargetLimit(original)?gameAllowedTargets(b,u,original):plan.targets.map(id=>b.units[id]).filter(v=>gameAlive(v)&&gameReach(b,original,u,v));
-  const replacement=gameReplacement(b,u,original,plan,moved,originalTargets);
+  const replacement=original.unredirectable?null:gameReplacement(b,u,original,plan,moved,originalTargets);
   const card=replacement?.card||original;
   const targets=replacement?.targets||originalTargets;
   if(!gameAlive(u)){
@@ -3491,6 +3497,23 @@ function gameResolve(b) {
   for(const entity of Object.values(b.units))if(entity.enemy)gameObserve(b,entity,10);
   b.round++;
   gameNext(b);
+}
+function gameReturnToTrain(b,state){
+  for(const unit of Object.values(b.units)){
+    if(unit.enemy)continue;
+    if(unit.collapsed){
+      unit.collapsed=false;
+      unit.mind=trainReturnMind;
+      gameClearCrisis(b,unit);
+      gameLog(b,unit.name+' · 열차 복귀 · 정신력 '+trainReturnMind+'로 회복');
+    }
+    const returning=gameContext(unit,{id:'trainReturn',effects:[]},[]);
+    gamePassives(b,unit,'trainReturn',null,returning);
+    if(unit.bot)continue;
+    const profile=state.profiles[unit.id]??={cards:[],deck:[]};
+    profile.mind=unit.mind;
+    profile.collapsed=false;
+  }
 }
 function gameAwaiting(b,members){
   return Object.values(b.units).filter(u=>!u.bot&&gameCanPlan(u)&&!b.plans[u.id]&&members.some(m=>m.id===u.id));
@@ -3954,15 +3977,11 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
         if(!gameActive(b))gameFail('진행 중인 전투가 없어요.');
         if(gameAwaiting(b,members).length)gameFail('플레이어가 행동을 확정할 때까지 기다려 주세요.');
         gameResolve(b);
-        if(b.phase==='finished')for(const unit of Object.values(b.units)){
-          if(!unit.bot&&!unit.enemy){state.profiles[unit.id]??={cards:[],deck:[]};state.profiles[unit.id].mind=unit.mind;}
-        }
+        if(b.phase==='finished')gameReturnToTrain(b,state);
         break;
       case 'reset':
         if(!manager)return error('GM 또는 방장만 전투를 정리할 수 있어요.',403);
-        if(b)for(const unit of Object.values(b.units)){
-          if(!unit.bot&&!unit.enemy){state.profiles[unit.id]??={cards:[],deck:[]};state.profiles[unit.id].mind=unit.mind;}
-        }
+        if(b&&b.phase!=='finished')gameReturnToTrain(b,state);
         state.battle=null;break;
       case 'rest':
         if(gameActive(b))gameFail('전투를 마친 후 휴식할 수 있어요.');

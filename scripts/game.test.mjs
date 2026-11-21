@@ -3111,3 +3111,18 @@ test('direct attacks cannot target through a wall, while tile targeting is exemp
   const result=await f.send(f.endpoint,{action:'plan',revision:f.state.revision,card:'shot',targets:['enemy']},f.host.cookie);
   assert.equal(result.status,400);
 });
+
+test('a fully collapsed passenger only recovers at train return',async()=>{
+  const f=await fixture();
+  await f.act('passive',{passive:{name:'정신 구조',effects:[{kind:'clearCollapse',when:'turnEnd',to:'self',amount:90}]}});
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{collapsed:true,mind:0,zero:null,blockedRounds:1});
+    b.units.enemy.blockedRounds=1;
+  });
+  await f.act('round');
+  assert.equal(livingForm(f).collapsed,true);
+  assert.equal(livingForm(f).mind,0);
+  await f.act('reset');
+  assert.equal(f.state.profile.mind,25);
+});

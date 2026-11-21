@@ -1035,6 +1035,7 @@ function renderCardFace(preview,card){
   }
   if(powers.every(power=>parsePower(power)))body.append(note('보정 전 총 위력 '+formatPowerRange(powerBounds(card))));
   if(powers.length>1)body.append(note(powers.map((power,index)=>(index+1)+'타 '+(power||'—')).join(' · ')));
+  if(card.unredirectable)body.append(note('대상 변경 불가'));
   if(unstoppable)body.append(note('저지불가 · 합 패배 시 최소 위력으로 공격'));
   if(role==='guard')body.append(note(coverHelp));
   if(role==='counter')body.append(note(counterHelp));
@@ -1418,7 +1419,7 @@ function cards(){
     }
     const image=await imageData(data.get('image'));
     const splash=['splash','tile'].includes(chosen)?{range:splashForm.range.value,rangeShape:splashForm.value()}:undefined;
-    return {card:{id:c.id,name:data.get('name'),gmOnly:data.has('gmOnly'),publicName:data.get('publicName'),publicHint:data.get('publicHint'),hitPowers,hitTargets,hitFlavors:hits.map(hit=>hit.flavor.value),flavor:data.get('flavor'),target:['guard','counter'].includes(role.value)?'self':/^\d$/.test(chosen)?Number(chosen):chosen,range:rangeForm.range.value,rangeShape:rangeForm.value(),splash,clash:data.has('clash'),unstoppable:data.has('unstoppable'),role:data.get('role'),requiredState:data.get('requiredState'),cost:Number(data.get('cost')),notes:data.get('notes'),effects,image:image||(!data.has('clearImage')?c.image:'')}};
+    return {card:{id:c.id,name:data.get('name'),gmOnly:data.has('gmOnly'),publicName:data.get('publicName'),publicHint:data.get('publicHint'),hitPowers,hitTargets,hitFlavors:hits.map(hit=>hit.flavor.value),flavor:data.get('flavor'),target:['guard','counter'].includes(role.value)?'self':/^\d$/.test(chosen)?Number(chosen):chosen,range:rangeForm.range.value,rangeShape:rangeForm.value(),splash,clash:data.has('clash'),unstoppable:data.has('unstoppable'),unredirectable:data.has('unredirectable'),role:data.get('role'),requiredState:data.get('requiredState'),cost:Number(data.get('cost')),notes:data.get('notes'),effects,image:image||(!data.has('clearImage')?c.image:'')}};
   });
   const cost=field('혹사 정신력 소모',select('cost',[[10,'10'],[20,'20'],[30,'30']],c.cost||20));
   const sync=()=>{
@@ -1441,6 +1442,7 @@ function cards(){
     field('대상',select('target',[[1,'1명'],[2,'최대 2명'],[3,'최대 3명'],[4,'최대 4명'],['area','시전자 기준 광역'],['splash','적 지정 광역'],['tile','타일 지정 광역'],['self','자신']],c.target||1)),
     rangeForm.node,splashSettings,
     field('카드 유형',role),field('사용 가능 상태',select('requiredState',Object.entries(cardStates),c.requiredState||'any')),cost,field('합 가능',input('clash','1','checkbox',{checked:c.clash??true}),'inline'),
+    field('대상 변경 불가',input('unredirectable','1','checkbox',{checked:!!c.unredirectable}),'inline'),
     field('저지불가',input('unstoppable','1','checkbox',{checked:!!c.unstoppable,'aria-describedby':'unstoppable-guide'}),'inline'),
     el('p','합에서 패배해도 전투를 계속할 수 있으면 최소 위력으로 공격해요.',{id:'unstoppable-guide',class:'notice minor full'}),
     field('카드 이미지',input('image','','file',{accept:'image/png,image/jpeg,image/webp'})),
@@ -1470,7 +1472,7 @@ function cards(){
       name:form.name.value,role:form.role.value,target:form.target.value,
       range:range.value,rangeShape,hitPowers:powers(),hitTargets:modes,hitFlavors:hits.map(hit=>hit.flavor.value),flavor:form.flavor.value,
       splash:splashSettings.hidden?undefined:{range:splashForm.range.value,rangeShape:splashForm.value()},
-      clash:!form.clash.disabled&&form.clash.checked,unstoppable:!form.unstoppable.disabled&&form.unstoppable.checked,
+      clash:!form.clash.disabled&&form.clash.checked,unstoppable:!form.unstoppable.disabled&&form.unstoppable.checked,unredirectable:form.unredirectable.checked,
       requiredState:form.requiredState.value,cost:form.cost.value,
       image:form.clearImage?.checked?'':artwork,effects:allEffects(),notes:form.notes.value
     });
@@ -1642,6 +1644,7 @@ function actionPanel(title,card,unit,art){
   }
   side.append(values,el('strong',card.name),note(unit.name+' · 사거리 '+gridCardRangeLabel(card)));
   if(cardHitPowers(card).length>1)side.append(note(cardHitPowers(card).map((power,i)=>(i+1)+'타 '+power).join(' · ')));
+  if(card.unredirectable)side.append(note('대상 변경 불가'));
   if(card.unstoppable)side.append(note('저지불가 · 합 패배 시 최소 위력으로 공격'));
   if(card.role==='guard')side.append(note(coverHelp));
   if(card.role==='counter')side.append(note(counterHelp));
@@ -2074,7 +2077,7 @@ function battlePanel(){
     const coverInRange=designated&&candidates.includes(designated);
     const clashTaken=others.some(slot=>slot.clash)||!!b.clashActor&&b.clashActor!==self.id;
     const incoming=b.intent?.reachable&&target&&foe&&gridCardHasReach(b.intent.card,foe.pos,targetPos(target),b.walls);
-    const canClash=!collapsed&&card?.clash&&!['guard','assist','counter'].includes(card.role)&&incoming&&chosen.has(foe?.id)&&!clashTaken;
+    const canClash=!collapsed&&card?.clash&&!['guard','assist','counter'].includes(card.role)&&incoming&&chosen.has(foe?.id)&&!clashTaken&&(!b.intent.card.unredirectable||b.intent.target===self.id);
     if(editable){
       draft.targets=manual?[...chosen]:[];
       if(!canClash)draft.clash=false;

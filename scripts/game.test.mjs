@@ -2537,9 +2537,9 @@ test('arithmetic supports extra terms in effects and comparison operands',async(
 test('concept cards are stronger catalogue choices and pay mental cost once on use',async()=>{
   const f=await fixture();
   const allConcepts=f.state.defaults.filter(card=>card.concept);
-  assert.equal(allConcepts.length,26);
-  const concepts=allConcepts.filter(card=>!['conceptVaultStart','conceptSnailStart','conceptSafeStart','conceptPlummetStart','conceptTrifaceStart','conceptStitchSeam','conceptHeronSpring','conceptFleshNails','conceptBlindJudge','conceptGuestStart','conceptCommuteStart','conceptDread','conceptMaze','conceptApproach','conceptScribeStart','conceptArtistStart'].includes(card.id));
-  assert.equal(f.state.profile.conceptStackTraits.length,19);
+  assert.equal(allConcepts.length,27);
+  const concepts=allConcepts.filter(card=>!['conceptVaultStart','conceptSnailStart','conceptSafeStart','conceptPlummetStart','conceptTrifaceStart','conceptStitchSeam','conceptHeronSpring','conceptFleshNails','conceptBlindJudge','conceptGuestStart','conceptCommuteStart','conceptDread','conceptMaze','conceptApproach','conceptScribeStart','conceptArtistStart','conceptApplauseStart'].includes(card.id));
+  assert.equal(f.state.profile.conceptStackTraits.length,20);
   const {parsePower}=await import('../public/rules.js');
   const average=card=>(card.hitPowers??[card.power]).reduce((sum,value)=>{const power=parsePower(value);return sum+power.bonus+power.count*(power.sides+1)/2;},0);
   const baseline=Math.max(...f.state.defaults.filter(card=>['strike','hold','shot','rush','trace'].includes(card.id)).map(average));
@@ -3713,4 +3713,31 @@ test('maze rewinds a moving ally of the target side after movement',async()=>{
   await f.act('plan',{cards:[],pos:0});await f.act('round');
   assert.ok(f.state.battle.log.some(line=>line.includes('같은 복도로 돌아옴')));
   assert.equal(livingForm(f,'enemy').pos,19);
+});
+
+test('applause roots its holder and release empowers exactly the next first attack',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    Object.assign(self,{pos:17,mind:95,shield:20,hand:['conceptApplauseStart','conceptBlindJudge'],deck:[]});
+    Object.assign(b.units.enemy,{pos:18,hp:999,maxHp:999,blockedRounds:5});
+    b.walls=[];
+  });
+  await f.act('plan',{card:'conceptApplauseStart',targets:['enemy']});await f.act('round');
+  assert.equal(livingForm(f).stacks['수억의 박수'],3);
+  assert.equal(livingForm(f).move,0);
+  assert.ok(livingForm(f).hand.some(card=>card.id==='conceptApplauseScorn'));
+  const mind=livingForm(f).mind;
+  await f.act('plan',{cards:[]});await f.act('round');
+  assert.equal(livingForm(f).mind,mind-6);
+  configureBattle(f,(b,self)=>{self.stacks['수억의 박수']=12;});
+  await f.act('plan',{card:'conceptApplauseScorn',targets:['enemy']});await f.act('round');
+  assert.equal(livingForm(f).stacks['수억의 박수']||0,0);
+  assert.ok(livingForm(f).contemptThrough>=f.state.battle.round);
+  assert.ok(livingForm(f,'enemy').applauseShieldCut>=f.state.battle.round);
+  assert.ok(livingForm(f).applauseRelease.crit>=120);
+  configureBattle(f,(b,self)=>{self.mind=5;self.hand=['conceptVaultReflect'];});
+  await f.act('plan',{card:'conceptVaultReflect',targets:['enemy']});await f.act('round');
+  assert.equal(livingForm(f).applauseRelease,undefined);
+  assert.ok(f.state.battle.log.some(line=>line.includes('치명타 (180%)')));
 });

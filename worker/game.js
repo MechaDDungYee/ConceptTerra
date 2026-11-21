@@ -1,5 +1,5 @@
 import {gridIndex,gridValid, gridSize, gridTileGroups, gridDistance, gridPoint, gridLineOfSight, gridPaths, gridDisplacement, gridCardInRange,gridCardHasReach, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
-import {stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,maxActivityLocations,trainReturnMind,baseHp,characterMaxHp,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, effectiveCardCost, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
+import {stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,maxActivityLocations,trainReturnMind,baseHp,characterMaxHp,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, effectiveCardCost, applauseAttack, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
 class GameInputError extends Error {}
@@ -902,6 +902,32 @@ function gameDreadPower(target){
 function gameRuleCardEffect(b,ctx,unit,kind){
   const actor=ctx.actor;
   switch(kind){
+    case 'applause': {
+      const id=applauseCards[1].id;
+      const generate=actor.hand.length<12&&!actor.hand.includes(id);
+      gameAddApplause(actor,generate?3:4);
+      if(generate)gamePlaceCards(b,actor,'hand',[id]);
+      break;
+    }
+    case 'release': {
+      const count=actor.stacks[applause]||0;
+      if(!count)break;
+      gameWriteStacks(actor,applause,[]);
+      ctx.applauseSpent=count;
+      actor.applauseRelease={round:b.round+1,power:count*5,crit:count*10};
+      actor.move=Math.min(7,actor.move+3);
+      actor.applauseMoveStart=Math.min(7,(actor.applauseMoveStart||0)+3);
+      gameMental(b,actor,8);
+      gameDraw(actor,1,b);
+      break;
+    }
+    case 'contempt':
+      if(ctx.applauseSpent){
+        actor.contemptThrough=b.round+1;
+        gameRemoveShield(actor,Math.floor(actor.shield/2));
+        if(ctx.applauseSpent>=3)unit.applauseShieldCut=b.round+1;
+      }
+      break;
     case 'attendance':
       (unit.attendance??={})[actor.id]={round:b.round,cost:ctx.rulePaid??ctx.card.cost};
       break;
@@ -1023,9 +1049,38 @@ function gameArtistAttack(b,ctx){
     }
   }
 }
+
+const applause='수억의 박수';
+const applauseCards=[
+  {...gamePreset('conceptApplauseStart','관객 · 수억 개의 시선','2d6+4','1~3','normal',1,[
+    ruleCardEffect('hit','applause','박수 3 획득 · 경멸 생성 · 생성할 수 없으면 박수 1 추가','self')
+  ],11),optional:true,flavor:'셀 수 없는 시선이 한 사람의 발목에 모였다.'},
+  {...gamePreset('conceptApplauseScorn','관객 · 단 하나의 경멸','3d6+5','1~4','normal',1,[
+    ruleCardEffect('hit','release','박수를 전부 소모하고 이동력 3, 정신력 8과 1장 드로우 · 다음 턴 첫 공격 강화','self'),
+    ruleCardEffect('hit','contempt','자신이 받는 피해 +15% · 자신의 보호막 절반 · 3중첩 이상 소모 시 대상의 보호막 획득 절반')
+  ],13),generated:true,flavor:'“다들 박수치는데, 당신은 왜 웃지 않습니까?”'}
+].map(card=>({...card,concept:true}));
+function gameAddApplause(unit,count){
+  unit.stackTraits??={};
+  unit.stackTraits[applause]=gameConceptTraits[applause];
+  unit.stacks[applause]=(unit.stacks[applause]||0)+count;
+}
+function gameApplauseRound(b,when){
+  for(const unit of Object.values(b.units).filter(gameAlive)){
+    const count=unit.stacks[applause]||0;
+    if(when==='turnStart'){
+      if(unit.applauseRelease?.round<b.round)delete unit.applauseRelease;
+      if(unit.contemptThrough<b.round)delete unit.contemptThrough;
+      if(count)gameGainShield(b,unit,3);
+    }else if(count){
+      const cost=(unit.applauseMoveStart??unit.move)<=0?count*2:2;
+      gameMental(b,unit,-cost,true);
+    }
+  }
+}
 const gameConceptTraits=Object.fromEntries(Object.entries(conceptStacks).map(([name,trait])=>
   [name,{...trait,name,concept:true,effects:trait.effects.map(effect=>({...gameEffect(effect.when,effect.kind,effect.amount,effect.to),...effect}))}]));
-const gameCatalogue=[...gameDefaults,gameCounterPreset,gameCopyPreset,...gameResourcePresets,...gameAwakeningPresets,...gameConceptPresets,...defenseStarts,...fieldStarts,...guestStarts,...ruleCards,artistCards[0]];
+const gameCatalogue=[...gameDefaults,gameCounterPreset,gameCopyPreset,...gameResourcePresets,...gameAwakeningPresets,...gameConceptPresets,...defenseStarts,...fieldStarts,...guestStarts,...ruleCards,artistCards[0],applauseCards[0]];
 const darkForgive={...gamePreset('conceptForgive','사면 · 어둠 속의 광배','0','0~3','normal',1,[
   {...gameEffect('hit','shield',14),shieldCap:30,shieldSource:'forgiveHalo'},
   gameEffect('hit','mind',6),gameConceptStack('죄 사함의 광배','target'),
@@ -1891,6 +1946,7 @@ function gameSyncShield(unit){
 const gameShieldExpiry=slot=>slot.temporary?-1:slot.through??Infinity;
 function gameGainShield(b,unit,amount,effect={},key='legacy',temporary=false){
   if(!gameAlive(unit)||amount<=0)return 0;
+  if(unit.applauseShieldCut>=b.round)amount=Math.floor(amount/2);
   if(unit.inkBuff?.includes('yellow'))amount=Math.floor(amount*1.3);
   const slots=gameShieldSlots(unit);
   const source=effect.shieldSource||key;
@@ -1954,7 +2010,7 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
   const outgoingValue=value=>origin.ignoreOutgoingCuts?Math.max(0,value||0):value;
   const bonuses=modified&&amount>0?[outgoingValue(actor.outgoingDamage),u.incomingDamage,outgoingValue(outgoing.outgoingDamage),incoming.incomingDamage,
     bossOutgoing?outgoingValue(actor.bossOutgoingDamage):0,bossIncoming?u.bossIncomingDamage:0]:[];
-  const ratios=modified?[outgoingValue(actor.outgoingDamagePercent),u.incomingDamagePercent,outgoingValue(outgoing.outgoingDamagePercent),incoming.incomingDamagePercent,
+  const ratios=modified?[u.contemptThrough>=b.round?15:0,outgoingValue(actor.outgoingDamagePercent),u.incomingDamagePercent,outgoingValue(outgoing.outgoingDamagePercent),incoming.incomingDamagePercent,
     bossOutgoing?outgoingValue(actor.bossOutgoingDamagePercent):0,bossIncoming?u.bossIncomingDamagePercent:0,actor.conceptEntity?-(incoming.conceptIncomingCut||0):0,
     u.enemy&&gameIsCollector(b)&&b.encounter.breakRound===b.round?25:0]:[];
   const sum=values=>values.reduce((total,value)=>total+(value||0),0);
@@ -2026,6 +2082,7 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
   if(gameBrightSafe(b,u)&&u.id!=='conceptDawn'||gameIsBright(b)&&u.enemy&&b.encounter.stage<3&&b.encounter.holder&&gameAlive(b.units[b.encounter.holder]))
     actual=Math.min(actual,u.hp-1);
   u.hp-=actual;
+  if(actual||absorbed)u.applauseHurt=(u.applauseHurt||0)+1;
   gameInk(b,'cyan',Math.floor(actual/2));
   if(vaultReflect||goldMitigation)gameDamage(b,actor,3,u,false,false,true,{kind:'stack'});
   if(actual&&gameIsJudge(b)&&u.enemy&&!actor.enemy&&!origin.judgeIndirect){
@@ -2231,7 +2288,7 @@ function gameActionPower(b,ctx,opponent){
   const judgeAxe=gameIsJudge(b)&&ctx.card.id==='judgeAxe';
   const blind=ctx.card.id==='conceptBlindJudge';
   const pending=unit.nextPower||0;
-  const modifier=ctx.mod+(judgeAxe||blind?Math.max(0,pending):pending)+memory+awakening+(unit.stacks[redItch]||0)+
+  const modifier=ctx.mod+(judgeAxe||blind?Math.max(0,pending):pending)+memory+awakening+(unit.stacks[redItch]||0)+(applauseAttack(ctx.card)?(unit.stacks[applause]||0)*2:0)+
     (blind&&target?Math.min(16,4*(gameJudgeDebuffKinds(target).length+Number(!!target.redBleed))):0);
   const nextPercent=unit.nextPowerPercent||0;
   const percent=(ctx.powerPercent||0)+(blind?Math.max(0,nextPercent):nextPercent);
@@ -2356,6 +2413,9 @@ function gameNext(b) {
       delete unit.redBleed;
       delete unit.inks;
       delete unit.inkBuff;
+      delete unit.applauseRelease;
+      delete unit.contemptThrough;
+      delete unit.applauseShieldCut;
       if(gameIsBright(b))delete unit.stacks[brightLight];
       delete unit.queuedShields;delete unit.nextShield;
       if(unit.shield)gameExpireShields(unit,()=>true);
@@ -2426,6 +2486,8 @@ function gameNext(b) {
     delete unit.lateDraw;
   }
   gameDeckEffects(b,'turnStart');
+  for(const unit of Object.values(b.units))unit.applauseMoveStart=unit.move;
+  gameApplauseRound(b,'turnStart');
   gameFieldRound(b,'turnStart');
   for(const unit of Object.values(b.units).filter(gameAlive))gameItchRound(b,unit,'turnStart');
   if(!gameIsFirstStop(b)&&!gameIsRail(b))b.intent.reachable=b.intent.reachable&&gameActionLimit(enemy)>0&&
@@ -2571,7 +2633,7 @@ const gameNormalCard=card=>card&&!card.concept&&cardState(card.requiredState)===
 function gameCampaignDeck(state,id,collection){
   const campaign=state.campaign;
   const party=campaign?.loopCount?campaign.party.find(unit=>unit.id===id):null;
-  const owned=[...gameCatalogue,...defenseGenerated,...fieldGenerated,guestGenerated,commuteSeize,scribeRewind,artistCards[1],...gameUnlockedCards(state.profiles[id]),...collection.cards,...Object.values(campaign?.definitions||{})];
+  const owned=[...gameCatalogue,...defenseGenerated,...fieldGenerated,guestGenerated,commuteSeize,scribeRewind,artistCards[1],applauseCards[1],...gameUnlockedCards(state.profiles[id]),...collection.cards,...Object.values(campaign?.definitions||{})];
   if(!party)return {owned,cards:gameDeck(owned,collection.deck)};
   const cards=party.deck.map(cardId=>owned.find(card=>card.id===cardId));
   if(cards.length!==deckSize||cards.some(card=>!card))gameFail('소실된 덱의 빈자리를 새 카드로 채운 뒤 출발하세요.');
@@ -4276,12 +4338,13 @@ function gameStrike(b,ctx,target,roll){
   }
   if(b.encounter&&b.zones.includes(actor.pos))roll=Math.max(0,roll-3);
   const held=gameHeldModifiers(b,actor,target);
-  const chance=bounded((actor.critChance||0)+(actor.critStacks||0)*5+(held.critChance||0)+Math.min(100,stackPotency(actor,'집중')),0,100);
+  const rawChance=(actor.critChance||0)+(actor.critStacks||0)*5+(held.critChance||0)+Math.min(100,stackPotency(actor,'집중'))+(ctx.applauseCrit||0);
+  const chance=bounded(rawChance,0,100);
   ctx.critical=!blind&&roll>0&&(ctx.fieldCrit!==undefined||actor.critCharges>0||chance>0&&gameRoll(100)<=chance);
   if(ctx.critical){
     if(actor.critCharges>0&&ctx.fieldCrit===undefined)actor.critCharges--;
     ctx.anyCritical=true;
-    const multiplier=150+bounded((actor.critMultiplier||0)+(held.critMultiplier||0)+(actor.stacks.강타||0)+(ctx.fieldCrit||0),-50,850);
+    const multiplier=150+bounded((actor.critMultiplier||0)+(held.critMultiplier||0)+(actor.stacks.강타||0)+(ctx.fieldCrit||0)+(ctx.applauseCrit?Math.max(0,rawChance-100):0),-50,850);
     roll=Math.floor(roll*multiplier/100);
     gameLog(b,actor.name+' · 치명타 ('+multiplier+'%) → '+target.name);
   }
@@ -4331,6 +4394,10 @@ function gameStrike(b,ctx,target,roll){
   if(ctx.card.id==='conceptDread'&&priorMind>0&&target.mind===0)actor.ruleHalfCost=b.round+1;
   if(actor.whiteMaze?.caster===target.id&&actor.mind>=70&&dealt>=15)delete actor.whiteMaze;
   if(actor.inkBuff?.includes('black')&&actor!==target&&gameAlive(target))gameMentalDamage(b,target,5,actor,{kind:'card'});
+  if(actor.enemy!==target.enemy&&actor.stacks[applause]&&
+      (actor.applauseHurt||0)===(ctx.applauseHurt||0)){
+    gameAddApplause(actor,1);
+  }
   gameItchHit(b,actor,target);
   const stitches=target.stacks['바늘땀']||0;
   if(stitches&&gameAlive(target)&&actor.enemy!==target.enemy){
@@ -4691,12 +4758,16 @@ function gamePrepareAction(b,u,plan,moved){
     }
   }
   gameCollectorUse(b,u);
+  const release=applauseAttack(card)&&u.applauseRelease?.round===b.round?u.applauseRelease:null;
   const paid=gameRuleCost(b,u,card);
+  if(release)delete u.applauseRelease;
   if(card.cost&&u.ruleHalfCost>=b.round)delete u.ruleHalfCost;
   if(card.cost&&u.scribeDiscount>=b.round)delete u.scribeDiscount;
   if(paid){gameMental(b,u,-paid,true);gameLog(b,u.name+(card.concept?' 개념구':card.refill?' 재작성 카드':' 혹사')+' · 정신력 -'+paid);}
   const ctx=gameContext(u,card,targets,moved);
   ctx.rulePaid=paid;
+  ctx.applauseHurt=u.applauseHurt||0;
+  if(release){ctx.mod+=release.power;ctx.applauseCrit=release.crit;}
   gameCountCardUse(b,ctx);
   ctx.waitingPlan=plan;
   waiting?.set(plan,ctx);
@@ -5012,6 +5083,7 @@ function gameResolve(b) {
   gameFieldRound(b,'turnEnd');
   for(const unit of Object.values(b.units).filter(gameAlive))gameItchRound(b,unit,'turnEnd');
   gameAttendanceEnd(b);
+  gameApplauseRound(b,'turnEnd');
   if(enemy.defenseSkip>0)enemy.defenseSkip--;
   if(gameIsRail(b)){
     const alive=party.filter(gameAlive);
@@ -5107,7 +5179,7 @@ function gameResolve(b) {
       else u.zeroRound=b.round;
     } else delete u.zeroRound;
     u.rooted=!!u.rootNext;
-    u.move=u.rooted?0:bounded(2+u.nextMove,0,7);
+    u.move=u.rooted?0:bounded(2+u.nextMove+(gameHeldModifiers(b,u,null).moveMod||0),0,7);
     u.rootNext=false;u.nextMove=0;
 
   }

@@ -404,6 +404,10 @@ export const maxPassiveEffects = 8;
 export const heldStackEffectKinds = ['conceptIncomingCut','critChance','critMultiplier','outgoingDamage','incomingDamage','moveMod','forcedMoveImmune','leaveTrail'];
 // Concept cards grant these traits to their holder for the current battle.
 export const conceptStacks = {
+  '수억의 박수':{cap:null,flavor:'박수 소리가 커질수록 한 걸음 옮기기가 어려워졌다.',effects:[
+    {when:'held',kind:'moveMod',amount:-1,scaleStack:'count',to:'self',
+      publicLabel:'중첩당 공격 위력 +2 및 이동력 −1 · 시작 보호막 3 · 종료 정신력 2 또는 이동 불가 시 중첩×2'}
+  ]},
   '영감':{cap:null,flavor:'전장에서 일어난 모든 일이 그림의 재료가 된다.',effects:[
     {when:'held',kind:'rulecard:ink',amount:1,to:'self',publicLabel:'타격마다 마젠타 3 · 피해의 절반 시안 · 체력 회복량 옐로우 · 정신력 변화 절댓값 블랙'}
   ]},
@@ -539,7 +543,9 @@ export const artPoses = {idle:'스탠딩',ready:'공격 준비',attack:'공격',
 export const artPoseLabel=(form,pose)=>pose==='shift'?
   ({concept:'기본 → 붕괴 변화 연출',awakened:'기본 → 각성 변화 연출',normal:'기본 형태로 복귀 연출',crisis:'붕괴 직전 변화 연출'}[form]||artPoses.shift):
   artPoses[pose];
+export const applauseAttack=card=>!!card&&card.target!=='self'&&card.role==='normal'&&parsePower(card.power).count+parsePower(card.power).bonus>0;
 export function effectiveCardCost(unit,card,round=unit.combatRound??Infinity){
+  if(unit.applauseRelease?.round===round&&applauseAttack(card))return 0;
   const reduced=(card?.cost||0)-(unit.scribeDiscount>=round?3:0);
   const half=unit.ruleHalfCost>=round?Math.floor(reduced/2):reduced;
   return Math.max(0,unit.inkBuff?.includes('black')?Math.floor(half*0.7):half);

@@ -1,5 +1,5 @@
 import {maxFlowDepth,maxFlowRepeat,maxExpressionDepth,maxMathTerms,flowMathTerms,flowArithmetic,flowComparisons,flowStats,effectConditions,
-  keywordScanModes,keywordScanPeriods,stackScanScopes,stackScanMetrics,flagConditions,diceConditions,maxDiceTotal,hitResultTests,flowGates,maxGateInputs,timings} from './rules.js';
+  keywordOwnedZones,keywordScanModes,keywordScanPeriods,stackScanScopes,stackScanMetrics,flagConditions,diceConditions,maxDiceTotal,hitResultTests,flowGates,maxGateInputs,timings} from './rules.js';
 
 const create=(name,content,cls)=>{
   const el=document.createElement(name);
@@ -51,6 +51,7 @@ export function describeValue(node){
 
 export function describeTest(node){
   if(node.type==='hitResult')return hitResultTests[node.result];
+  if(node.type==='condition'&&node.condition?.startsWith('keywordOwned'))return (node.scope==='named'?node.names:stackScanScopes[node.scope||'allies'])+' 중 '+keywordOwnedZones[node.zone||'active']+'에 '+(node.tag||'키워드')+' 카드 '+(node.minimum??1)+'장 이상 보유'+(node.condition==='keywordOwned'?'한 대상 있음':'한 인원 '+flowComparisons[node.op||'gte']+' '+(node.thresholdExpr?describeValue(node.thresholdExpr):node.threshold));
   if(node.type==='condition'&&node.condition==='keywordScan')return (node.scope==='named'?node.names:stackScanScopes[node.scope||'allies'])+' 중 '+keywordScanPeriods[node.period||'round']+' '+(node.tag||'키워드')+' 카드 '+(node.minimum??1)+'회 이상 사용한 인원 '+flowComparisons[node.op||'gte']+' '+(node.thresholdExpr?describeValue(node.thresholdExpr):node.threshold);
   if(node.type==='condition'&&node.condition==='stackScan')return (node.scope==='named'?node.names:stackScanScopes[node.scope||'allies'])+' 중 '+(node.tag||'중첩')+' '+stackScanMetrics[node.metric||'count']+' '+(node.minimum??1)+' 이상인 인원 '+flowComparisons[node.op||'gte']+' '+(node.thresholdExpr?describeValue(node.thresholdExpr):node.threshold);
   if(node.type==='condition'){
@@ -358,7 +359,7 @@ export function blockWorkspace(config){
     field.append(choose('조건 블록 종류',options,type,type=>replace(safeTest(type))));
     if(type==='condition'){
       const isResult=node.type==='hitResult';
-      const conditions={...effectConditions,stackScan:'특정 중첩을 가진 대상 수',keywordScan:'특정 키워드 카드를 사용한 대상 수'};delete conditions[''];
+      const conditions={...effectConditions,stackScan:'특정 중첩을 가진 대상 수',keywordScan:'특정 키워드 카드를 사용한 대상 수',keywordOwned:'특정 키워드 카드를 보유한 대상 있음',keywordOwnedCount:'특정 키워드 카드를 보유한 대상 수'};delete conditions[''];
       if(when==='hit')for(const [result,label] of Object.entries(hitResultTests))conditions['hit:'+result]=label;
       const current=isResult?'hit:'+node.result:node.condition;
       field.append(choose('전투 조건',conditions,current,condition=>{
@@ -366,18 +367,21 @@ export function blockWorkspace(config){
           {type:'condition',condition,subject:node.subject||'self',threshold:1});
       }));
       if(isResult&&node.result==='wall')field.append(create('small','넉백이나 끌어오기 뒤에 연결하세요.'));
-      if(!isResult&&['stackScan','keywordScan'].includes(node.condition)){
-        const keyword=node.condition==='keywordScan';
+      if(!isResult&&['stackScan','keywordScan','keywordOwned','keywordOwnedCount'].includes(node.condition)){
+        const holding=node.condition.startsWith('keywordOwned');
+        const keyword=holding||node.condition==='keywordScan';
         const set=(key,value)=>{node[key]=value;onChange();};
         const scope=node.scope||'allies';
         field.append(stackSelect(node.tag,value=>set('tag',value)),
           choose('감지할 대상 범위',stackScanScopes,scope,value=>replace({...node,scope:value})),
+          holding?choose('확인할 카드 위치',keywordOwnedZones,node.zone||'active',value=>set('zone',value)):
           keyword?choose('카드 사용 기록 범위',keywordScanPeriods,node.period||'round',value=>set('period',value)):
             choose('대상마다 확인할 중첩 기준',stackScanMetrics,node.metric||'count',value=>set('metric',value)),
-          number(keyword?'대상 한 명당 최소 카드 사용 횟수':'대상 한 명당 필요한 최소 중첩',node.minimum??1,1,9999,value=>set('minimum',value)),
-          choose('감지된 인원 비교',flowComparisons,node.op||'gte',value=>set('op',value)));
-        const threshold=number('필요 인원',node.threshold??1,0,100,value=>set('threshold',value));
-        field.append(threshold,numberSocket(threshold,node.thresholdExpr,expr=>set('thresholdExpr',expr)));
+          number(holding?'대상 한 명당 최소 보유 카드 수':keyword?'대상 한 명당 최소 카드 사용 횟수':'대상 한 명당 필요한 최소 중첩',node.minimum??1,1,9999,value=>set('minimum',value)));
+        if(node.condition!=='keywordOwned'){
+          const threshold=number('필요 인원',node.threshold??1,0,100,value=>set('threshold',value));
+          field.append(choose('감지된 인원 비교',flowComparisons,node.op||'gte',value=>set('op',value)),threshold,numberSocket(threshold,node.thresholdExpr,expr=>set('thresholdExpr',expr)));
+        }
         if(keyword)field.append(choose('카드가 키워드를 다루는 방식',keywordScanModes,node.mode||'any',value=>set('mode',value)));
         if(scope==='named'){
           const names=create('input');names.type='text';names.value=node.names||'';

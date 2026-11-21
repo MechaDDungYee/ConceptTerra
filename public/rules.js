@@ -403,6 +403,7 @@ export const maxPassives = 8;
 export const maxConceptTools = 10;
 export const stackScanScopes={allies:'다른 아군',party:'아군 전체(자신 포함)',enemies:'적',everyone:'전장 전체',targets:'현재 카드의 대상들',named:'이름으로 지정한 유닛들'};
 export const keywordScanModes={any:'모든 키워드 효과',grant:'중첩 부여',consume:'중첩 소모',remove:'중첩 제거',other:'그 외 키워드 효과'};
+export const keywordOwnedZones={active:'손패·덱·묘지',hand:'손패',deck:'덱',grave:'묘지',exile:'제외',all:'모든 카드 위치',configured:'전투에 등록한 덱'};
 export const keywordScanPeriods={round:'이번 라운드',previous:'직전 라운드',battle:'이번 전투 전체'};
 export const stackScanMetrics={count:'중첩 횟수',power:'중첩 총 위력'};
 export const maxPassiveEffects = 8;
@@ -627,7 +628,7 @@ export function effectCardReferences(effect){
 export function effectStackNames(effect){
   const names=new Set([effect.tag,effect.conditionStackTag].filter(Boolean));
   const read=test=>{
-    if(test.type==='condition'&&['stack','stackScan','keywordScan'].includes(test.condition)&&test.tag)names.add(test.tag);
+    if(test.type==='condition'&&['stack','stackScan','keywordScan','keywordOwned','keywordOwnedCount'].includes(test.condition)&&test.tag)names.add(test.tag);
     else if(test.type==='gate')test.inputs.forEach(read);
     else if(test.type==='and'||test.type==='or'){read(test.left);read(test.right);}
     else if(test.type==='not')read(test.test);

@@ -3817,3 +3817,21 @@ test('keyword scans use card history and count individual users even without the
   await f.act('plan',{cards:[]});await f.act('round');
   assert.equal(livingForm(f).shield,8);
 });
+
+test('keyword possession detects one holder and counts two distinct holders by zone',async()=>{
+  const f=await fixture();
+  const scan={type:'condition',tag:'집중',scope:'allies',zone:'deck',mode:'consume'};
+  await f.act('conceptTool',{tool:{name:'집중 카드 감지',enabled:true,effects:[
+    {when:'turnStart',kind:'shield',to:'self',amount:3,flow:[{kind:'if',id:1,branch:'then',test:{...scan,condition:'keywordOwned'}}]},
+    {when:'turnStart',kind:'shield',to:'self',amount:7,flow:[{kind:'if',id:2,branch:'then',test:{...scan,condition:'keywordOwnedCount',threshold:2}}]}
+  ]}});
+  await f.act('start',{solo:true,bots:2});
+  const fill=bot=>{bot.library.hold={...bot.library.hold,effects:[{when:'use',kind:'consume',to:'self',amount:1,tag:'집중'}]};
+    bot.deck=Array(8).fill('hold');};
+  configureBattle(f,b=>{fill(b.units.bot0);for(const id of ['bot0','bot1','enemy'])b.units[id].blockedRounds=3;});
+  await f.act('plan',{cards:[]});await f.act('round');
+  assert.equal(livingForm(f).shield,3);
+  configureBattle(f,b=>fill(b.units.bot1));
+  await f.act('plan',{cards:[]});await f.act('round');
+  assert.equal(livingForm(f).shield,13);
+});

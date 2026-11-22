@@ -15,6 +15,8 @@ export function battleMusicTrack(battle,selection='auto'){
   const {id,name,stage}=battle.encounter??{};
   if(id==='blight01')return stage===3?'bright3':stage===2?'bright2':'bright1';
   if(id==='stop01')return 'dark';
+  const encounterTrack={artist01:'artist',decomposer01:'decomposer',commute01:'attendance',guest01:'invitee',applause01:'contempt',census01:'census',maze01:'maze',flesh01:'flesh',scribe01:'scribe'}[id];
+  if(encounterTrack)return encounterTrack;
   return Object.keys(tracks).find(key=>name===tracks[key]||battle.units?.some(unit=>unit.enemy&&unit.name===tracks[key]))??null;
 }
 
@@ -43,7 +45,8 @@ export function syncBattleMusic(battle,selection,playRequested=false){
   if(track!==currentTrack){
     currentTrack=track;
     currentPlayback=null;
-    audio.src=musicSource+encodeURIComponent('잡다한 것들')+'/'+encodeURIComponent(tracks[track]+'.m4a');
+    audio.src=['census','maze','flesh','scribe'].includes(track)?'/battle-music/'+track+'.mp3':
+      musicSource+encodeURIComponent('잡다한 것들')+'/'+encodeURIComponent(tracks[track]+'.m4a');
     playRequested=true;
     updateStatus(tracks[track]);
   }

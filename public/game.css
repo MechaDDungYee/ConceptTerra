@@ -379,3 +379,4 @@ body:has(.battle-dummy) > main > :is(#error,#feedback):not(:empty){
 .dialogue-compose{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start}.dialogue-compose:has(.dialogue-gm-controls[hidden]){grid-template-columns:1fr}.dialogue-gm-controls{display:grid;gap:6px;width:min(260px,36vw)}.dialogue-gm-controls[hidden],.dialogue-gm-controls [hidden]{display:none}.dialogue-gm-controls select,.dialogue-gm-controls input{width:100%}@media(max-width:620px){.dialogue-compose{grid-template-columns:1fr}.dialogue-gm-controls{width:100%}}
 
 .battle-cell.instant-move-tile { outline: 2px solid #70eac3; outline-offset: -4px; cursor: pointer; }
+.battle-cell.pit-elevator{box-shadow:inset 0 0 0 2px #84d7ae}.battle-cell.maze-entry{box-shadow:inset 0 0 0 2px #f1e8cd}.battle-cell.concept-corrosion{background:#3d5b34}.battle-cell.concept-canvas{background:#654262}

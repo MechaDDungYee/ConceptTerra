@@ -29,15 +29,19 @@ export function gridNeighbors(p) {
   const {x,y}=gridPoint(p);
   return [gridIndex(x+1,y),gridIndex(x-1,y),gridIndex(x,y+1),gridIndex(x,y-1)].filter(gridValid);
 }
-export function gridPaths(origin,limit,blocked) {
+export const gridTravelCost = (path,slowTiles=[]) => path.reduce((cost,pos)=>cost+(slowTiles.includes(pos)?2:1),0);
+export function gridPaths(origin,limit,blocked,slowTiles=[]) {
   const paths=new Map([[origin,[]]]);
+  const distances=new Map([[origin,0]]);
   const queue=[origin];
   for(const pos of queue){
     const path=paths.get(pos);
-    if(path.length>=limit)continue;
+    const distance=distances.get(pos);
     for(const next of gridNeighbors(pos)){
-      if(paths.has(next)||blocked.has(next))continue;
+      const cost=distance+(slowTiles.includes(next)?2:1);
+      if(cost>limit||blocked.has(next)||cost>=(distances.get(next)??Infinity))continue;
       paths.set(next,[...path,next]);
+      distances.set(next,cost);
       queue.push(next);
     }
   }

@@ -2,7 +2,7 @@ import {battleMusicSettings,closeBattleMusicSettings,syncBattleMusic} from './ba
 import {blockWorkspace,describeFlow,describeValue} from './blocks.js';
 import {bindBattleBoardControls} from './battle-camera.js';
 import {accountPanel} from './account.js';
-import {gridCanAimTile,gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridLineOfSight,gridCardInRange,gridCardHasReach,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
+import {gridCanAimTile,gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridTravelCost,gridLineOfSight,gridCardInRange,gridCardHasReach,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
 import {instantMoveModes,instantMoveDirections,instantMoveOffsets,instantMoveAnchors,instantMoveOrders,instantMoveStackTests,instantMoveStackMetrics,maxPortraitDataLength,maxPortraitSide,keywordOwnedZones,keywordScanModes,stackScanScopes,maxConceptTools,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTagGroups,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,maxOverloadCost,defaultOverloadCost,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,stackFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
 const studio=location.pathname==='/studio';
@@ -1946,7 +1946,23 @@ function startPanel(){
     bots.value=String(Math.min(old,max));
   };
   solo.onchange=refresh;refresh();bots.value=String(4-state.roster.length-Number(solo.checked));
-  const encounter=select('encounter',[['','객차 연습 전투'],['stop01','첫 정류장 · 불 꺼진 제6국 외곽 막다른 골목'],['collector01','외상 장부의 수금원 · 잿빛 세관 창고'],['judge01','눈 먼 심판자 · 법원 지하 보관고'],['railguard01','선로 보안반 · 신호가 끊긴 폐선로'],['blight01','밝은 곳에서 더더욱 빛나는 · 빛이 남은 광장']],'');
+  const encounter=select('encounter',[
+    ['','객차 연습 전투'],
+    ['stop01','첫 정류장 · 불 꺼진 제6국 외곽 막다른 골목'],
+    ['collector01','외상 장부의 수금원 · 잿빛 세관 창고'],
+    ['judge01','눈 먼 심판자 · 법원 지하 보관고'],
+    ['railguard01','선로 보안반 · 신호가 끊긴 폐선로'],
+    ['blight01','밝은 곳에서 더더욱 빛나는 · 빛이 남은 광장'],
+    ["commute01","출근 확인반 · 야간 당직실 앞 복도"],
+    ["guest01","언제나 초대받는 사람 · 국경 외곽 공동주택 · 식탁이 남은 거실"],
+    ["applause01","수억 가지의 시선과 하나의 경멸 · 폐쇄된 공개 심사장 · 비어 있는 객석"],
+    ["maze01","흰색 미로 · 증축된 폐쇄 병동 · 이음새 없는 복도"],
+    ["flesh01","붉은 손톱의 살덩이 · 폐기물 처리실 · 마르지 않는 하수조"],
+    ["scribe01","되감기 속기사 · 법정 기록 보관소 · 끝나지 않는 서가"],
+    ["census01","마모된 이름의 호적부 · 제8국 방벽 너머 · 이름이 빠진 마을"],
+    ["artist01","예술가 · 제8국 외곽 · 구덩이 바닥"],
+    ["decomposer01","세계의 분해자 · 제8국 외곽 · 구덩이 바닥"],
+  ],'');
   form.append(field('조우 선택',encounter),field('내 캐릭터로 혼자 연습',solo,'inline'),field('자동 행동 봇 동료',bots),submit('전투 시작'));
   root.append(form,note('봇은 빈 플레이어 자리를 채우고 라운드 처리 시 이동·공격·합·원호를 자동 선택합니다.'));
   return root;
@@ -2024,7 +2040,12 @@ function battleGrid(b,self){
     if(b.tiles?.[i]?.kind==='spring')tile.title='물웅덩이 · '+(b.tiles[i].through-b.round+1)+'라운드 남음';
     else if(b.tiles?.[i])tile.title='점액 흙길 · 통과 시 다음 라운드 이동력 감소';
     if(temporaryWall){tile.classList.add('temporary-wall');tile.title='임시 벽 · '+(temporaryWall.through-b.round+1)+'라운드 남음';}
-    if(b.zones?.includes(i))tile.title=i===22?'성역':'포근한 광배';
+    const mechanic=b.encounter?.mechanic;
+    if(mechanic?.elevator?.tiles.includes(i)){tile.classList.add('pit-elevator');tile.title='비상 승강기';}
+    else if(mechanic?.entry===i){tile.classList.add('maze-entry');tile.title='미로 입구';}
+    else if(b.tiles?.[i]?.kind==='corrosion'){tile.classList.add('concept-corrosion');tile.title='부식 지대';}
+    else if(b.tiles?.[i]?.kind==='canvas'){tile.classList.add('concept-canvas');tile.title='물감 캔버스';}
+    else if(b.zones?.includes(i))tile.title=mechanic?.elevator?'구덩이 · 이동력 2':mechanic?.recorded!=null?'빈칸 지대':i===22?'성역':'포근한 광배';
     tile.setAttribute('aria-label',`${x+1}열 ${y+1}행${wall?' · 벽':unit?' · '+unit.name:''}`);
     tile.append(el('small',String.fromCharCode(65+x)+(y+1),{class:'coordinate'}));
     if(unit){
@@ -2130,7 +2151,8 @@ function battlePanel(){
   const crisis=self?.zero==='crisis', collapsed=!!self?.collapsed;
   const active=self&&b.phase==='planning'&&self.hp>0&&!self.blockedRounds&&(!self.zero||crisis||collapsed);
   const occupied=new Set([...b.walls,...b.units.filter(u=>u.id!==self?.id&&u.hp>0).map(u=>u.pos)]);
-  const paths=active?gridPaths(self.pos,self.move,occupied):new Map();
+  const terrain=b.encounter?.mechanic?.elevator?b.zones:[];
+  const paths=active?gridPaths(self.pos,self.move,occupied,terrain):new Map();
   const awaiting=b.awaiting||[];
   const fieldView=battleGrid(b,self);
   if(b.phase==='planning'&&target&&foe&&b.intent.reachable)boardArrow(fieldView.overlay,foe.pos,target.pos,'incoming');
@@ -2149,8 +2171,14 @@ function battlePanel(){
   if(self?.judgmentMark)controls.append(note('죄인의 표식 · 심판자에게 받는 피해 +35% · 직접 합 위력 −6'));
   if(Array.isArray(b.encounter?.rank)&&b.encounter.rank.length)controls.append(note('직전 라운드 피해 순위 · '+b.encounter.rank.map(item=>item.name+' '+item.damage).join(' / ')));
   if(b.encounter?.negotiating)controls.append(note('협상 파훼 · 수금원 공격 정지 · 받는 피해 +25%'));
+  const mechanic=b.encounter?.mechanic;
+  if(mechanic?.proof!=null)controls.append(note('근무 증명 '+mechanic.proof+'/3'));
+  if(mechanic?.elevator)controls.append(note('비상 승강기 · 동력 '+mechanic.elevator.power+'/'+mechanic.elevator.need));
+  if(mechanic?.recorded!=null)controls.append(note('기록된 이름 '+mechanic.recorded+'/12'));
+  if(mechanic?.coreExposed)controls.append(note('중심 핵 노출 · 적중 '+mechanic.coreHits+'/3'));
+  if(mechanic?.warm)controls.append(note('미완의 걸작 · 예열 중'));
   if(b.outcome){
-    const result=({peace:'평화 해소',break:'강제 격파',paid:'완납',seized:'강제 회수',installment:'분할 납부',balance:'균형 회복',blunt:'강제 판결',level:'수평의 정적',clearLine:'조준선 해제',cutCommand:'지휘 차단',railSubdued:'보안반 제압',inspect:'검문 응답'})[b.outcome.kind]||'조우 실패';
+    const result=({proof:'근무 증명 완료',retreat:'손님이 물러남',withdraw:'시작 열로 철수',entry:'미로 입구로 복귀',kindle:'불을 붙이다',clean:'해방의 틈 정화',unseam:'미로의 이음새',dry:'피를 말리다',untie:'테이프를 엉키게 하다',outside:'기록 밖으로',overload:'기록 과부하',wear:'빈칸 잔류',escape:'승강기 탈출',subdue:'중심 핵 분리',stain:'오점 역전',peace:'평화 해소',break:'강제 격파',paid:'완납',seized:'강제 회수',installment:'분할 납부',balance:'균형 회복',blunt:'강제 판결',level:'수평의 정적',clearLine:'조준선 해제',cutCommand:'지휘 차단',railSubdued:'보안반 제압',inspect:'검문 응답'})[b.outcome.kind]||'조우 실패';
     controls.append(note(result+(b.outcome.extract?' · 추출 '+b.outcome.extract.total+'/'+b.outcome.extract.need:'')+
       (b.outcome.orb?' · 개념구 획득':'')));
   }
@@ -2278,6 +2306,11 @@ function battlePanel(){
     if(u.expose)tags.push('취약 '+u.expose);
     if(u.thorns)tags.push('반격 태세 '+u.thorns);
     if(u.rooted)tags.push('속박');
+    if(u.commuteDelay)tags.push('지연 '+u.commuteDelay+'/3');
+    if(u.whiteMaze?.enemy&&u.whiteMaze.through>=b.round)tags.push('백색 미궁');
+    if(u.conceptTape?.through>=b.round)tags.push('릴 테이프 각인');
+    if(u.satiety!=null)tags.push('포만감 '+u.satiety+'/5');
+    if(u.redBleed?.count)tags.push('출혈 위력 '+u.redBleed.power+' · 횟수 '+u.redBleed.count);
     if(u.temporaryShield)tags.push('이번 라운드 보호막 '+u.temporaryShield);
     if(poisonAmount(u))tags.push('지속 피해 '+poisonAmount(u));
     if(u.blockedRounds)tags.push('행동 불가 · '+u.blockedRounds+'라운드');
@@ -2446,14 +2479,14 @@ function battlePanel(){
   fieldView.tools.addEventListener('click',scheduleLinks);
   if(b.phase==='planning'&&self?.hp&&self.instantMove>0){
     const barriers=new Set([...occupied,...(b.extraWalls||[]).filter(wall=>wall.ownerSide!==self.enemy).map(wall=>wall.index)]);
-    const routes=self.rooted||self.blockedRounds?new Map():gridPaths(self.pos,self.instantMove,barriers);
+    const routes=self.rooted||self.blockedRounds?new Map():gridPaths(self.pos,self.instantMove,barriers,terrain);
     status.textContent='즉시 이동력 '+self.instantMove+' · 이동할 칸을 누르거나 남은 이동력을 넘기세요.';
     controls.append(button('남은 즉시 이동력 넘기기',()=>send('instantMove',{skip:true})));
     for(const [pos,path] of routes){
       if(!path.length)continue;
       const tile=fieldView.tiles[pos];
       tile.classList.add('instant-move-tile');
-      tile.setAttribute('aria-label','즉시 이동 · 이동력 '+path.length+' 사용');
+      tile.setAttribute('aria-label','즉시 이동 · 이동력 '+gridTravelCost(path,terrain)+' 사용');
       tile.onclick=()=>{battleDraft=null;send('instantMove',{pos});};
     }
     scheduleLinks();
@@ -2749,7 +2782,7 @@ function battlePanel(){
     const path=paths.get(pos)||[],point=gridPoint(pos);
     if(path.length)fieldView.tiles[pos].append(marker);
     else marker.remove();
-    moveInfo.textContent='이동 '+path.length+'/'+self.move+' · '+String.fromCharCode(65+point.x)+(point.y+1);
+    moveInfo.textContent='이동 '+gridTravelCost(path,terrain)+'/'+self.move+' · '+String.fromCharCode(65+point.x)+(point.y+1);
     const invalidSlot=slotChoices().findIndex((slot,index,choices)=>{
       if(!slot.card)return false;
       const choice=self.hand.find(card=>card.id===slot.card);

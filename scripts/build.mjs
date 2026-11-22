@@ -17,6 +17,11 @@ for (const name of await readdir('public/battle-art')) {
   if (!art.length) throw new Error('Empty battle asset: '+name);
   assets['/battle-art/'+name] = {type:'image/png', base64:art.toString('base64')};
 }
+for(const name of ['census','maze','flesh','scribe']){
+  const path='battle-music/'+name+'.mp3';
+  const track=await readFile('public/'+path);
+  assets['/'+path]={type:'audio/mpeg',base64:track.toString('base64')};
+}
 const worker = await readFile('worker/index.js','utf8');
 await mkdir('dist/server', {recursive:true});
 await mkdir('dist/.openai', {recursive:true});

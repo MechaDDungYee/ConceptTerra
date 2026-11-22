@@ -4252,3 +4252,84 @@ test('character mind rules round-trip with card references and trigger in battle
     mindRules:[{kind:'mind',when:'turnStart',to:'allAllies',amount:3}]},source.host.cookie);
   assert.equal(rejected.status,400);
 });
+
+test('nine concept encounters start with their prescribed boss health and rotating decks',async()=>{
+  const specs=[
+    ['commute01',320,8,'commuteAsk'],['guest01',340,8,'guestSeat'],['applause01',360,8,'clapGaze'],
+    ['maze01',450,8,'mazeLamp'],['flesh01',420,8,'fleshScratch'],['scribe01',560,8,'scribeRecord'],
+    ['census01',580,6,'censusLine'],['artist01',620,8,'pitKnife'],['decomposer01',620,8,'pitDrag']
+  ];
+  for(const [encounter,hp,size,first] of specs){
+    const f=await fixture();
+    await f.act('start',{solo:true,bots:0,encounter});
+    assert.equal(f.state.battle.encounter.id,encounter);
+    assert.equal(livingForm(f,'enemy').maxHp,hp);
+    assert.equal(f.state.battle.encounter.deckSize,size);
+    assert.equal(f.state.battle.intent.card.id,first);
+    for(let turn=0;turn<9&&f.state.battle.phase==='planning';turn++){
+      configureBattle(f,(b,self)=>{
+        Object.assign(self,{hp:self.maxHp,mind:95,zero:null,collapsed:false,
+          pos:b.units.enemy.pos===19?18:19,blockedRounds:0,brainwashed:false});
+        const foe=b.units.enemy;
+        foe.hp=foe.maxHp;
+        if(encounter==='census01')self.censusSeals=[];
+        if(encounter==='scribe01')self.conceptTape=undefined;
+      });
+      await f.act('plan',{});
+      await f.act('round');
+    }
+    assert.ok(f.state.battle.round>=3,encounter);
+  }
+});
+
+test('the pit charges the elevator without killing the boss and serves every new song',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0,encounter:'artist01'});
+  for(let power=1;power<=3;power++){
+    configureBattle(f,(b,self)=>{
+      Object.assign(self,{pos:31,hp:self.maxHp,mind:95,zero:null,collapsed:false});
+      b.units.enemy.blockedRounds=1;
+    });
+    await f.act('plan',{});
+    await f.act('round');
+    assert.equal(f.state.battle.encounter.mechanic.elevator.power,power);
+  }
+  assert.equal(f.state.battle.phase,'finished');
+  assert.equal(f.state.battle.outcome.kind,'escape');
+  assert.ok(livingForm(f,'enemy').hp>0);
+  for(const name of ['census','maze','flesh','scribe']){
+    const response=await worker.fetch(new Request('https://game.test/battle-music/'+name+'.mp3'),{DB:f.DB});
+    assert.equal(response.status,200);
+    assert.equal(response.headers.get('Content-Type'),'audio/mpeg');
+    assert.ok((await response.arrayBuffer()).byteLength>10000);
+  }
+});
+
+test('the census overload counts distinct player names and awards the orb after defeat',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'열두 번째 이름',role:'normal',range:'1',target:1,power:'20',effects:[]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:0,encounter:'census01'});
+  configureBattle(f,(b,self)=>{
+    self.pos=18;self.hand=[id];self.mind=50;
+    b.units.enemy.pos=19;b.units.enemy.hp=30;b.units.enemy.blockedRounds=1;
+    b.encounter.names=Array.from({length:11},(_,i)=>'기록 '+i);
+  });
+  await f.act('plan',{card:id,targets:['enemy']});
+  await f.act('round');
+  assert.equal(f.state.battle.phase,'finished');
+  assert.equal(f.state.battle.encounter.mechanic.recorded,12);
+  assert.equal(f.state.battle.outcome.kind,'overload');
+  assert.equal(f.state.battle.outcome.orb,'conceptCensusOrb');
+});
+
+test('all new concept encounters resolve to a dedicated background track',async()=>{
+  const {battleMusicTrack}=await import('../public/battle-music.js');
+  for(const [id,key] of Object.entries({commute01:'attendance',guest01:'invitee',applause01:'contempt',
+    artist01:'artist',decomposer01:'decomposer',census01:'census',maze01:'maze',flesh01:'flesh',scribe01:'scribe'})){
+    assert.equal(battleMusicTrack({phase:'planning',encounter:{id}}),key);
+  }
+  const {gridPaths,gridTravelCost}=await import('../public/grid.js');
+  assert.equal(gridPaths(17,1,new Set(),[18]).has(18),false);
+  assert.equal(gridTravelCost(gridPaths(17,2,new Set(),[18]).get(18),[18]),2);
+});

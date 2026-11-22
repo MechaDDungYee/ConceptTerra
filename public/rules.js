@@ -7,7 +7,11 @@ export const battleMusicTracks={
   contempt:'수억 가지의 시선과 단 하나의 경멸',
   invitee:'언제나 초대받는 사람',
   artist:'예술가',
-  attendance:'출근 확인반'
+  attendance:'출근 확인반',
+  census:'호적부 · 이름이 빠진 마을',
+  maze:'흰색 미로 · 이음새 없는 복도',
+  flesh:'붉은 손톱의 살덩이 · 마르지 않는 하수조',
+  scribe:'되감기 속기사 · 끝나지 않는 서가'
 };
 export const maxPortraitDataLength=320000;
 export const maxPortraitSide=1920;

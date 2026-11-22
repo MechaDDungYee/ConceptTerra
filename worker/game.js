@@ -1,4 +1,4 @@
-import {gridCanAimTile,gridIndex,gridValid, gridSize, gridTileGroups, gridDistance, gridPoint, gridLineOfSight, gridPaths, gridDisplacement, gridCardInRange,gridCardHasReach, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
+import {gridCanAimTile,gridIndex,gridValid, gridSize, gridTileGroups, gridDistance, gridPoint, gridLineOfSight, gridPaths, gridTravelCost, gridDisplacement, gridCardInRange,gridCardHasReach, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
 import {battleMusicTracks,instantMoveModes,instantMoveDirections,instantMoveOffsets,instantMoveAnchors,instantMoveOrders,instantMoveStackTests,instantMoveStackMetrics,maxInstantMove,maxPortraitDataLength,maxConceptTools,keywordOwnedZones,keywordScanModes,keywordScanPeriods,stackScanScopes,stackScanMetrics,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,trainReturnMind,baseHp,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, maxOverloadCost, defaultOverloadCost, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, effectiveCardCost, applauseAttack, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
@@ -727,7 +727,7 @@ const fieldGenerated=[
 ].map((card,index)=>({...card,concept:true,generated:true,
   flavor:['쇠추가 떨어질 때 바닥은 아직 그 그림자를 보지 못했다.','마지막 면이 닫히자 점이 꽃처럼 벌어졌다.'][index]}));
 function gameFieldGrant(b,unit,tag,count,actor,power=1){
-  return gameGrantStacks(b,unit,{tag,stackCap:conceptStacks[tag].cap,stackPower:power},count,gameConceptTraits[tag],undefined,actor.id);
+  return gameGrantStacks(b,unit,{tag,stackCap:conceptStacks[tag]?.cap,stackPower:power},count,gameConceptTraits[tag],undefined,actor.id);
 }
 function gameClosedFaces(b,unit){
   const {x,y}=gridPoint(unit.pos);
@@ -855,6 +855,7 @@ const guestGenerated={...gamePreset('conceptGuestAgain','이방인 · 이번에�
 ],14),concept:true,generated:true,flavor:'“이번에는 무엇이 다릅니까?”'};
 const replayableGuestEffects=new Set(['shield','heal','mind','drain','poison','weaken','nextSlow','push','pull','stack']);
 function gameItchRound(b,unit,when){
+  if(unit.enemy&&b.encounter?.id==='flesh01')return;
   const itch=unit.stacks[redItch]||0;
   if(when==='turnStart'){
     if(itch){
@@ -870,6 +871,7 @@ function gameItchRound(b,unit,when){
   if(!bleed.count)delete unit.redBleed;
 }
 function gameItchHit(b,actor,target){
+  if(actor.enemy&&b.encounter?.id==='flesh01')return;
   const itch=actor.stacks[redItch]||0;
   if(!itch||!actor.redBleed||actor===target||actor.enemy===target.enemy||!gameAlive(target))return;
   const amount=Math.ceil(actor.redBleed.power/2);
@@ -921,6 +923,26 @@ function gameRecordGuestAction(b,ctx){
   b.guestActions.push({actor:ctx.actor.id,card:ctx.card.id,effects:ctx.guestEffects||[]});
 }
 function gameCountCardUse(b,ctx){
+  if(gameNewConcept(b)){
+    const {actor,card}=ctx,e=b.encounter;
+    actor.conceptLastCard=card.id;actor.conceptLastName=card.name;actor.conceptLastRound=b.round;
+    if(!actor.enemy){
+      e.playerCards++;
+      if(!e.playerNames.includes(card.name))e.playerNames.push(card.name);
+    }
+    if(e.id==='census01'&&!actor.enemy){
+      (e.records??=[]).push({name:card.name,round:b.round,inside:b.zones.includes(actor.pos)});
+    }
+    if(e.id==='census01'&&!actor.enemy&&!e.names.includes(card.name)){
+      e.names.push(card.name);
+      if(e.names.length>=12&&!e.overloadFired){
+        e.overloadFired=true;e.overloadRound=b.round;
+        delete e.censusBan;
+        for(const unit of Object.values(b.units))delete unit.censusSeals;
+        gameLog(b,'호적부 · 이름 12종 기록 · 이번 라운드 받는 피해 2배');
+      }
+    }
+  }
   if(ctx.card.target!=='self'&&(ctx.card.role==='normal'||cardHitPowers(ctx.card).some(power=>power!=='0')))ctx.actor.ruleUsedAttack=b.round;
   const counts=ctx.actor.cardUseCounts??={};
   if(typeof counts[ctx.card.id]!=='number')counts[ctx.card.id]=0;
@@ -1063,10 +1085,15 @@ function gameAttendanceEnd(b){
 function gameWhiteMazeMove(b,unit){
   const maze=unit.whiteMaze;
   if(!maze||maze.through<b.round)return;
-  gamePosition(b,unit,maze.pos);
+  const destination=maze.enemy?b.encounter?.entry:maze.pos;
+  if(maze.enemy&&!gamePosition(b,unit,destination))return;
+  if(!maze.enemy)gamePosition(b,unit,destination);
   gameMental(b,unit,-4);
   const caster=b.units[maze.caster];
-  if(gameAlive(caster))gameMental(b,caster,3);
+  if(gameAlive(caster)){
+    if(maze.enemy)caster.mind=Math.min(caster.mindCap,caster.mind+3);
+    else gameMental(b,caster,3);
+  }
   gameLog(b,unit.name+' · 같은 복도로 돌아옴');
 }
 
@@ -1377,7 +1404,82 @@ function gameBrightResolve(b){
     }
   }
 }
-const encounterPresets={stop01:firstStop,collector01:collectorStop,judge01:judgeStop,railguard01:railStop,blight01:brightStop};
+const conceptEncounterSpecs=[
+  ["commute01","야간 당직실 앞 복도","출근 확인반",320,"commuteAsk commuteAsk commuteWatch commuteWatch commuteLedger commuteHeel commuteHeel commuteClose",["지연","근무 증명"]],
+  ["guest01","국경 외곽 공동주택 · 식탁이 남은 거실","언제나 초대받는 사람",340,"guestSeat guestSeat guestNote guestNote guestHabit guestHabit guestRim guestAsk",["대필","고립 추격"]],
+  ["applause01","폐쇄된 공개 심사장 · 비어 있는 객석","수억 가지의 시선과 하나의 경멸",360,"clapGaze clapGaze clapStanding clapStanding clapCenter clapCover clapCover clapScorn",["수억의 박수","해방의 틈"]],
+  ["maze01","증축된 폐쇄 병동 · 이음새 없는 복도","흰색 미로",450,"mazeLamp mazeLamp mazeSill mazeDust mazeSill mazeFold mazeDust mazeConverge",["이음새 없는 복도","흰 벽"]],
+  ["flesh01","폐기물 처리실 · 마르지 않는 하수조","붉은 손톱의 살덩이",420,"fleshScratch fleshThread fleshNail fleshScratch fleshThread fleshNail fleshToss fleshFrenzy",["붉은 소양감","파고드는 손톱"]],
+  ["scribe01","법정 기록 보관소 · 끝나지 않는 서가","되감기 속기사",560,"scribeRecord scribeRecord scribeType scribeSuture scribeType scribeCut scribeSuture scribeOver",["전장 테이프","테이프 엉킴"]],
+  ["census01","제8국 방벽 너머 · 이름이 빠진 마을","마모된 이름의 호적부",580,"censusLine censusLine censusWeight censusWeight censusBlank censusCross",["호적 말소","기록 과부하"]],
+  ["artist01","제8국 외곽 · 구덩이 바닥","예술가",620,"pitKnife pitKnife pitBucket pitBucket pitTwotone pitTwotone pitApron pitMasterpiece",["최다 색 오라","미완의 걸작"]],
+  ["decomposer01","제8국 외곽 · 구덩이 바닥","세계의 분해자",620,"pitDrag pitDrag pitSpray pitSpray pitSwallow pitSwallow pitWave pitReflux",["무정형 외피","부식의 여정","포만감"]]
+];
+const conceptEncounterPresets=Object.fromEntries(conceptEncounterSpecs.map(([id,name,foe,hp,deck,passives])=>{
+  const pit=id==='artist01'||id==='decomposer01';
+  const census=id==='census01';
+  const walls=pit?[10,13,26,29]:census?[3,4,35,36]:[11,27];
+  const zones=pit?[11,12,18,19,20,21,27,28]:census?Array.from({length:40},(_,pos)=>pos)
+    .filter(pos=>{const {x,y}=gridPoint(pos);return Math.max(Math.abs(x-3),Math.abs(y-2))<=2&&!(Math.abs(x-3)===2&&Math.abs(y-2)===2);}):[];
+  return [id,{id,name,foe,hp,deck:deck.split(' '),passives,walls,zones,start:pit?20:census?19:22,
+    conceptEncounter:true,pit,legendary:pit||census||id==='scribe01',tags:['제8국 외곽']}];
+}));
+const conceptEncounterCards=Object.fromEntries([
+  ['commuteAsk','출근 중이십니까?','1d6+4','1~4','적중 시 지연 1. 이 카드와 합을 하면 합 위력 −3, 근무 증명 +1'],
+  ['commuteWatch','회중시계 열기','2d6+6','1~3','지연 대상에게 위력 +3. 적중 시 다음 이동력 −2'],
+  ['commuteLedger','출근 대장 기입 · 지연','2d8+6','1~2','지연 2 이상인 대상 우선. 속박 및 정신력 −6'],
+  ['commuteHeel','구두 뒤축의 재촉','2d6+5','1','대상에게 접근. 다음 라운드 첫 카드 비용 +3'],
+  ['commuteClose','회중시계 닫기 · 업무 복귀','1d4+2','1','근무 증명 3 이상이면 정신력 +6을 돌려주고 퇴장'],
+  ['guestSeat','초대받지 않은 착석','2d6+5','1~3','고립된 아군을 우선. 적중 시 옆으로 밀고 근접 지정 제외'],
+  ['guestNote','수첩에 받아 적기','2d6+4','1~3','앞서 발동한 카드의 부가 효과를 대필'],
+  ['guestHabit','익숙한 버릇 지우기','2d8+6','1~4','가장 자주 쓴 카드의 순서를 늦추고 불리한 재굴림'],
+  ['guestRim','흰 테두리의 거리','1d6+4','1~2','다음 피격의 주사위 상한을 절반으로 낮춤'],
+  ['guestAsk','이번에는 무엇이 다릅니까','3d8+8','1~3','가장 자주 쓴 카드를 손패에 보유한 대상의 정신력 −6'],
+  ['clapGaze','쏟아지는 시선','2d6+6','2~4','다음 이동력 −1, 박수 +1'],
+  ['clapStanding','기립 박수의 감옥','2d8+5','1~3','박수 +2. 손패 한 장에 정신력 환급 표식'],
+  ['clapCenter','무대 중앙의 고립','2d6+7','1~2','이동력이 낮은 대상 우선. 2칸 밀고 벽 충돌 시 고정 피해 6'],
+  ['clapCover','눈동자 가리기','1d8+4','1','박수가 4 이하이면 보호막 10'],
+  ['clapScorn','단 하나의 경멸 · 해방 폭주','4d10+8','0~12','박수 6 이상에서 전부 소모. 박수당 광역 고정 피해 3, 해방의 틈'],
+  ['mazeLamp','끝없는 형광등','2d6+6','1~4','대상의 칸에 입구 각인. 백색 미궁 2라운드'],
+  ['mazeSill','사라진 문턱','2d8+6','1~3','2칸 밀기. 미궁 대상은 입구로 되돌리고 고정 피해 6'],
+  ['mazeFold','복도 접기','3d8+8','2~4','정신력 70 미만이면 위력 +4, 정신력 −10'],
+  ['mazeDust','흰 가루 장벽','1d8+4','1~2','빈 칸에 흰 벽 설치'],
+  ['mazeConverge','백색 수렴','3d10+10','0~12','전장 공격. 미궁에 걸린 아군당 정신력 피해 4'],
+  ['fleshScratch','젖은 살점 긁기','0','0','소양감이 없으면 1, 있으면 두 배'],
+  ['fleshThread','붉은 실 전염','2d6+6','1~2','자기 출혈 위력 절반을 전가하고 그만큼 회복'],
+  ['fleshNail','자라나는 손톱 휘두르기','3d6+7','1~2','2타 각각 출혈 전가. 출혈 대상에게 타당 위력 +3'],
+  ['fleshToss','살점 찢어 던지기','2d8+8','2~4','출혈 위력 6, 보스 체력 +12'],
+  ['fleshFrenzy','피의 갈망 · 폭주','4d8+10','1~2','소양감 4 이상. 전가 2회 또는 빗나가면 역화'],
+  ['scribeRecord','속기 · 현장 녹음','1d6+4','1~4','대상 체력과 위치 각인, 정신력 −4'],
+  ['scribeSuture','테이프 되감기 · 상처 봉합','0','0','조건을 만족하면 체력 최대 35 복구, 유닛들을 녹음 위치 쪽으로 한 칸 당김'],
+  ['scribeType','■■된 시관의 타건','3d6+8','1~3','대상 보유 키워드 수 ×2 추가 피해'],
+  ['scribeCut','잘라낸 프레임','2d8+8','2~4','직전 이동 취소, 다음 이동력 −3'],
+  ['scribeOver','오버테이프 · 강제 재생','4d10+10','1~3','녹음 이후 피해 50 이상이면 위력 절반과 테이프 엉킴'],
+  ['censusLine','호적 말소 · 사라진 줄','2d8+6','1~4','최근 사용 카드 이름을 봉인'],
+  ['censusWeight','이름 없는 몫','3d8+6','1~4','활성 봉인 수에 비례해 정신력 소모 증가'],
+  ['censusBlank','빈칸에 남은 자리','3d8+8','1~4','빈칸에 있는 대상의 이름 봉인'],
+  ['censusCross','호적부 · 마지막 말소','4d8+10','0~12','전장에 남은 이름을 말소'],
+  ['pitKnife','팔레트 나이프 긁기','2d8+8','1~2','정면 광역과 물감 캔버스'],
+  ['pitBucket','물감 통 미끄러뜨리기','2d6+6','2~4','직선 공격. 색 +4 및 1칸 밀기'],
+  ['pitTwotone','마젠타와 시안의 덧칠','3d6+7','1~3','1타 마젠타 고정 피해, 2타 시안 출혈'],
+  ['pitApron','앞치마 찢어 붓기','3d8+10','1~3','제 체력 15 소모. 가장 적은 색 두 종류에 +10'],
+  ['pitMasterpiece','미완의 걸작 · 전장 도포','3d8+10','0~12','한 라운드 예열 후 전장에 네 가지 색 적용'],
+  ['pitDrag','점액 끌기','2d6+6','1','끌어오기와 부식 지대, 용해 1'],
+  ['pitSpray','부식액 흩뿌리기','2d6+5','1~3','광역 보호막 제거, 용해 2'],
+  ['pitSwallow','반죽 집어삼키기','3d6+7','2~3','2타. 끌기, 유리한 효과 흡수, 포만감 증가'],
+  ['pitWave','고농도 소화 파동','4d8+10','1~2','유리한 중첩을 제거하고 하나당 고정 피해 4'],
+  ['pitReflux','임계 역류 · 과부하','5d6+12','1~2','빗나가거나 용해 1 이하인 대상에게 쓰면 분해자 경직'],
+  ['pitMobBite','구덩이의 잡개념물 · 물어뜯기','1d6+4','1','인접 대상 공격']
+].map(([id,name,power,range,description])=>{
+  const area=['mazeConverge','censusCross','pitMasterpiece'].includes(id);
+  const support=['scribeSuture','fleshScratch'].includes(id);
+  return [id,{...gamePreset(id,name,power,range,'normal',area?'area':1,[],0,!support),support,boardReach:area||support,
+    ...(id==='pitKnife'||id==='pitSpray'?{target:'splash',splash:{range:'0',rangeShape:{kind:'rectangle',x:1,y:1}}}:{}),
+    ...(['fleshNail','pitSwallow','pitTwotone'].includes(id)?{hitPowers:[power,power]}:{}),
+    unredirectable:['commuteLedger','guestAsk','clapCenter','mazeFold','fleshToss','scribeCut','pitApron','pitSwallow'].includes(id),
+    effects:[{publicLabel:description,when:'use'}]}];
+}));
+const encounterPresets={...conceptEncounterPresets,stop01:firstStop,collector01:collectorStop,judge01:judgeStop,railguard01:railStop,blight01:brightStop};
 const railCards=Object.fromEntries([
   ['railBlock','차단 명령','2d6+6','1~4','hit','다음 라운드 이동 수 −2. 방패병이 대상 쪽으로 전진'],
   ['railReturn','선로 복귀 강제','2d8+6','1~3','hit','대상 변경 불가. 2칸 밀기, 벽 충돌 시 고정 피해 6'],
@@ -1946,6 +2048,7 @@ function gamePreventCollapse(b,u){
 function gameMental(b,u,delta,unmodified=false) {
   if(u.enemy||u.collapsed||!delta)return 0;
   const old=u.mind;
+  if(delta>0&&b.encounter?.id==='artist01'&&b.encounter.aura==='black')delta=Math.floor(delta/2);
   if(!unmodified){
     const resist=bounded(gameMindStatus(b,u,delta<0?'mindGuard':'mindRecoveryCut')+(delta<0?u.combat?.mindGuard||0:0),0,100);
     delta=Math.sign(delta)*Math.floor(Math.abs(delta)*(100-resist)/100);
@@ -2091,6 +2194,18 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
   const base=Math.floor(amount)+bonus;
   let adjusted=fixedDamage?Math.max(0,Math.floor(amount)):
     applyPowerRatio(Math.max(0,base+sum(bonuses)-u.reduce),sum(ratios));
+  if(gameNewConcept(b)){
+    const e=b.encounter;
+    if(u===b.units.enemy&&hostile){
+      if([e.overloadRound,e.exposedRound,e.warmRound,e.refluxRound,e.mazeClearedRound,e.tangleRound].includes(b.round)){
+        const scale=e.overloadRound===b.round?2:e.exposedRound===b.round?1.35:
+          e.warmRound===b.round||e.refluxRound===b.round?1.5:1.3;
+        adjusted=Math.floor(adjusted*scale);
+      }
+      if(e.exposedRound===b.round||e.coreRound===b.round)piercing=true;
+    }
+    if(e.stain===u.id&&actor===b.units.enemy)adjusted=Math.floor(adjusted*1.25);
+  }
   if(gameIsJudge(b)&&actor.enemy&&u.judgmentMark&&!origin.judgeIndirect){
     if(!fixedDamage&&u.guardRound===b.round)adjusted=Math.ceil(adjusted/2);
     adjusted=Math.floor(adjusted*1.35);
@@ -2114,7 +2229,9 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
   if(modified&&u.inkBuff?.includes('cyan'))adjusted=Math.floor(adjusted*0.75);
   if(goldMitigation)adjusted=Math.floor(adjusted*0.6);
   if(modified&&!origin.ignoreOutgoingCuts&&actor.defenseWeakenRound===b.round)adjusted=Math.floor(adjusted/2);
-  const absorbed=piercing?0:gameRemoveShield(u,adjusted*(origin.doubleShield?2:1));
+  const artistCyan=b.encounter?.id==='artist01'&&actor===b.units.enemy&&hostile&&b.encounter.aura==='cyan';
+  const shieldDamage=artistCyan?Math.floor(adjusted/2):adjusted*(origin.doubleShield?2:1);
+  const absorbed=piercing?0:gameRemoveShield(u,shieldDamage);
   if(collateral){
     const seen=b.encounter.collateralHit??={};
     if(!seen[actor.id])gameCollectorGrant(b,actor,1);
@@ -2156,8 +2273,15 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
   if(gameBrightSafe(b,u)&&u.id!=='conceptDawn'||gameIsBright(b)&&u.enemy&&b.encounter.stage<3&&b.encounter.holder&&gameAlive(b.units[b.encounter.holder]))
     actual=Math.min(actual,u.hp-1);
   u.hp-=actual;
+  if(gameNewConcept(b)&&actual){
+    const e=b.encounter;
+    if(u===b.units.enemy){
+      e.roundDamage+=actual;
+      if(e.tape)e.tapeDamage=(e.tapeDamage||0)+actual;
+    }else if(!u.enemy)e.partyDamage+=actual;
+  }
   if(actual||absorbed)u.applauseHurt=(u.applauseHurt||0)+1;
-  gameInk(b,'cyan',Math.floor(actual/2));
+  gameInk(b,'cyan',Math.floor((actual+(b.encounter?.id==='artist01'?absorbed:0))/2));
   if(vaultReflect||goldMitigation)gameDamage(b,actor,3,u,false,false,true,{kind:'stack'});
   if(actual&&gameIsJudge(b)&&u.enemy&&!actor.enemy&&!origin.judgeIndirect){
     const hits=b.encounter.hits??={};
@@ -2288,7 +2412,7 @@ function gameApplyConversion(b,receiver,output,amount){
   }
 }
 function gameHeal(b,u,n){
-  if(!gameAlive(u)||n<=0)return 0;
+  if(!gameAlive(u)||n<=0||u===b.units.enemy&&b.encounter?.tangleRound===b.round)return 0;
   const old=u.hp;
   if(u.inkBuff?.includes('yellow'))n=Math.floor(n*1.3);
   const penalty=Math.max(0,...(u.healCuts||[]).map(entry=>entry.amount));
@@ -2327,6 +2451,14 @@ function gameActionPower(b,ctx,opponent){
   const unit=ctx.actor,clash=!!opponent;
   const target=opponent||ctx.targets[0];
   if(ctx.card.id==='conceptDread')ctx.ruleDreadPower=gameDreadPower(target);
+  if(gameNewConcept(b)){
+    if(clash&&ctx.actor.enemy===false&&b.intent.card.id==='commuteAsk'){
+      ctx.mod-=3;
+      b.encounter.proof=Math.min(3,b.encounter.proof+1);
+      gameLog(b,'근무 증명 '+b.encounter.proof+'/3');
+    }
+    if(ctx.card.id==='fleshNail'&&target?.redBleed)ctx.mod+=3;
+  }
   const powers=ctx.ruleDreadPower?[ctx.ruleDreadPower]:ctx.card.id==='conceptStitchSeam'?Array(Math.max(1,Math.min(7,target?.stacks['바늘땀']||0))).fill(ctx.card.power):[...cardHitPowers(ctx.card)];
   const rim=target&&target.guestRim>=b.round;
   if(rim)delete target.guestRim;
@@ -2419,15 +2551,20 @@ function gamePosition(b,u,pos) {
   return true;
 }
 function gameMove(b,u,goal,limit,approach=false) {
-  const paths=gridPaths(u.pos,limit,gameBlocked(b,u));
+  const terrain=gamePit(b)?b.zones:[];
+  const paths=gridPaths(u.pos,limit,gameBlocked(b,u),terrain);
   const closest=[...paths.keys()].sort((a,c)=>gridDistance(a,goal)-gridDistance(c,goal)||paths.get(a).length-paths.get(c).length)[0];
   const path=paths.get(goal)??(approach?paths.get(closest):[]);
-  return gameFollowPath(b,u,path);
+  gameFollowPath(b,u,path);
+  return gridTravelCost(path,terrain);
 }
 function gameFollowPath(b,u,path) {
   const origin=u.pos;
+  if(b.encounter?.id==='decomposer01'&&u===b.units.enemy&&path.length)
+    for(const pos of [origin,...path.slice(0,-1)])gameConceptTile(b,pos,'corrosion',2);
   if(path.length){
     u.pos=path.at(-1);
+    if(gameNewConcept(b))u.conceptMove={from:origin,round:b.round};
     b.moved?.add(u.id);
   }
   if(path.length){
@@ -2543,13 +2680,452 @@ function gameDeckEffects(b,when){
   }
   delete b.shock;
 }
+const gameNewConcept=b=>!!conceptEncounterPresets[b.encounter?.id];
+const gamePit=b=>!!conceptEncounterPresets[b.encounter?.id]?.pit;
+const gameConceptParty=b=>Object.values(b.units).filter(unit=>!unit.enemy&&gameAlive(unit));
+function gameConceptBegin(b,spec){
+  const foe=b.units.enemy;
+  foe.library={...conceptEncounterCards};
+  if(spec.legendary)b.encounter.difficulty='전설급';
+  if(spec.pit)b.encounter.elevator={tiles:[15,23,31],power:0,need:3};
+  if(spec.id==='maze01')Object.assign(b.encounter,{entry:16});
+  if(spec.id==='maze01')Object.assign(foe,{mind:0,mindCap:60});
+  if(spec.id==='artist01')foe.inks=emptyInk();
+  if(spec.id==='decomposer01')foe.satiety=0;
+  if(spec.id==='commute01')b.encounter.proof=0;
+  if(spec.id==='census01')b.encounter.names=[];
+}
+function gameConceptReach(b,card,foe,target){
+  if(card.id==='pitBucket'){
+    const a=gridPoint(foe.pos),c=gridPoint(target.pos);
+    if(a.x!==c.x&&a.y!==c.y)return false;
+  }
+  return gameReach(b,card,foe,target);
+}
+function gameConceptFrequent(unit){
+  return Object.keys(unit.cardUseCounts||{}).sort((a,c)=>unit.cardUseCounts[c]-unit.cardUseCounts[a]||
+    Number(c===unit.conceptLastCard)-Number(a===unit.conceptLastCard))[0];
+}
+function gameConceptIntent(b,foe,party,defaultTarget){
+  const encounter=b.encounter,id=encounter.id,deck=b.foeDeck;
+  encounter.playerCards=0;encounter.playerNames=[];encounter.roundDamage=0;encounter.partyDamage=0;encounter.gifts=0;encounter.bossHits=0;
+  if(id==='flesh01'){
+    foe.stacks[redItch]=(foe.stacks[redItch]||0)+1;
+    foe.redBleed={count:2,power:foe.stacks[redItch]*4};
+  }
+  if(id==='scribe01'&&b.round%2===1){
+    encounter.tape={hp:foe.hp,positions:Object.fromEntries(Object.values(b.units).filter(gameAlive).map(unit=>[unit.id,unit.pos]))};
+    encounter.tapeDamage=0;
+  }
+  if(id==='artist01'){
+    const values=Object.values(foe.inks);
+    const max=Math.max(...values),min=Math.min(...values),sum=values.reduce((a,c)=>a+c,0);
+    encounter.aura=inkColors[values.indexOf(max)];
+    encounter.balanced=sum>=40&&max-min<=10;
+    encounter.stained=!encounter.balanced&&min>0&&max>=min*2;
+    if(encounter.stained){
+      encounter.stain=party.slice().sort((a,c)=>gameDistance(a,foe)-gameDistance(c,foe))[0]?.id;
+      encounter.stainFired=true;
+    }else delete encounter.stain;
+  }
+  if(gamePit(b)&&b.round%2===0){
+    const mobCount=Object.values(b.units).filter(unit=>unit.pitMob&&gameAlive(unit)).length;
+    const open=[18,21,11,28].filter(pos=>!gameBlocked(b,foe).has(pos)&&pos!==foe.pos);
+    for(const [index,pos] of open.slice(0,Math.min(2,4-mobCount)).entries()){
+      const key='pitMob'+b.round+'-'+index;
+      const mob=gameUnit(key,'구덩이의 잡개념물',pos,[conceptEncounterCards.pitMobBite],true,true);
+      Object.assign(mob,{hp:45,maxHp:45,pitMob:true});
+      b.units[key]=mob;
+      gameLog(b,'구덩이 · 잡개념물 증원');
+    }
+  }
+  const canPick=cardId=>{
+    if(cardId==='commuteLedger')return party.some(unit=>unit.commuteDelay>=2);
+    if(cardId==='guestAsk')return party.some(unit=>unit.hand.includes(gameConceptFrequent(unit)));
+    if(cardId==='fleshFrenzy')return foe.stacks[redItch]>=4;
+    if(cardId==='clapScorn')return (foe.stacks['수억의 박수']||0)>=6;
+    if(cardId==='pitApron')return foe.hp>15;
+    if(cardId==='pitMasterpiece')return Object.values(foe.inks).reduce((a,c)=>a+c,0)>=40;
+    return true;
+  };
+  let card;
+  if(encounter.warmRound===b.round-1)card=conceptEncounterCards.pitMasterpiece;
+  else if(encounter.stunnedRound===b.round||encounter.mazeClearedRound===b.round){
+    return {target:defaultTarget.id,card:firstStopCards.stopWait,reachable:false};
+  }else{
+    for(let tries=0;tries<deck.cards.length;tries++){
+      const next=deck.cards[deck.index];
+      deck.index=(deck.index+1)%deck.cards.length;
+      if(next==='commuteClose'&&encounter.proof<3){
+        deck.index=0;
+        return {target:defaultTarget.id,card:firstStopCards.stopWait,reachable:false};
+      }
+      if(canPick(next)){card=conceptEncounterCards[next];break;}
+    }
+    if(card.id==='pitMasterpiece'){
+      encounter.warmRound=b.round;
+      return {target:defaultTarget.id,card:{...firstStopCards.stopWait,name:'미완의 걸작 · 예열'},reachable:false};
+    }
+  }
+  if(id==='artist01'&&(!card.support&&encounter.aura==='magenta'||card.id==='pitMasterpiece')){
+    const count=card.id==='pitMasterpiece'?Math.min(3,Math.floor(foe.inks.magenta/15)):1;
+    card={...card,hitPowers:[...cardHitPowers(card),...Array(count).fill(card.power)]};
+  }
+  const isolated=unit=>!party.some(other=>other!==unit&&gameDistance(other,unit)<=1);
+  const sorters={
+    commuteLedger:(a,c)=>(c.commuteDelay||0)-(a.commuteDelay||0)||a.mind-c.mind,
+    guestSeat:(a,c)=>Number(isolated(c))-Number(isolated(a))||a.mind-c.mind,
+    guestAsk:(a,c)=>Number(c.hand.includes(gameConceptFrequent(c)))-Number(a.hand.includes(gameConceptFrequent(a))),
+    clapCenter:(a,c)=>a.move-c.move||a.mind-c.mind,
+    mazeLamp:(a,c)=>c.mind-a.mind
+  };
+  const ranked=party.slice().sort((a,c)=>(sorters[card.id]?.(a,c)||0)||gameDistance(a,foe)-gameDistance(c,foe));
+  const target=ranked[0];
+  if(!foe.rooted&&!foe.immovable&&!foe.blockedRounds&&!card.support&&card.id!=='guestRim'&&card.id!=='clapCover'&&
+      (id!=='guest01'||isolated(target))&&(id!=='applause01'||(foe.stacks['수억의 박수']||0)<6)&&
+      !gameConceptReach(b,card,foe,target)){
+    gameMove(b,foe,target.pos,card.id==='commuteHeel'?3:2,true);
+  }
+  return {target:target.id,card,reachable:!card.support&&gameConceptReach(b,card,foe,target)};
+}
+function gameConceptTile(b,pos,kind,rounds){
+  if(gridValid(pos)&&!b.walls.includes(pos))(b.tiles??={})[pos]={kind,source:'enemy',through:b.round+rounds};
+}
+function gameConceptPush(b,foe,unit,count,pull=false){
+  if(gameForcedMoveBlocked(b,unit))return false;
+  let blocked=false;
+  for(let step=0;step<count;step++){
+    const pos=gridDisplacement(foe.pos,unit.pos,pull);
+    if(!gamePosition(b,unit,pos)){blocked=true;break;}
+  }
+  return blocked;
+}
+function gameConceptApplaud(foe,amount){
+  foe.stacks['수억의 박수']=(foe.stacks['수억의 박수']||0)+amount;
+}
+function gameConceptSatiety(b,foe,amount){
+  foe.satiety=Math.min(5,(foe.satiety||0)+amount);
+  if(foe.satiety===5&&!b.encounter.coreRound){
+    b.encounter.coreRound=b.round+1;b.encounter.stunnedRound=b.round+1;b.encounter.coreHits=0;
+    gameLog(b,'세계의 분해자 · 포만감 5 · 다음 라운드 중심 핵 노출');
+  }
+}
+function gameConceptTapeRestore(b,foe,max){
+  const tape=b.encounter.tape;
+  if(!tape||b.encounter.tangleRound===b.round)return;
+  const lost=tape.hp-foe.hp;
+  if(lost>0&&lost<=40)gameHeal(b,foe,Math.min(lost,max));
+}
+function gameConceptBleed(unit,count,power,foe){
+  unit.redBleed={power:(unit.redBleed?.power||0)+power,
+    count:Math.max(unit.redBleed?.count||0,count),dealer:foe.id};
+}
+function gameConceptFleshGift(b,foe,unit,count){
+  const power=Math.ceil((foe.redBleed?.power||0)/2);
+  if(!power||!gameAlive(unit))return;
+  foe.redBleed.power-=power;
+  gameConceptBleed(unit,count,power,foe);
+  gameHeal(b,foe,power);
+  b.encounter.gifts++;
+}
+function gameConceptUse(b,ctx,target){
+  const foe=ctx.actor,e=b.encounter;
+  switch(ctx.card.id){
+    case 'commuteWatch': if(target.commuteDelay)ctx.mod+=3;break;
+    case 'guestNote': {
+      const record=b.guestActions?.find(action=>action.actor!==foe.id&&action.effects.length)||e.sleeve;
+      if(record)ctx.guestReplay=record;
+      break;
+    }
+    case 'guestRim': foe.guestRim=b.round+1;break;
+    case 'clapCover': if((foe.stacks['수억의 박수']||0)<=4)gameGainShield(b,foe,10,{shieldDuration:1},'clapCover');break;
+    case 'clapScorn': {
+      const amount=(foe.stacks['수억의 박수']||0)*3;
+      foe.stacks['수억의 박수']=0;e.exposedRound=b.round+1;
+      for(const unit of gameConceptParty(b))gameDamage(b,unit,amount,foe,false,false,true,{kind:'card'});
+      break;
+    }
+    case 'mazeFold': if(target.mind<70)ctx.mod+=4;break;
+    case 'fleshScratch': foe.stacks[redItch]=Math.max(1,foe.stacks[redItch]*2);break;
+    case 'scribeSuture':
+      gameConceptTapeRestore(b,foe,35);
+      for(const unit of Object.values(b.units).filter(gameAlive)){
+        const pos=e.tape?.positions[unit.id];
+        if(gridValid(pos))gameMove(b,unit,pos,1,true);
+      }
+      break;
+    case 'scribeOver':
+      if((e.tapeDamage||0)>=50){e.tangleRound=b.round;ctx.powerPercent=(ctx.powerPercent||0)-50;}
+      break;
+    case 'pitApron': {
+      foe.hp=Math.max(1,foe.hp-15);
+      const lowest=inkColors.slice().sort((a,c)=>foe.inks[a]-foe.inks[c]).slice(0,2);
+      for(const color of lowest)foe.inks[color]+=10;
+      break;
+    }
+    case 'pitMasterpiece': {
+      const scale=e.balanced?1.5:e.stained?0.5:1;
+      for(const unit of gameConceptParty(b)){
+        gameRemoveShield(unit,unit.shield);
+        gameDamage(b,unit,Math.floor(foe.inks.cyan*0.3*scale),foe,true,false,true,{kind:'card'});
+        gameMental(b,unit,-Math.floor(Math.min(15,foe.inks.black*0.25)*scale));
+        const id=unit.hand.slice().sort((a,c)=>(unit.library[c]?.cost||0)-(unit.library[a]?.cost||0))[0];
+        if(id)unit.inkCostMark={id,through:b.round+1};
+        gameConceptTile(b,unit.pos,'canvas',2);
+      }
+      break;
+    }
+  }
+}
+function gameConceptSeal(b,unit,through=b.round+1){
+  const name=unit.conceptLastName;
+  if(!name||b.encounter.overloadRound===b.round)return;
+  (unit.censusSeals??=[]).push({name,through});
+  gameLog(b,unit.name+' · '+name+' 봉인');
+}
+function gameConceptStrike(b,ctx,unit,dealt){
+  const foe=ctx.actor,e=b.encounter;
+  if(!foe.enemy){
+    if(unit!==b.units.enemy)return;
+    if(e.id==='flesh01'&&gameDistance(foe,unit)===1)unit.stacks[redItch]=(unit.stacks[redItch]||0)+1;
+    if(e.id==='decomposer01'){
+      if(e.coreRound===b.round)e.coreHits++;
+      if(gameDistance(foe,unit)===1)gameFieldGrant(b,foe,'용해',1,unit);
+    }
+    if(e.id==='maze01'&&foe.whiteMaze?.enemy&&foe.whiteMaze.through>=b.round&&foe.mind>=70&&dealt>=15&&e.mazeClearedRound!==b.round+1){
+      for(const ally of gameConceptParty(b))if(ally.whiteMaze?.enemy)delete ally.whiteMaze;
+      e.mazeClearedRound=b.round+1;e.mazeClears=(e.mazeClears||0)+1;
+      gameLog(b,'백색 미궁 해제 · 흰색 미로가 다음 라운드 경직됩니다.');
+    }
+    return;
+  }
+  if(foe===b.units.enemy)e.bossHits++;
+  if(e.id==='artist01'&&e.aura==='cyan'&&gameAlive(unit))gameConceptBleed(unit,2,1,foe);
+  const fixed=amount=>gameDamage(b,unit,amount,foe,false,false,true,{kind:'card'});
+  const drain=amount=>gameMentalDamage(b,unit,amount,foe,{kind:'card'});
+  switch(ctx.card.id){
+    case 'commuteAsk': unit.commuteDelay=Math.min(3,(unit.commuteDelay||0)+1);break;
+    case 'commuteWatch': unit.nextMove=Math.max(-7,unit.nextMove-2);break;
+    case 'commuteLedger': unit.rootNext=true;drain(6);break;
+    case 'commuteHeel': unit.conceptCost={amount:3,through:b.round+1};break;
+    case 'guestSeat': {
+      const a=gridPoint(foe.pos),c=gridPoint(unit.pos),dx=Math.sign(c.x-a.x),dy=Math.sign(c.y-a.y);
+      if(!gameForcedMoveBlocked(b,unit)&&!gamePosition(b,unit,gridIndex(c.x-dy,c.y+dx)))
+        gamePosition(b,unit,gridIndex(c.x+dy,c.y-dx));
+      unit.guestMelee=b.round+1;
+      break;
+    }
+    case 'guestNote':
+      if(ctx.guestReplay&&!ctx.guestReplayed){
+        ctx.guestReplayed=true;
+        for(const effect of ctx.guestReplay.effects)gameApplyVisibleEffect(b,ctx,'hit',unit,0,{...effect,to:'target'},unit,new Set());
+      }
+      break;
+    case 'guestHabit': {
+      const card=gameConceptFrequent(unit);
+      if(card)unit.guestPenalty={card,through:b.round+1};
+      break;
+    }
+    case 'guestAsk': drain(6);break;
+    case 'clapGaze': unit.nextMove=Math.max(-3,unit.nextMove-1);gameConceptApplaud(foe,1);break;
+    case 'clapStanding': {
+      gameConceptApplaud(foe,2);
+      const id=unit.hand[gameRoll(unit.hand.length)-1];
+      if(id)unit.applauseRefund={id,through:b.round+1};
+      break;
+    }
+    case 'clapCenter': if(gameConceptPush(b,foe,unit,2))fixed(6);break;
+    case 'mazeLamp':
+      e.entry=unit.pos;unit.whiteMaze={caster:foe.id,through:b.round+2,enemy:true};break;
+    case 'mazeSill':
+      gameConceptPush(b,foe,unit,2);
+      if(unit.whiteMaze?.enemy&&unit.whiteMaze.through>=b.round){gamePosition(b,unit,e.entry);fixed(6);}
+      break;
+    case 'mazeFold': if(unit.mind<70)drain(10);break;
+    case 'mazeDust': {
+      const a=gridPoint(foe.pos),c=gridPoint(unit.pos);
+      const pos=gridIndex(Math.round((a.x+c.x)/2),Math.round((a.y+c.y)/2));
+      if(gridValid(pos)&&!gameBlocked(b,foe).has(pos)&&pos!==foe.pos)
+        (b.extraWalls??=[]).push({index:pos,ownerSide:null,through:b.round+1});
+      break;
+    }
+    case 'mazeConverge': drain(gameConceptParty(b).filter(ally=>ally.whiteMaze?.enemy&&ally.whiteMaze.through>=b.round).length*4);break;
+    case 'fleshThread': gameConceptFleshGift(b,foe,unit,2);break;
+    case 'fleshToss': gameConceptBleed(unit,1,6,foe);gameHeal(b,foe,12);gameConceptFleshGift(b,foe,unit,1);break;
+    case 'fleshNail': gameConceptFleshGift(b,foe,unit,1);break;
+    case 'fleshFrenzy': gameConceptFleshGift(b,foe,unit,1);gameConceptFleshGift(b,foe,unit,1);break;
+    case 'scribeRecord': unit.conceptTape={hp:unit.hp,pos:unit.pos,through:b.round+2};drain(4);break;
+    case 'scribeType': fixed(Object.keys(unit.stacks).filter(key=>unit.stacks[key]>0).length*2);break;
+    case 'scribeCut':
+      if(unit.conceptMove?.round===b.round)gamePosition(b,unit,unit.conceptMove.from);
+      unit.nextMove=Math.max(-7,unit.nextMove-3);break;
+    case 'censusLine': case 'censusCross': gameConceptSeal(b,unit);break;
+    case 'censusBlank': if(b.zones.includes(unit.pos))gameConceptSeal(b,unit);break;
+    case 'censusWeight': {
+      const count=(unit.censusSeals||[]).filter(seal=>seal.through>=b.round).length;
+      if(count)unit.conceptCost={amount:2*count,through:b.round+1};
+      break;
+    }
+    case 'pitKnife': gameConceptTile(b,unit.pos,'canvas',2);break;
+    case 'pitBucket': {
+      const color=inkColors.slice().sort((a,c)=>(unit.inks?.[c]||0)-(unit.inks?.[a]||0))[0];
+      foe.inks[color]+=4;gameConceptPush(b,foe,unit,1);break;
+    }
+    case 'pitTwotone':
+      if(ctx.hitIndex===1)fixed(Math.min(12,Math.floor(foe.inks.magenta/10)*2));
+      else {const power=Math.min(5,Math.floor(foe.inks.cyan/10));if(power)gameConceptBleed(unit,2,power,foe);}
+      break;
+
+    case 'pitDrag':
+      gameConceptTile(b,unit.pos,'corrosion',2);gameConceptPush(b,foe,unit,1,true);
+      gameConceptTile(b,unit.pos,'corrosion',2);gameFieldGrant(b,unit,'용해',1,foe);break;
+    case 'pitSpray':
+      if(unit.shield){gameRemoveShield(unit,unit.shield);gameConceptSatiety(b,foe,1);}
+      gameFieldGrant(b,unit,'용해',2,foe);break;
+    case 'pitSwallow':
+      gameConceptPush(b,foe,unit,1,true);
+      if(unit.shield)gameRemoveShield(unit,unit.shield);
+      else if(!gameConceptRemoveBuffs(unit,1)){
+        const rubble=b.walls.find(pos=>gridDistance(pos,unit.pos)<=2);
+        if(rubble===undefined)break;
+        b.walls=b.walls.filter(pos=>pos!==rubble);
+      }
+      gameConceptSatiety(b,foe,1);break;
+    case 'pitWave': {
+      const count=gameConceptRemoveBuffs(unit);
+      if(count){fixed(4*count);gameConceptSatiety(b,foe,count);}
+      break;
+    }
+    case 'pitReflux': if((unit.stacks['용해']||0)<=1)e.refluxRound=b.round+1;break;
+  }
+}
+function gameConceptRemoveBuffs(unit,limit=Infinity){
+  const buffs=['집중','강타','맑은 물결','철벽 빗장','비축 금화'].filter(tag=>gameStackActive(unit,tag)).slice(0,limit);
+  for(const tag of buffs)gameWriteStacks(unit,tag,[]);
+  return buffs.length;
+}
+function gameConceptEnd(b,foe,party){
+  const e=b.encounter,card=b.intent.card;
+  if(e.id==='commute01'&&gameAlive(foe)&&card.id==='commuteClose'&&e.proof>=3){
+    for(const unit of party.filter(gameAlive))gameMental(b,unit,6);
+    e.proofComplete=true;
+  }
+  const standing=party.filter(gameAlive);
+  const allAtStart=standing.length>0&&standing.every(unit=>gridPoint(unit.pos).x===0);
+  if(e.id==='guest01'){
+    e.sleeve=b.guestActions?.[0]||null;
+    const alive=party.filter(gameAlive);
+    if(alive.length>=2&&!e.sleeve?.effects.length&&alive.every(unit=>alive.some(other=>other!==unit&&gameDistance(unit,other)<=1)))e.paired=(e.paired||0)+1;
+    else e.paired=0;
+    if(b.round>=4&&allAtStart)e.withdrew=true;
+  }
+  if(e.id==='applause01'){
+    const released=e.exposedRound===b.round;
+    if(!released&&e.playerCards>=4)gameConceptApplaud(foe,2);
+    if(released&&standing.every(unit=>unit.mind>=50)&&(e.playerNames?.length||0)>=4&&!foe.stacks['수억의 박수'])e.clean=true;
+    if(b.round>=5&&allAtStart)e.withdrew=true;
+    if((foe.stacks['수억의 박수']||0)>=6)for(const unit of party.filter(gameAlive))gameMental(b,unit,-3);
+  }
+  if(e.id==='flesh01'&&gameAlive(foe)){
+    const bleed=foe.redBleed?.power||0;
+    if(card.id==='fleshFrenzy'&&!e.gifts){
+      gameDamage(b,foe,Math.min(foe.hp-1,bleed),foe,false,false,true,{kind:'stack'});
+      foe.stacks[redItch]=Math.floor(foe.stacks[redItch]/2);
+    }
+    gameDamage(b,foe,Math.min(foe.hp-1,bleed),foe,false,false,true,{kind:'stack'});
+    if(foe.hp===1&&!e.gifts)e.dried=true;
+    if(foe.stacks[redItch]>=8&&allAtStart)e.kindled=true;
+  }
+  if(e.id==='scribe01'&&gameAlive(foe)){
+    if(e.roundDamage<40){
+      gameConceptTapeRestore(b,foe,40);
+      if(e.tape&&e.tangleRound!==b.round)gamePosition(b,foe,e.tape.positions[foe.id]);
+    }
+    const alive=party.filter(gameAlive);
+    e.outside=e.roundDamage===0&&e.partyDamage===0&&alive.length>0&&alive.every(unit=>unit.pos===(unit.conceptTape?.through>=b.round?unit.conceptTape.pos:e.tape?.positions[unit.id]));
+  }
+  if(e.id==='decomposer01'){
+    if(card.id==='pitReflux'&&!e.bossHits)e.refluxRound=b.round+1;
+    if(e.refluxRound===b.round+1){
+      gameFieldGrant(b,foe,'용해',3,foe);e.stunnedRound=b.round+1;
+    }
+    if(e.coreRound===b.round&&e.coreHits<3){foe.satiety=0;delete e.coreRound;}
+    let total=0;
+    for(const unit of Object.values(b.units).filter(gameAlive)){
+      if(b.tiles?.[unit.pos]?.kind!=='corrosion')continue;
+      total+=gameDamage(b,unit,4,foe,false,false,true,{kind:'other',ongoing:true});
+      if(!unit.enemy){gameMental(b,unit,-3);unit.nextMove=Math.max(-7,unit.nextMove-1);}
+    }
+    if(total&&gameAlive(foe))gameHeal(b,foe,total);
+  }
+  if(gamePit(b)){
+    for(const mob of Object.values(b.units).filter(unit=>unit.pitMob&&gameAlive(unit))){
+      const target=gameConceptParty(b).sort((a,c)=>gameDistance(a,mob)-gameDistance(c,mob))[0];
+      if(!target)break;
+      gameMove(b,mob,target.pos,2,true);
+      if(gameDistance(mob,target)===1)gameUnopposedAttack(b,gameEnemyAction(b,mob,target,conceptEncounterCards.pitMobBite));
+    }
+    if(party.some(unit=>gameAlive(unit)&&e.elevator.tiles.includes(unit.pos))){
+      e.elevator.power=Math.min(e.elevator.need,e.elevator.power+1);
+      gameLog(b,'비상 승강기 · 동력 '+e.elevator.power+'/'+e.elevator.need);
+    }
+  }
+  if(e.id==='maze01'){
+    if(e.mazeClears>=2&&e.mazeClearedRound===b.round&&standing.every(unit=>unit.mind>=50&&!unit.whiteMaze?.enemy))e.unseamed=true;
+    if(b.round>=2&&standing.length&&standing.every(unit=>gridDistance(unit.pos,e.entry)<=1&&unit.ruleUsedAttack!==b.round))e.returnedEntry=true;
+  }
+  if(e.id==='artist01'&&e.aura==='yellow'&&gameAlive(foe)){
+    gameHeal(b,foe,Math.floor(foe.inks.yellow*0.3));
+    gameFieldCleanse(foe);
+  }
+  if(e.id==='census01'){
+    e.censusBan=(e.records||[]).filter(record=>record.round===b.round&&record.inside||record.round===b.round-1&&!record.inside)
+      .map(record=>record.name);
+    e.records=(e.records||[]).filter(record=>record.round>=b.round);
+    if(e.overloadRound===b.round)e.censusBan=[];
+  }
+}
+function gameConceptOutcome(b,foe,party){
+  if(!gameNewConcept(b))return false;
+  const e=b.encounter;
+  let kind,orb;
+  if(!party.length){b.outcome={kind:'wipe',tier:'none'};return false;}
+  if(e.elevator?.power===e.elevator?.need&&e.elevator)kind='escape';
+  else if(e.coreHits>=3){kind='subdue';orb='pitSlimeCore';}
+  else if(!gameAlive(foe)){
+    if(e.id==='census01'&&e.overloadFired){kind='overload';orb='conceptCensusOrb';}
+    else if(e.id==='census01')kind='wear';
+    else if(e.id==='scribe01'&&e.tangleRound===b.round-1){kind='untie';orb='conceptScribeReel';}
+    else if(e.id==='artist01'&&e.stainFired){kind='stain';orb='conceptArtistPalette';}
+    else kind='break';
+  }else if(e.proofComplete){kind='proof';orb='conceptCommutePendulum';}
+  else if(e.id==='guest01'&&e.paired>=3){kind='retreat';orb='conceptGuestBowl';}
+  else if(e.clean){kind='clean';orb='conceptApplauseCold';}
+  else if(e.unseamed){kind='unseam';orb='conceptMazeCorner';}
+  else if(e.withdrew)kind='withdraw';
+  else if(e.returnedEntry)kind='entry';
+  else if(e.kindled)kind='kindle';
+  else if(e.dried){kind='dry';orb='conceptFleshBead';}
+  else if(e.outside)kind='outside';
+  if(!kind)return false;
+  const failure=['escape','outside','withdraw','entry','kindle'].includes(kind);
+  const rush=kind==='break'&&e.id!=='scribe01';
+  if(rush){
+    const rolls=[gameRoll(10),gameRoll(10)],total=rolls[0]+rolls[1];
+    const reward={commute01:'conceptCommutePendulum',guest01:'conceptGuestBowl',applause01:'conceptApplauseCold',
+      maze01:'conceptMazeCorner',flesh01:'conceptFleshBead',artist01:'conceptArtistPalette',decomposer01:'pitSlimeCore'}[e.id];
+    b.outcome={kind,tier:'bruteKill',extract:{rolls,total,need:10},orb:total>=10?reward:null};
+  }else b.outcome={kind,tier:failure||!orb?'none':'puzzleSolved',orb:orb||null};
+  gameLog(b,e.name+' · '+kind);
+  return true;
+}
 function gameNext(b) {
   const enemy=b.units.enemy, party=Object.values(b.units).filter(u=>!u.enemy&&gameAlive(u));
   const foes=Object.values(b.units).filter(unit=>unit.enemy&&gameAlive(unit));
   if(gameIsBright(b))gameBrightTransition(b);
   const brightWipe=gameIsBright(b)&&!party.some(unit=>unit.id!=='conceptDawn'&&!unit.brainwashed&&!unit.collapsed);
   if(brightWipe)b.outcome={kind:b.encounter.stage>1?'sanctuaryBreak':'brainwashed',orb:null};
-  const peaceful=gameStopOutcome(b,enemy,party)||gameCollectorOutcome(b,enemy,party)||gameJudgeOutcome(b,enemy,party)||
+  const peaceful=gameConceptOutcome(b,enemy,party)||gameStopOutcome(b,enemy,party)||gameCollectorOutcome(b,enemy,party)||gameJudgeOutcome(b,enemy,party)||
     gameRailOutcome(b,foes,party);
   if (peaceful||!foes.length||!party.length||brightWipe) {
     b.phase='finished';
@@ -2587,13 +3163,14 @@ function gameNext(b) {
   if(victim.provoked)gameLog(b,victim.name+' · 도발로 예고 공격 유도');
   for(const unit of party)unit.provoked=false;
   const distance=gameDistance(victim,enemy);
-  if(distance>4&&!gameIsRail(b)&&!enemy.immovable&&!enemy.rootNext&&!enemy.blockedRounds)gameMove(b,enemy,victim.pos,Math.min(bounded(2+enemy.nextMove,0,7),distance-4),true);
+  if(distance>4&&!gameNewConcept(b)&&!gameIsRail(b)&&!enemy.immovable&&!enemy.rootNext&&!enemy.blockedRounds)gameMove(b,enemy,victim.pos,Math.min(bounded(2+enemy.nextMove,0,7),distance-4),true);
   enemy.rooted=!!enemy.rootNext;
   enemy.rootNext=false;enemy.nextMove=0;
   if(gameIsRail(b)){
     gameRailRound(b,party);
     b.intent=b.intentQueue[0]||{card:firstStopCards.stopWait,target:victim.id,reachable:false};
-  }else if(gameIsFirstStop(b))b.intent=gameStopIntent(b,enemy,party);
+  }else if(gameNewConcept(b))b.intent=gameConceptIntent(b,enemy,party,victim);
+  else if(gameIsFirstStop(b))b.intent=gameStopIntent(b,enemy,party);
   else if(gameIsCollector(b)){
     const deck=b.foeDeck;
     const paused=b.encounter.breakRound===b.round;
@@ -2942,6 +3519,10 @@ function gameBegin(state,members,settings,actor,collections) {
     }
     battle.foeDeck={cards:[...encounter.deck],index:0};
     battle.zones=[...encounter.zones];
+    if(encounter.conceptEncounter){
+      gameConceptBegin(battle,encounter);
+      foe.passives=encounter.passives.map((name,index)=>({id:encounter.id+':'+index,name,effects:[]}));
+    }
     if(encounter.squad){
       battle.foeOrder=encounter.squad.map(unit=>unit.id);
       battle.foeDecks=Object.fromEntries(encounter.squad.map(unit=>[unit.id,{cards:[...unit.deck],index:0}]));
@@ -2990,7 +3571,8 @@ function gameSelect(b,u,input,ai=false) {
     gameFail('압류 표식으로 이 카드 사본은 이번 라운드에 사용이 금지돼요.');
   if(card&&!cardUsable(u,card,b.round))gameFail('현재 상태에서 사용할 수 없는 카드입니다.');
   const goal=input.pos??u.pos;
-  if(!gridValid(goal)||!gridPaths(u.pos,u.move,gameBlocked(b,u)).has(goal))gameFail('이동 가능 거리를 확인하세요.');
+  if(card&&((u.censusSeals||[]).some(seal=>seal.through>=b.round&&seal.name===card.name)||b.encounter?.censusBan?.includes(card.name)))gameFail('호적부가 이 카드 이름을 봉인했어요.');
+  if(!gridValid(goal)||!gridPaths(u.pos,u.move,gameBlocked(b,u),gamePit(b)?b.zones:[]).has(goal))gameFail('이동 가능 거리를 확인하세요.');
   const copyId=card?.effects.some(e=>e.kind==='copyChosen')?input.copyId:null;
   if(card?.effects.some(e=>e.kind==='copyChosen')&&!u.hand.some((id,index)=>id===copyId&&index!==u.hand.indexOf(cardId))){
     gameFail('손패에서 복제할 카드를 선택하세요.');
@@ -3062,14 +3644,14 @@ function gameBotPlan(b,u,allowClash=true) {
   const cards=crisis?['crisisFace']:u.hand;
   if(u.collapsed){
     const card=gameCollapseCard;
-    const paths=gridPaths(u.pos,u.move,gameBlocked(b,u));
+    const paths=gridPaths(u.pos,u.move,gameBlocked(b,u),gamePit(b)?b.zones:[]);
     const units=Object.values(b.units);
     for(const pos of paths.keys())if(collapseTargets(card,{...u,pos},units,gameBattleWalls(b)).length)return gameSelect(b,u,{card:card.id,pos},true);
     const pos=[...paths.keys()].sort((a,c)=>gridDistance(a,enemy.pos)-gridDistance(c,enemy.pos))[0];
     return gameSelect(b,u,{pos},true);
   }
   const open=[];
-  const paths=gridPaths(u.pos,u.move,gameBlocked(b,u));
+  const paths=gridPaths(u.pos,u.move,gameBlocked(b,u),gamePit(b)?b.zones:[]);
   for(const [goal,path] of paths){
     for(const id of cards){
       const card=u.library[id];
@@ -4536,7 +5118,8 @@ function gameContext(actor,card,targets,moved=0){
 function gameEnemyAction(b,actor,target,card=b.intent.card){
   const intent=b.intentQueue?.find(entry=>entry.attacker===actor.id)||b.intent;
   const effective=card.splash&&(intent?.noSplash||target.defenseSplashCut===b.round)?{...card,splash:null}:card;
-  const ctx=gameContext(actor,effective,[target]);
+  const selected=gameNewConcept(b)&&effective.target==='area'?gameConceptParty(b):[target];
+  const ctx=gameContext(actor,effective,selected);
   gameCountCardUse(b,ctx);
   if(gameIsRail(b)){
     if(actor.id!=='enemy'&&b.encounter.leaderDownRound<b.round)ctx.mod-=3;
@@ -4546,6 +5129,7 @@ function gameEnemyAction(b,actor,target,card=b.intent.card){
       ctx.card={...card,hitPowers:[card.power,card.power]};
     }
   }
+  if(gameNewConcept(b))gameConceptUse(b,ctx,target);
   if(card.id==='blissHug'&&target.shield)ctx.mod+=5;
   gameTriggerCardMark(b,actor,ctx.card);
   if(!gameAlive(actor))return ctx;
@@ -4618,7 +5202,7 @@ function gameStrike(b,ctx,target,roll){
     actor.trueStrike--;
     gameLog(b,actor.name+' · '+target.name+'의 회피 무효화');
   }
-  if(b.encounter&&b.zones.includes(actor.pos))roll=Math.max(0,roll-3);
+  if(b.encounter&&!gameNewConcept(b)&&b.zones.includes(actor.pos))roll=Math.max(0,roll-3);
   const held=gameHeldModifiers(b,actor,target);
   const rawChance=(actor.combat?.critChance||0)+(actor.critChance||0)+(actor.critStacks||0)*5+(held.critChance||0)+Math.min(100,stackPotency(actor,'집중'))+(ctx.applauseCrit||0);
   const chance=bounded(rawChance,0,100);
@@ -4668,6 +5252,7 @@ function gameStrike(b,ctx,target,roll){
       }
     }
   }else dealt=gameDamage(b,target,roll,actor,ctx.card.id==='railPierce'||plummet||faces>=3,true,false,origin);
+  if(gameNewConcept(b))gameConceptStrike(b,ctx,target,dealt);
   if(blind&&ctx.diceRolls?.[(ctx.hitIndex||1)-1]%2===1){
     for(const near of Object.values(b.units).filter(unit=>unit!==target&&gameAlive(unit)&&gameDistance(unit,target)===1)){
       gameDamage(b,near,Math.floor(roll*0.3),actor,false,false,false,{kind:'card',ignoreOutgoingCuts:true});
@@ -5042,7 +5627,16 @@ function gamePrepareAction(b,u,plan,moved){
   }
   gameCollectorUse(b,u);
   const release=applauseAttack(card)&&u.applauseRelease?.round===b.round?u.applauseRelease:null;
-  const paid=gameRuleCost(b,u,card);
+  const surcharge=u.conceptCost?.through===b.round?u.conceptCost.amount:0;
+  const blackInk=b.encounter?.id==='artist01'&&b.encounter.aura==='black'?2:0;
+  const inkMark=u.inkCostMark?.through===b.round&&u.inkCostMark.id===card.id;
+  if(surcharge)delete u.conceptCost;
+  const paid=gameRuleCost(b,u,card)*(inkMark?2:1)+surcharge+blackInk;
+  if(inkMark)delete u.inkCostMark;
+  if(u.applauseRefund?.through===b.round&&u.applauseRefund.id===card.id){
+    gameMental(b,u,2);
+    delete u.applauseRefund;
+  }
   if(release)delete u.applauseRelease;
   if(card.cost&&u.ruleHalfCost>=b.round)delete u.ruleHalfCost;
   if(card.cost&&u.scribeDiscount>=b.round)delete u.scribeDiscount;
@@ -5119,11 +5713,13 @@ function gamePrepareAction(b,u,plan,moved){
   return ctx;
 }
 function gameEnemyReady(b){
+  if(gameNewConcept(b)&&b.intent.card.id===firstStopCards.stopWait.id)return false;
   if(b.units.enemy.defenseSkip>0)return false;
   if(gameIsBright(b)&&brightScripted.has(b.intent.card.id))return false;
   if(gameIsRail(b)||gameIsFirstStop(b)||gameIsCollector(b)&&b.encounter.breakRound===b.round)return false;
   const enemy=b.units.enemy,target=b.units[b.intent.target];
-  return gameAlive(enemy)&&gameActionLimit(enemy)>0&&gameAlive(target)&&gameReach(b,b.intent.card,enemy,target);
+  return gameAlive(enemy)&&gameActionLimit(enemy)>0&&gameAlive(target)&&
+    (gameNewConcept(b)?gameConceptReach(b,b.intent.card,enemy,target):gameReach(b,b.intent.card,enemy,target));
 }
 function gameResolveClash(b,duelist,enemy,target,attackCard){
   b.shock={};
@@ -5337,10 +5933,11 @@ function gameResolve(b) {
     b.shock={};
     if(!gameCover(b,enemy,target)){
       const incoming=gameEnemyAction(b,enemy,target);
-      if(gameAlive(enemy))gameUnopposedAttack(b,incoming);
+      if(gameAlive(enemy)&&!(gameNewConcept(b)&&incoming.card.support))gameUnopposedAttack(b,incoming);
     }
   } else if(!countered&&gameAlive(enemy)&&!gameIsBright(b))gameLog(b,'집행체의 공격이 사거리 또는 대상 조건을 잃었습니다.');
   if(gameIsBright(b))gameBrightResolve(b);
+  if(gameNewConcept(b))gameConceptEnd(b,enemy,party);
   for(const reaction of [...b.counterPlans.values()].flat()){
     if(gameAlive(reaction.actor))gameLog(b,reaction.actor.name+' · 반격 조건 미충족');
   }
@@ -5536,7 +6133,7 @@ function gameUnitIntelDetail(b,unit,tier,manager,passives){
   if(tier>=1)detail.stats={hp:unit.hp,maxHp:unit.maxHp,move:unit.move,actions:gameActionLimit(unit)};
   if(tier>=2){
     const deck=unit.enemy?(b.foeDecks?.[unit.id]||(unit.id==='enemy'?b.foeDeck:null)):null;
-    const catalog=gameIsBright(b)?brightCards:gameIsJudge(b)?judgeCards:gameIsCollector(b)?collectorCards:gameIsRail(b)?railCards:firstStopCards;
+    const catalog=gameNewConcept(b)?conceptEncounterCards:gameIsBright(b)?brightCards:gameIsJudge(b)?judgeCards:gameIsCollector(b)?collectorCards:gameIsRail(b)?railCards:firstStopCards;
     const current=(b.intentQueue||[b.intent]).filter(intent=>(intent?.attacker||'enemy')===unit.id).map(intent=>intent?.card).filter(Boolean);
     const cards=deck?deck.cards.map(id=>unit.library[id]||catalog[id]).filter(Boolean):
       [...(unit.configuredDeck||[]),...(unit.hand||[]),...(unit.grave||[])].map(id=>unit.library[id]).filter(Boolean);
@@ -5563,7 +6160,10 @@ function gameView(state,revision,actor,manager,members) {
         targets:action.targets||[],target:action.targets?.[0],targetTile:action.targetTile,clash:action.clash,actionLink:action.actionLink,foeIntent:action.foeIntent}]:[];
     })),
     ...(b.encounter?{encounter:{id:b.encounter.id,name:b.encounter.name,peace:b.encounter.peace,peaceOpen:b.encounter.peaceOpen,
-      deckSize:b.foeDeck.cards.length,subdueOrder:b.encounter.subdueOrder,rank:Array.isArray(b.encounter.rank)?b.encounter.rank:undefined,difficulty:b.encounter.difficulty??(typeof b.encounter.rank==='string'?b.encounter.rank:undefined),negotiating:b.encounter.breakRound===b.round,...(gameIsBright(b)&&(manager||b.encounter.stage>1)?{stage:b.encounter.stage}:{})},zones:b.zones,outcome:b.outcome}:{}),log:gameVisibleLog(b.log,manager),walls:b.walls,extraWalls:b.extraWalls,tiles:b.tiles,poses:b.poses||[],
+      deckSize:b.foeDeck.cards.length,
+      ...(gameNewConcept(b)?{mechanic:{proof:b.encounter.proof,elevator:b.encounter.elevator,entry:b.encounter.entry,
+        recorded:b.encounter.names?.length,coreHits:b.encounter.coreHits,coreExposed:b.encounter.coreRound===b.round,
+        warm:b.encounter.warmRound===b.round,aura:b.encounter.aura}}:{}),subdueOrder:b.encounter.subdueOrder,rank:Array.isArray(b.encounter.rank)?b.encounter.rank:undefined,difficulty:b.encounter.difficulty??(typeof b.encounter.rank==='string'?b.encounter.rank:undefined),negotiating:b.encounter.breakRound===b.round,...(gameIsBright(b)&&(manager||b.encounter.stage>1)?{stage:b.encounter.stage}:{})},zones:b.zones,outcome:b.outcome}:{}),log:gameVisibleLog(b.log,manager),walls:b.walls,extraWalls:b.extraWalls,tiles:b.tiles,poses:b.poses||[],
     awaiting:gameActive(b)?gameAwaiting(b,members).map(u=>u.name):[],clashActor:Object.keys(b.plans||{}).find(id=>gameHasClash(b.plans[id])),
     units:Object.values(b.units).map(({library,hand,deck,grave,exile,cover,effectUsage,passives,cardMarks,configuredDeck,lifeSteal,poisonSources,shieldSlots,queuedShields,activityLocations,locationTags,stackTraits,stackDefinitions,sealedHighest,stackRuns,damageDebt,damageOverTime,delayedStrike,controlledIndex,controlledPower,cardUseCounts,keywordUses,...unit})=>({
       ...unit,
@@ -6222,9 +6822,10 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
         if(!gameActive(b)||!gameAlive(unit)||!unit.instantMove)gameFail('사용할 즉시 이동력이 없어요.');
         if(input.skip===true){delete unit.instantMove;break;}
         if(unit.rooted||unit.blockedRounds)gameFail('현재 상태에서는 이동할 수 없어요.');
-        const path=gridPaths(unit.pos,unit.instantMove,gameBlocked(b,unit)).get(input.pos);
+        const terrain=gamePit(b)?b.zones:[];
+        const path=gridPaths(unit.pos,unit.instantMove,gameBlocked(b,unit),terrain).get(input.pos);
         if(!path?.length)gameFail('즉시 이동할 수 있는 칸을 선택하세요.');
-        unit.instantMove-=path.length;
+        unit.instantMove-=gridTravelCost(path,terrain);
         if(!unit.instantMove)delete unit.instantMove;
         gameFollowPath(b,unit,path);
         delete b.plans[actor];

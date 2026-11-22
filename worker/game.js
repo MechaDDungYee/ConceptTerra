@@ -6782,6 +6782,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
   const manager=actor===room.owner_id||self.seat===0;
   const canSetBattleMusic=!studio&&self.seat===0;
   const canGrantRewards=!studio&&self.seat===0;
+  const canManageStory=!studio&&self.seat===0;
   const current=await query(db,'SELECT revision, state FROM game_states WHERE room_code = ?',room.code).first();
   const revision=current?.revision||0;
   const state=current?JSON.parse(current.state):gameEmpty();
@@ -6886,6 +6887,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
     data.collectionRevision=collection.revision;
     data.canSetBattleMusic=canSetBattleMusic;
     data.canGrantRewards=canGrantRewards;
+    data.canManageStory=canManageStory;
     data.battleMusic=state.battleMusicVerified?state.battleMusic:'auto';
     data.unlockedBattleMusic=unlockedMusic;
     data.campaign=gameCampaignView(state,actor,manager);
@@ -6925,7 +6927,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
         cards:[...new Map([darkForgive,...trainShopCards,...collection.cards].map(card=>[card.id,{id:card.id,name:card.name}])).values()]
       };
       data.dialogue=state.dialogue||[];
-      data.dialogueChecks=(state.dialogueChecks||[]).filter(check=>manager||check.scene==null||check.started);
+      data.dialogueChecks=(state.dialogueChecks||[]).filter(check=>canManageStory||check.scene==null||check.started);
       if(manager)data.dialogueCheckPlayers=members.filter(member=>member.seat>0||member.id===actor)
         .map(member=>({id:member.id,name:state.profiles[member.id]?.name||member.name}));
       if(manager&&state.battle)data.dialogueFoes=Object.values(state.battle.units).filter(unit=>unit.enemy).map(unit=>{
@@ -6947,10 +6949,10 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
     return journeyDownload(db,room,state);
   }
 
-  if(input.action==='storyGuide')return manager&&!studio?json({sections:gameStorySections}):error('GM용 룰북이에요.',403);
+  if(input.action==='storyGuide')return canManageStory?json({sections:gameStorySections}):error('GM용 룰북이에요.',403);
   if(input.action==='sessionStory'){
-    if(studio||!manager&&!(self.seat>0))return error('세션에 배정된 승객 또는 GM만 대본을 볼 수 있어요.',403);
-    return json({sections:manager?gameSessionScenes:gamePublishedStory(state)});
+    if(studio||!canManageStory&&!(self.seat>0))return error('세션에 배정된 승객 또는 GM만 대본을 볼 수 있어요.',403);
+    return json({sections:canManageStory?gameSessionScenes:gamePublishedStory(state)});
   }
   if(['saveSlot','loadSlot','deleteSlot','exportSave','importSave'].includes(input.action)){
     if(!manager||studio)return error('세션의 GM 또는 방장만 저장 파일을 관리할 수 있어요.',403);
@@ -7118,7 +7120,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
         break;
       }
       case 'dialogueCheckCreate': {
-        if(studio||!manager)return error('세션 GM만 판정을 요청할 수 있어요.',403);
+        if(!canManageStory)return error('세션 GM만 판정을 요청할 수 있어요.',403);
         const title=gameText(input.title,120);
         const players=members.filter(member=>member.seat>0||member.id===actor);
         const targets=input.target==='all'?players.filter(member=>member.seat>0):players.filter(member=>member.id===input.target);
@@ -7136,7 +7138,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
         break;
       }
       case 'dialogueSceneStart': {
-        if(studio||!manager)return error('세션 GM만 장면을 시작할 수 있어요.',403);
+        if(!canManageStory)return error('세션 GM만 장면을 시작할 수 있어요.',403);
         if(!gameInt(input.scene,0,gameStorySections.length-1))gameFail('장면을 선택하세요.');
         const scene=gameSessionScenes.find(section=>section.scene===input.scene);
         if(scene)gamePublishStory(state,input.scene,scene.blocks.findIndex(gameCanSeeStoryBlock));
@@ -7144,13 +7146,13 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
         break;
       }
       case 'storyPublish': {
-        if(studio||!manager)return error('GM만 대본을 공개할 수 있어요.',403);
+        if(!canManageStory)return error('GM만 대본을 공개할 수 있어요.',403);
         if(!gameInt(input.block,0,99)||!state.publishedStory?.some(section=>section.scene===input.scene)||
           !gamePublishStory(state,input.scene,input.block))gameFail('시작한 장면에서 공개할 문단을 선택하세요.');
         break;
       }
       case 'dialogueCheckClose': {
-        if(studio||!manager)return error('세션 GM만 판정을 마감할 수 있어요.',403);
+        if(!canManageStory)return error('세션 GM만 판정을 마감할 수 있어요.',403);
         const check=state.dialogueChecks?.find(entry=>entry.id===input.id);
         if(!check||!['queued','open'].includes(check.status))gameFail('진행 중이거나 예약된 판정만 마감할 수 있어요.');
         check.status='closed';

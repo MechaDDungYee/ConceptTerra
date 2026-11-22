@@ -4680,3 +4680,27 @@ test('a room owner in a player seat cannot grant rewards, and the assigned GM ca
   assert.equal((await f.send(f.endpoint,{action:'grantReward',revision:gm.revision,target:owner,kind:'currency',quantity:3},guest.cookie)).status,200);
   assert.equal((await f.send(f.endpoint,undefined,f.host.cookie)).body.trainShop.balance,3);
 });
+
+test('an owner playing a character only reads published story and cannot reserve or start checks',async()=>{
+  const f=await fixture();
+  const gm=await f.send(f.room+'/join',{name:'GM'});
+  await f.send(f.room+'/seat',{id:f.state.me,seat:1},f.host.cookie);
+  await f.send(f.room+'/seat',{id:gm.body.me,seat:0},f.host.cookie);
+  const call=(cookie,action,revision,payload={})=>f.send(f.endpoint,{action,revision,...payload},cookie);
+  const player=(await f.send(f.endpoint,undefined,f.host.cookie)).body;
+  assert.equal(player.manager,true);
+  assert.equal(player.canManageStory,false);
+  assert.equal((await call(f.host.cookie,'storyGuide',player.revision)).status,403);
+  const source=(await call(gm.cookie,'sessionStory',player.revision)).body.sections;
+  const book=source.find(section=>section.heading.startsWith('20'));
+  const paper=source.find(section=>section.heading.startsWith('21'));
+  assert.match(book.blocks.map(block=>block.text).join(' '),/너무 많은 것을 짊어지게 해서 미안해요/);
+  assert.match(paper.blocks[1].text,/왔구나\. 그럼 시작할까\?/);
+  assert.deepEqual((await call(f.host.cookie,'sessionStory',player.revision)).body.sections,[]);
+  assert.equal((await call(f.host.cookie,'dialogueCheckCreate',player.revision,{scene:book.scene})).status,403);
+  assert.equal((await call(f.host.cookie,'dialogueSceneStart',player.revision,{scene:book.scene})).status,403);
+  const started=await call(gm.cookie,'dialogueSceneStart',player.revision,{scene:book.scene});
+  assert.equal(started.status,200);
+  const visible=(await call(f.host.cookie,'sessionStory',started.body.revision)).body.sections;
+  assert.deepEqual(visible,[{heading:book.heading,blocks:[book.blocks[0]]}]);
+});

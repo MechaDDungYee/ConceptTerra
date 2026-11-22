@@ -1987,11 +1987,13 @@ function trainCheckpoints(){
 }
 let lastStorySection='0',lastRuleSection='0';
 async function openStoryReader(story){
+  if(!story&&!state.canManageStory)return;
   if(paperLocksNavigation()){showPaperTabBlock();return;}
   const title=story?'스토리 대본':'룰북';
   const content=el('div',undefined,{class:'stack'});
   const dialog=battleDialog(title,content);
   dialog.classList.add('session-story-reader');
+  if(state.canManageStory)dialog.dataset.storyPrivate='true';
   content.append(note(title+'을 불러오는 중입니다.'));
   document.body.append(dialog);
   dialog.addEventListener('close',()=>dialog.remove(),{once:true});
@@ -1999,7 +2001,8 @@ async function openStoryReader(story){
   try{
     const {sections}=await request({action:story?'sessionStory':'storyGuide'});
     if(!sections.length){content.replaceChildren(note('아직 공개된 장면이 없습니다.'));return;}
-    const manager=state.manager;
+    if(!dialog.open)return;
+    const manager=state.canManageStory;
     const selected=story?(manager?lastStorySection:String(sections.length-1)):lastRuleSection;
     const chapters=select('storyChapter',sections.map((section,i)=>[String(i),section.heading]),selected);
     const body=el(story?'div':'pre',undefined,{class:story?'story-reading':'story-guide-text',tabindex:'0'});
@@ -2060,6 +2063,11 @@ async function openStoryReader(story){
 }
 const openStoryGuide=()=>openStoryReader(false);
 const openSessionStory=()=>openStoryReader(true);
+function addStoryButtons(container){
+  if(state.canManageStory)container.append(button('룰북',openStoryGuide),button('스토리 대본',openSessionStory));
+  else if(state.roster.some(player=>player.id===state.me))
+    container.append(button('공개된 스토리 대본',openSessionStory));
+}
 function startPanel(){
   const root=section('빈 객차',note('눈을 뜨자 객차에는 남은 승객들뿐입니다. 존속의 집행체가 열차에 들어옵니다.'));
   const saves=saveSlotsPanel();
@@ -2069,8 +2077,8 @@ function startPanel(){
   if(train)root.append(train);
   const shop=trainVendingMachine();
   if(shop)root.append(shop);
+  addStoryButtons(root);
   if(!state.manager){root.append(note('GM 또는 방장이 전투를 시작할 때까지 기다려 주세요.'));return root;}
-  root.append(button('룰북',openStoryGuide),button('스토리 대본',openSessionStory));
   if(state.canGrantRewards)root.append(button('GM 보상 지급',openRewardGrant));
   const form=formFor('start',(_,data)=>({solo:data.has('solo'),bots:Number(data.get('bots')),encounter:data.get('encounter'),paperOrigin:data.get('paperOrigin')||undefined}));
   const solo=input('solo','1','checkbox',{checked:!state.roster.length,disabled:!!state.roster.length});
@@ -2281,7 +2289,10 @@ function unitIntelInspection(unit){
 }
 function battleSettingsButton(){
   return button('⚙ 설정',()=>{
-    const dialog=battleDialog('전투 설정',battleMusicSettings(()=>state,track=>send('battleMusic',{track}),{el,button,field,input,select}));
+    const content=el('div',undefined,{class:'stack'});
+    content.append(battleMusicSettings(()=>state,track=>send('battleMusic',{track}),{el,button,field,input,select}));
+    const dialog=battleDialog('전투 설정',content);
+    if(state.canManageStory)content.append(button('룰북',()=>{dialog.close();openStoryGuide();}));
     dialog.addEventListener('close',()=>{closeBattleMusicSettings(state.battle,state.battleMusic);dialog.remove();},{once:true});
     document.body.append(dialog);
     dialog.showModal();
@@ -2491,7 +2502,7 @@ function battlePanel(){
   log.append(...b.log.slice().reverse().map(t=>el('li',t)));
   const activity=battleDialog('전투 기록',log), participants=battleDialog('참가자 상태',unitStats);
   menuItems.append(button('전투 기록',()=>activity.showModal()),button('참가자 상태',()=>participants.showModal()));
-  if(state.manager)menuItems.append(button('룰북',openStoryGuide),button('스토리 대본',openSessionStory));
+  addStoryButtons(menuItems);
   if(state.canGrantRewards)menuItems.append(button('GM 보상 지급',openRewardGrant));
   if(b.paper){
     const mechanics=battleDialog('시스템 파괴전 규칙',section('페이퍼 마스크',
@@ -3261,6 +3272,7 @@ function switchTab(nextTab){
 }
 function openDialogue(){switchTab('dialogue');}
 function openDialogueCheck(scene){
+  if(!state.canManageStory)return;
   const names=statNames.map((name,i)=>[String(i),name]);
   const players=state.dialogueCheckPlayers||[];
   const targets=[['all','플레이어 전원'],...players.map(player=>[player.id,player.name])];
@@ -3311,16 +3323,16 @@ function dialogueCheckCard(check,score){
     const choose=select('checkStat',options,String(check.stat));
     row.append(field('사용할 능력치',choose),button('판정 시도',()=>send('dialogueCheckAttempt',{id:check.id,stat:Number(choose.value)})));
   }
-  if(state.manager&&check.status!=='closed')row.append(button(check.status==='queued'?'예약 취소':'판정 마감',
+  if(state.canManageStory&&check.status!=='closed')row.append(button(check.status==='queued'?'예약 취소':'판정 마감',
     ()=>send('dialogueCheckClose',{id:check.id})));
   return row;
 }
 function updateDialogueChecks(){
   const {checks,checkTools,checkHistory,checkSummary,checkArchive}=dialogue;
-  checkTools.hidden=!state.manager;
+  checkTools.hidden=!state.canManageStory;
   const entries=state.dialogueChecks||[];
   const score=state.profile.stats||[];
-  const key=JSON.stringify([entries,score,state.me,state.manager]);
+  const key=JSON.stringify([entries,score,state.me,state.canManageStory]);
   if(dialogue.checkKey===key)return;
   dialogue.checkKey=key;
   const pending=entries.filter(check=>check.status==='open'&&
@@ -3457,7 +3469,7 @@ function dialoguePanel(){
   dialogue.rewardGrant.hidden=!state.canGrantRewards;
   const seated=state.roster.some(player=>player.id===state.me);
   dialogue.download.hidden=!state.manager&&!seated;
-  dialogue.publicStory.hidden=state.manager||!seated;
+  dialogue.publicStory.hidden=state.canManageStory||!seated;
   dialogue.publicStory.textContent=state.storyPublished?.length?'공개된 스토리 대본 · '+state.storyPublished.length+'장면':'공개된 스토리 대본';
   const items=(state.storyInventory||[]).map(item=>item.name+' ×'+item.quantity);
   dialogue.inventory.hidden=!seated&&!state.trainShop?.locked&&!items.length;
@@ -3521,6 +3533,9 @@ function dialoguePanel(){
 function render(){
   syncBattleMusic(state?.battle,state?.battleMusic);
   if(!state)return;
+  if(!state.canManageStory){
+    for(const reader of document.querySelectorAll('[data-story-private][open]'))reader.close();
+  }
   if(paperLocksNavigation()){
     const readers=document.querySelectorAll('.session-story-reader[open]');
     for(const reader of readers)reader.close();
@@ -3569,9 +3584,9 @@ try{
     try{
       const next=await request();
       if(busy||state!==before)return;
-      if(next.revision!==state.revision||next.collectionRevision!==state.collectionRevision||next.manager!==state.manager||next.canSetBattleMusic!==state.canSetBattleMusic||next.canGrantRewards!==state.canGrantRewards||JSON.stringify(next.unlockedBattleMusic)!==JSON.stringify(state.unlockedBattleMusic)||JSON.stringify(next.roster)!==JSON.stringify(state.roster)||JSON.stringify(next.saveSlots)!==JSON.stringify(state.saveSlots)){
+      if(next.revision!==state.revision||next.collectionRevision!==state.collectionRevision||next.manager!==state.manager||next.canSetBattleMusic!==state.canSetBattleMusic||next.canGrantRewards!==state.canGrantRewards||next.canManageStory!==state.canManageStory||JSON.stringify(next.unlockedBattleMusic)!==JSON.stringify(state.unlockedBattleMusic)||JSON.stringify(next.roster)!==JSON.stringify(state.roster)||JSON.stringify(next.saveSlots)!==JSON.stringify(state.saveSlots)){
         const chatChanged=next.dialogue?.at(-1)?.id!==state.dialogue?.at(-1)?.id;
-        const sameBattle=chatChanged&&['battle','roster','pendingEdits','saveSlots','profile','manager'].every(key=>JSON.stringify(next[key])===JSON.stringify(state[key]));
+        const sameBattle=chatChanged&&['battle','roster','pendingEdits','saveSlots','profile','manager','canManageStory'].every(key=>JSON.stringify(next[key])===JSON.stringify(state[key]));
         const newRound=next.battle?.round!==state.battle?.round||next.battle?.phase!==state.battle?.phase;
         state=next;
         syncBattleMusic(state.battle,state.battleMusic);

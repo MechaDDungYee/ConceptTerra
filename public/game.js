@@ -2494,7 +2494,7 @@ function battlePanel(){
   if(b.paper){
     const mechanics=battleDialog('시스템 파괴전 규칙',section('페이퍼 마스크',
       note('3라운드가 끝나거나 공명이 10에 도달하면 전원이 흡수됩니다.'),
-      note('전투 화면을 오래 떠나면 강제로 돌아옵니다. 보스 정보를 오래 열면 정보창이 봉인됩니다.'),
+      note('대화·캐릭터·카드·덱 탭 이동은 즉시 차단됩니다. 보스 정보를 오래 열면 정보창이 봉인됩니다.'),
       note('2·3라운드 시작에 저지불가 카드부터 파괴됩니다. 대화가 몰리면 그 라운드 동안 입력이 잠깁니다.'),
       note('계획이 90초 동안 확정되지 않으면 미확정 행동은 카드 미사용으로 처리됩니다.')));
     menuItems.append(button('시스템 파괴전 규칙',()=>mechanics.showModal()));
@@ -3240,9 +3240,21 @@ function battleDialoguePanel(){
   }
   return root;
 }
-function openDialogue(){
-  tab='dialogue';draftDirty=false;render();paperHeartbeat();
+function paperBlocksTab(nextTab){
+  return nextTab!=='battle'&&state?.battle?.phase==='planning'&&!!state.battle.paper;
 }
+function showPaperTabBlock(){
+  document.querySelector('.paper-tab-block')?.remove();
+  paperOverlay('tab-block','전투에 집중하지?',1600);
+}
+function switchTab(nextTab){
+  if(paperBlocksTab(nextTab)){showPaperTabBlock();return;}
+  tab=nextTab;
+  draftDirty=false;
+  errors.textContent='';feedback.textContent='';
+  render();paperHeartbeat();
+}
+function openDialogue(){switchTab('dialogue');}
 function openDialogueCheck(scene){
   const names=statNames.map((name,i)=>[String(i),name]);
   const players=state.dialogueCheckPlayers||[];
@@ -3504,6 +3516,9 @@ function dialoguePanel(){
 function render(){
   syncBattleMusic(state?.battle,state?.battleMusic);
   if(!state)return;
+  if(paperBlocksTab(tab)){
+    tab='battle';draftDirty=false;showPaperTabBlock();
+  }
   for(const list of panel.querySelectorAll('.card-list-scroll'))cardListPositions.set(list.ariaLabel,list.scrollTop);
   panel.closest('main').classList.toggle('card-studio-page',tab==='cards');
   for(const x of document.querySelectorAll('#tabs button')){
@@ -3532,7 +3547,7 @@ function render(){
   }
   for(const list of panel.querySelectorAll('.card-list-scroll'))list.scrollTop=cardListPositions.get(list.ariaLabel)||0;
 }
-for(const x of document.querySelectorAll('#tabs button'))x.onclick=()=>{tab=x.dataset.tab;draftDirty=false;errors.textContent='';feedback.textContent='';render();paperHeartbeat();};
+for(const x of document.querySelectorAll('#tabs button'))x.onclick=()=>switchTab(x.dataset.tab);
 try{
   state=await request();render();
   setInterval(paperHeartbeat,3000);
@@ -3553,7 +3568,7 @@ try{
         syncBattleMusic(state.battle,state.battleMusic);
         if(newRound)battleDraft=null;
         if(tab==='battle'&&sameBattle&&battleDialogue?.root.isConnected){battleDialoguePanel();paperVisuals();}
-        else if(tab==='battle'||!draftDirty){draftDirty=false;render();}
+        else if(tab==='battle'||!draftDirty||paperBlocksTab(tab)){draftDirty=false;render();}
       }
     }catch{}
   },2300);

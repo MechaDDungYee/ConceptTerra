@@ -6781,6 +6781,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
   if(!self)return error('먼저 방에 참가해 주세요.',401);
   const manager=actor===room.owner_id||self.seat===0;
   const canSetBattleMusic=!studio&&self.seat===0;
+  const canGrantRewards=!studio&&self.seat===0;
   const current=await query(db,'SELECT revision, state FROM game_states WHERE room_code = ?',room.code).first();
   const revision=current?.revision||0;
   const state=current?JSON.parse(current.state):gameEmpty();
@@ -6884,6 +6885,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
     data.roster=data.roster.map(({id,name,seat})=>({id,name,seat}));
     data.collectionRevision=collection.revision;
     data.canSetBattleMusic=canSetBattleMusic;
+    data.canGrantRewards=canGrantRewards;
     data.battleMusic=state.battleMusicVerified?state.battleMusic:'auto';
     data.unlockedBattleMusic=unlockedMusic;
     data.campaign=gameCampaignView(state,actor,manager);
@@ -6918,7 +6920,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       data.trainShop=gameTrainShopView(state,actor,manager);
       data.storyPublished=state.publishedStory||[];
       data.storyInventory=state.trainWallets?.[actor]?.items||[];
-      if(manager)data.rewardOptions={
+      if(canGrantRewards)data.rewardOptions={
         items:Object.entries(trainShop).filter(([,item])=>!item.card).map(([id,item])=>({id,name:item.name})),
         cards:[...new Map([darkForgive,...trainShopCards,...collection.cards].map(card=>[card.id,{id:card.id,name:card.name}])).values()]
       };
@@ -6991,7 +6993,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
   try{
     switch(input.action){
       case 'grantReward': {
-        if(studio||!manager)return error('GM만 보상을 지급할 수 있어요.',403);
+        if(!canGrantRewards)return error('GM석에 배정된 사람만 보상을 지급할 수 있어요.',403);
         const candidates=members.filter(member=>member.seat>0||member.id===actor&&
           (b?.units[actor]||state.campaign?.party.some(unit=>unit.id===actor)));
         const recipients=input.target==='all'?candidates:candidates.filter(member=>member.id===input.target);

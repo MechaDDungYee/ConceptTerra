@@ -2068,7 +2068,8 @@ function startPanel(){
   const shop=trainVendingMachine();
   if(shop)root.append(shop);
   if(!state.manager){root.append(note('GM 또는 방장이 전투를 시작할 때까지 기다려 주세요.'));return root;}
-  root.append(button('룰북',openStoryGuide),button('스토리 대본',openSessionStory),button('GM 보상 지급',openRewardGrant));
+  root.append(button('룰북',openStoryGuide),button('스토리 대본',openSessionStory));
+  if(state.canGrantRewards)root.append(button('GM 보상 지급',openRewardGrant));
   const form=formFor('start',(_,data)=>({solo:data.has('solo'),bots:Number(data.get('bots')),encounter:data.get('encounter'),paperOrigin:data.get('paperOrigin')||undefined}));
   const solo=input('solo','1','checkbox',{checked:!state.roster.length,disabled:!!state.roster.length});
   const bots=select('bots',[],0);
@@ -2488,7 +2489,8 @@ function battlePanel(){
   log.append(...b.log.slice().reverse().map(t=>el('li',t)));
   const activity=battleDialog('전투 기록',log), participants=battleDialog('참가자 상태',unitStats);
   menuItems.append(button('전투 기록',()=>activity.showModal()),button('참가자 상태',()=>participants.showModal()));
-  if(state.manager)menuItems.append(button('룰북',openStoryGuide),button('스토리 대본',openSessionStory),button('GM 보상 지급',openRewardGrant));
+  if(state.manager)menuItems.append(button('룰북',openStoryGuide),button('스토리 대본',openSessionStory));
+  if(state.canGrantRewards)menuItems.append(button('GM 보상 지급',openRewardGrant));
   if(b.paper){
     const mechanics=battleDialog('시스템 파괴전 규칙',section('페이퍼 마스크',
       note('3라운드가 끝나거나 공명이 10에 도달하면 전원이 흡수됩니다.'),
@@ -3323,6 +3325,7 @@ function updateDialogueChecks(){
 }
 let dialogue;
 function openRewardGrant(){
+  if(!state.canGrantRewards)return;
   const players=state.dialogueCheckPlayers||[];
   const eligible=players.filter(player=>player.id!==state.me||state.battle?.units.some(unit=>unit.id===state.me)||state.trainShop?.locked||
     state.roster.some(member=>member.id===state.me));
@@ -3416,7 +3419,9 @@ function dialoguePanel(){
     const history=el('ol',undefined,{class:'log'});
     transcript.append(el('summary','대화 기록'),history);
     const checkTools=el('div',undefined,{class:'row'});
-    checkTools.append(button('능력치 판정 요청',()=>openDialogueCheck()),button('룰북',openStoryGuide),button('스토리 대본',openSessionStory),button('GM 보상 지급',openRewardGrant));
+    checkTools.append(button('능력치 판정 요청',()=>openDialogueCheck()),button('룰북',openStoryGuide),button('스토리 대본',openSessionStory));
+    const rewardGrant=button('GM 보상 지급',openRewardGrant);
+    checkTools.append(rewardGrant);
     const checks=el('div',undefined,{class:'stack dialogue-checks','aria-live':'polite','aria-label':'응답할 능력치 판정'});
     stage.append(checks);
     const checkHistory=el('details',undefined,{class:'dialogue-check-history'});
@@ -3427,11 +3432,12 @@ function dialoguePanel(){
     const publicStory=button('공개된 스토리 대본',openSessionStory);
     const inventory=el('p',undefined,{class:'notice minor'});
     const root=section('세션 대화',stage,checkTools,publicStory,compose,checkHistory,transcript,inventory,download);
-    dialogue={root,checks,checkTools,checkHistory,checkSummary,checkArchive,download,publicStory,inventory,portraits,speaker,words,history,controls,speakerSelect,portraitControl,actors:new Map(),latest:null};
+    dialogue={root,checks,checkTools,rewardGrant,checkHistory,checkSummary,checkArchive,download,publicStory,inventory,portraits,speaker,words,history,controls,speakerSelect,portraitControl,actors:new Map(),latest:null};
   }
   const {root,portraits,speaker,words,history,actors}=dialogue;
   const {controls,speakerSelect,portraitControl}=dialogue;
   controls.hidden=!state.manager;
+  dialogue.rewardGrant.hidden=!state.canGrantRewards;
   const seated=state.roster.some(player=>player.id===state.me);
   dialogue.download.hidden=!state.manager&&!seated;
   dialogue.publicStory.hidden=state.manager||!seated;
@@ -3539,7 +3545,7 @@ try{
     try{
       const next=await request();
       if(busy||state!==before)return;
-      if(next.revision!==state.revision||next.collectionRevision!==state.collectionRevision||next.manager!==state.manager||next.canSetBattleMusic!==state.canSetBattleMusic||JSON.stringify(next.unlockedBattleMusic)!==JSON.stringify(state.unlockedBattleMusic)||JSON.stringify(next.roster)!==JSON.stringify(state.roster)||JSON.stringify(next.saveSlots)!==JSON.stringify(state.saveSlots)){
+      if(next.revision!==state.revision||next.collectionRevision!==state.collectionRevision||next.manager!==state.manager||next.canSetBattleMusic!==state.canSetBattleMusic||next.canGrantRewards!==state.canGrantRewards||JSON.stringify(next.unlockedBattleMusic)!==JSON.stringify(state.unlockedBattleMusic)||JSON.stringify(next.roster)!==JSON.stringify(state.roster)||JSON.stringify(next.saveSlots)!==JSON.stringify(state.saveSlots)){
         const chatChanged=next.dialogue?.at(-1)?.id!==state.dialogue?.at(-1)?.id;
         const sameBattle=chatChanged&&['battle','roster','pendingEdits','saveSlots','profile','manager'].every(key=>JSON.stringify(next[key])===JSON.stringify(state[key]));
         const newRound=next.battle?.round!==state.battle?.round||next.battle?.phase!==state.battle?.phase;

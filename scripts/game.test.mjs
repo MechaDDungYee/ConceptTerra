@@ -4661,3 +4661,22 @@ test('players see only released narration, and only the GM can grant session rew
   assert.deepEqual(body.storyInventory,[{name:'접힌 표',quantity:1}]);
   assert.match((await player('journeyDownload')).body.text,/GM 지급.*접힌 표/);
 });
+
+test('a room owner in a player seat cannot grant rewards, and the assigned GM can',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'새 GM'});
+  const owner=f.state.me;
+  assert.equal((await f.send(f.room+'/seat',{id:owner,seat:1},f.host.cookie)).status,200);
+  assert.equal((await f.send(f.room+'/seat',{id:guest.body.me,seat:0},f.host.cookie)).status,200);
+  const {body:player}=await f.send(f.endpoint,undefined,f.host.cookie);
+  assert.equal(player.manager,true);
+  assert.equal(player.canGrantRewards,false);
+  assert.equal(player.rewardOptions,undefined);
+  const denied=await f.send(f.endpoint,{action:'grantReward',revision:player.revision,target:owner,kind:'currency',quantity:3},f.host.cookie);
+  assert.equal(denied.status,403);
+  const {body:gm}=await f.send(f.endpoint,undefined,guest.cookie);
+  assert.equal(gm.canGrantRewards,true);
+  assert.ok(gm.rewardOptions.items.length);
+  assert.equal((await f.send(f.endpoint,{action:'grantReward',revision:gm.revision,target:owner,kind:'currency',quantity:3},guest.cookie)).status,200);
+  assert.equal((await f.send(f.endpoint,undefined,f.host.cookie)).body.trainShop.balance,3);
+});

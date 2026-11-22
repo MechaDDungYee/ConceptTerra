@@ -3101,7 +3101,7 @@ try{
     try{
       const next=await request();
       if(busy||state!==before)return;
-      if(next.revision!==state.revision||next.collectionRevision!==state.collectionRevision||next.manager!==state.manager||next.canSetBattleMusic!==state.canSetBattleMusic||JSON.stringify(next.roster)!==JSON.stringify(state.roster)||JSON.stringify(next.saveSlots)!==JSON.stringify(state.saveSlots)){
+      if(next.revision!==state.revision||next.collectionRevision!==state.collectionRevision||next.manager!==state.manager||next.canSetBattleMusic!==state.canSetBattleMusic||JSON.stringify(next.unlockedBattleMusic)!==JSON.stringify(state.unlockedBattleMusic)||JSON.stringify(next.roster)!==JSON.stringify(state.roster)||JSON.stringify(next.saveSlots)!==JSON.stringify(state.saveSlots)){
         const chatChanged=next.dialogue?.at(-1)?.id!==state.dialogue?.at(-1)?.id;
         const sameBattle=chatChanged&&['battle','roster','pendingEdits','saveSlots','profile','manager'].every(key=>JSON.stringify(next[key])===JSON.stringify(state[key]));
         const newRound=next.battle?.round!==state.battle?.round||next.battle?.phase!==state.battle?.phase;

@@ -13,6 +13,14 @@ export const battleMusicTracks={
   flesh:'붉은 손톱의 살덩이 · 마르지 않는 하수조',
   scribe:'되감기 속기사 · 끝나지 않는 서가'
 };
+export function battleMusicForEncounter(encounter){
+  const tracks={
+    stop01:['dark'],blight01:['bright1','bright2','bright3'],artist01:['artist'],decomposer01:['decomposer'],
+    commute01:['attendance'],guest01:['invitee'],applause01:['contempt'],census01:['census'],
+    maze01:['maze'],flesh01:['flesh'],scribe01:['scribe']
+  };
+  return Object.hasOwn(tracks,encounter?.id)?tracks[encounter.id]:[];
+}
 export const maxPortraitDataLength=320000;
 export const maxPortraitSide=1920;
 export const statuses = ['비시민권자','월정커','하위층 시민','중산층 시민','고위층 시민'];

@@ -1,5 +1,5 @@
 import {gridCanAimTile,gridIndex,gridValid, gridSize, gridTileGroups, gridDistance, gridPoint, gridLineOfSight, gridPaths, gridTravelCost, gridDisplacement, gridCardInRange,gridCardHasReach, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
-import {battleMusicTracks,instantMoveModes,instantMoveDirections,instantMoveOffsets,instantMoveAnchors,instantMoveOrders,instantMoveStackTests,instantMoveStackMetrics,maxInstantMove,maxPortraitDataLength,maxConceptTools,keywordOwnedZones,keywordScanModes,keywordScanPeriods,stackScanScopes,stackScanMetrics,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,trainReturnMind,baseHp,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, maxOverloadCost, defaultOverloadCost, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, effectiveCardCost, applauseAttack, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
+import {battleMusicTracks,battleMusicForEncounter,instantMoveModes,instantMoveDirections,instantMoveOffsets,instantMoveAnchors,instantMoveOrders,instantMoveStackTests,instantMoveStackMetrics,maxInstantMove,maxPortraitDataLength,maxConceptTools,keywordOwnedZones,keywordScanModes,keywordScanPeriods,stackScanScopes,stackScanMetrics,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,trainReturnMind,baseHp,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, maxOverloadCost, defaultOverloadCost, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, effectiveCardCost, applauseAttack, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
 class GameInputError extends Error {}
@@ -6421,12 +6421,16 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
   const readSlots=async()=>manager&&!studio?(await query(db,
     'SELECT slot,label,updated_at,round FROM campaign_saves WHERE room_code = ? ORDER BY slot',room.code).all()).results:[];
   let savedSlots=await readSlots();
+  const {results:musicRows}=await query(db,'SELECT track FROM battle_music_unlocks WHERE collection_id = ?',self.collection_id).all();
+  let unlockedMusic=musicRows.map(row=>row.track);
+  const musicAwards=[];
   const view=(version=revision,collection=ownCollection,editedCardId)=>{
     const data=gameView(state,version,actor,manager,members);
     data.roster=data.roster.map(({id,name,seat})=>({id,name,seat}));
     data.collectionRevision=collection.revision;
     data.canSetBattleMusic=canSetBattleMusic;
-    data.battleMusic=state.battleMusic??'auto';
+    data.battleMusic=state.battleMusicVerified?state.battleMusic:'auto';
+    data.unlockedBattleMusic=unlockedMusic;
     data.campaign=gameCampaignView(state,actor,manager);
     if(manager&&!studio)data.saveSlots=savedSlots;
     data.savedAt=state.lastSavedAt;
@@ -6498,7 +6502,9 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       case 'battleMusic':
         if(!canSetBattleMusic)return error('GM만 전투 BGM을 고를 수 있어요.',403);
         if(input.track!=='auto'&&(typeof input.track!=='string'||!Object.hasOwn(battleMusicTracks,input.track)))gameFail('전투 BGM을 선택하세요.');
+        if(input.track!=='auto'&&!unlockedMusic.includes(input.track))return error('이 조우를 완료하면 BGM을 선택할 수 있어요.',403);
         state.battleMusic=input.track;
+        state.battleMusicVerified=true;
         break;
       case 'dialogueEnemyArt': {
         if(studio||!manager)return error('GM만 적 스탠딩을 등록할 수 있어요.',403);
@@ -6937,7 +6943,17 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
         if(!gameActive(b))gameFail('진행 중인 전투가 없어요.');
         if(gameAwaiting(b,members).length)gameFail('플레이어가 행동을 확정할 때까지 기다려 주세요.');
         gameResolve(b);
-        if(b.phase==='finished')gameReturnToTrain(b,state);
+        if(b.phase==='finished'){
+          gameReturnToTrain(b,state);
+          if(b.result==='승리'&&b.outcome?.cleared!==false){
+            const tracks=battleMusicForEncounter(b.encounter);
+            const collections=new Set(members.filter(member=>
+              b.units[member.id]&&!b.units[member.id].enemy&&!b.units[member.id].bot||member.id===actor&&canSetBattleMusic
+            ).map(member=>member.id===actor?self.collection_id:member.account_collection_id||member.collection_id).filter(Boolean));
+            for(const collection of collections)for(const track of tracks)musicAwards.push({collection,track});
+            if(musicAwards.length)b.musicCompletionId=gameId();
+          }
+        }
         break;
       case 'reset':
         if(!manager)return error('GM 또는 방장만 전투를 정리할 수 있어요.',403);
@@ -6954,9 +6970,18 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
   if(['art','dialogueEnemyArt','characterImport','characterAccountSelect'].includes(input.action)&&new TextEncoder().encode(serialized).length>1500000)
     return error('세션 일러스트 저장 공간이 부족해요. 사용하지 않는 자세를 정리해 주세요.');
   if(serialized.length>900000)return error('방 저장 공간이 가득 찼어요. 이미지 크기를 줄여 주세요.',413);
-  const saved=current?
-    await query(db,'UPDATE game_states SET revision = revision+1, state = ? WHERE room_code = ? AND revision = ?',serialized,room.code,revision).run():
-    await query(db,'INSERT OR IGNORE INTO game_states(room_code,revision,state) VALUES (?,1,?)',room.code,serialized).run();
+  const saveState=current?
+    query(db,'UPDATE game_states SET revision = revision+1, state = ? WHERE room_code = ? AND revision = ?',serialized,room.code,revision):
+    query(db,'INSERT OR IGNORE INTO game_states(room_code,revision,state) VALUES (?,1,?)',room.code,serialized);
+  let saved;
+  if(musicAwards.length){
+    const statements=musicAwards.map(({collection,track})=>query(db,
+      `INSERT OR IGNORE INTO battle_music_unlocks(collection_id,track)
+        SELECT ?,? FROM game_states WHERE room_code=? AND revision=? AND json_extract(state,'$.battle.musicCompletionId')=?`,
+      collection,track,room.code,revision+1,b.musicCompletionId));
+    [saved]=await db.batch([saveState,...statements]);
+    if(saved.meta.changes)unlockedMusic=[...new Set([...unlockedMusic,...musicAwards.filter(award=>award.collection===self.collection_id).map(award=>award.track)])];
+  }else saved=await saveState.run();
   if(!saved.meta.changes)return error('동시에 변경이 들어왔어요. 다시 시도해 주세요.',409);
   return view(revision+1);
 }

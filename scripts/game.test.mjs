@@ -4200,22 +4200,43 @@ test('overload accepts custom integer costs including zero, and pays the saved v
   }
 });
 
-test('only the GM seat can change the shared battle track',async()=>{
+test('music unlocks go to the clearing party and GM, and only the GM can share their unlocked tracks',async()=>{
   const f=await fixture();
   assert.equal(f.state.canSetBattleMusic,true);
-  await f.act('battleMusic',{track:'artist'});
+  assert.deepEqual(f.state.unlockedBattleMusic,[]);
+  const early=await f.send(f.endpoint,{action:'battleMusic',revision:f.state.revision,track:'artist'},f.host.cookie);
+  assert.equal(early.status,403);
   const guest=await f.send(f.room+'/join',{name:'승객'});
+  const viewer=await f.send(f.room+'/join',{name:'관전'});
   await f.send(f.room+'/seat',{id:guest.body.me,seat:1},f.host.cookie);
+  await f.act('start',{solo:false,bots:0,encounter:'artist01'});
+  const before=await f.send(f.endpoint,undefined,guest.cookie);
+  await f.send(f.endpoint,{action:'plan',revision:before.body.revision},guest.cookie);
+  configureBattle(f,b=>{b.units.enemy.hp=0;});
+  const current=await f.send(f.endpoint,undefined,f.host.cookie);
+  const clear=await f.send(f.endpoint,{action:'round',revision:current.body.revision},f.host.cookie);
+  assert.equal(clear.status,200);
+  assert.deepEqual(clear.body.unlockedBattleMusic,['artist']);
   const passenger=await f.send(f.endpoint,undefined,guest.cookie);
   assert.equal(passenger.body.canSetBattleMusic,false);
-  assert.equal(passenger.body.battleMusic,'artist');
-  const denied=await f.send(f.endpoint,{action:'battleMusic',revision:passenger.body.revision,track:'dark'},guest.cookie);
+  assert.deepEqual(passenger.body.unlockedBattleMusic,['artist']);
+  const spectator=await f.send(f.endpoint,undefined,viewer.cookie);
+  assert.deepEqual(spectator.body.unlockedBattleMusic,[]);
+  const denied=await f.send(f.endpoint,{action:'battleMusic',revision:passenger.body.revision,track:'artist'},guest.cookie);
   assert.equal(denied.status,403);
-  await f.act('start',{solo:false,bots:0});
-  assert.equal(f.state.battleMusic,'artist');
-  await f.act('battleMusic',{track:'auto'});
-  const changed=await f.send(f.endpoint,undefined,guest.cookie);
-  assert.equal(changed.body.battleMusic,'auto');
+  const shared=await f.send(f.endpoint,{action:'battleMusic',revision:clear.body.revision,track:'artist'},f.host.cookie);
+  assert.equal(shared.status,200);
+  assert.equal(shared.body.battleMusic,'artist');
+  const newRoom=await f.send('/api/rooms',{title:'다음 칸',name:'방장'},f.host.cookie);
+  const other=await f.send('/api/rooms/'+newRoom.body.code+'/game',undefined,newRoom.cookie);
+  assert.deepEqual(other.body.unlockedBattleMusic,['artist']);
+});
+
+test('stopping a battle early does not unlock its track',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0,encounter:'scribe01'});
+  await f.act('reset');
+  assert.deepEqual(f.state.unlockedBattleMusic,[]);
 });
 
 test('character mind rules round-trip with card references and trigger in battle',async()=>{

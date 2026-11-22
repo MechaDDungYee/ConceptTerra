@@ -1987,9 +1987,11 @@ function trainCheckpoints(){
 }
 let lastStorySection='0',lastRuleSection='0';
 async function openStoryReader(story){
+  if(paperLocksNavigation()){showPaperTabBlock();return;}
   const title=story?'스토리 대본':'룰북';
   const content=el('div',undefined,{class:'stack'});
   const dialog=battleDialog(title,content);
+  dialog.classList.add('session-story-reader');
   content.append(note(title+'을 불러오는 중입니다.'));
   document.body.append(dialog);
   dialog.addEventListener('close',()=>dialog.remove(),{once:true});
@@ -3240,8 +3242,11 @@ function battleDialoguePanel(){
   }
   return root;
 }
+function paperLocksNavigation(){
+  return state?.battle?.phase==='planning'&&!!state.battle.paper;
+}
 function paperBlocksTab(nextTab){
-  return nextTab!=='battle'&&state?.battle?.phase==='planning'&&!!state.battle.paper;
+  return nextTab!=='battle'&&paperLocksNavigation();
 }
 function showPaperTabBlock(){
   document.querySelector('.paper-tab-block')?.remove();
@@ -3516,8 +3521,12 @@ function dialoguePanel(){
 function render(){
   syncBattleMusic(state?.battle,state?.battleMusic);
   if(!state)return;
-  if(paperBlocksTab(tab)){
-    tab='battle';draftDirty=false;showPaperTabBlock();
+  if(paperLocksNavigation()){
+    const readers=document.querySelectorAll('.session-story-reader[open]');
+    for(const reader of readers)reader.close();
+    if(paperBlocksTab(tab)||readers.length){
+      tab='battle';draftDirty=false;showPaperTabBlock();
+    }
   }
   for(const list of panel.querySelectorAll('.card-list-scroll'))cardListPositions.set(list.ariaLabel,list.scrollTop);
   panel.closest('main').classList.toggle('card-studio-page',tab==='cards');

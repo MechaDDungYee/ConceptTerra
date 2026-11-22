@@ -4200,12 +4200,13 @@ test('overload accepts custom integer costs including zero, and pays the saved v
   }
 });
 
-test('music unlocks go to the clearing party and GM, and only the GM can share their unlocked tracks',async()=>{
+test('music unlocks go to the clearing party and GM, and the GM can share any track',async()=>{
   const f=await fixture();
   assert.equal(f.state.canSetBattleMusic,true);
   assert.deepEqual(f.state.unlockedBattleMusic,[]);
-  const early=await f.send(f.endpoint,{action:'battleMusic',revision:f.state.revision,track:'artist'},f.host.cookie);
-  assert.equal(early.status,403);
+  await f.act('battleMusic',{track:'artist'});
+  assert.equal(f.state.battleMusic,'artist');
+  assert.deepEqual(f.state.unlockedBattleMusic,[]);
   const guest=await f.send(f.room+'/join',{name:'승객'});
   const viewer=await f.send(f.room+'/join',{name:'관전'});
   await f.send(f.room+'/seat',{id:guest.body.me,seat:1},f.host.cookie);

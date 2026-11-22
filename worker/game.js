@@ -6502,7 +6502,6 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       case 'battleMusic':
         if(!canSetBattleMusic)return error('GM만 전투 BGM을 고를 수 있어요.',403);
         if(input.track!=='auto'&&(typeof input.track!=='string'||!Object.hasOwn(battleMusicTracks,input.track)))gameFail('전투 BGM을 선택하세요.');
-        if(input.track!=='auto'&&!unlockedMusic.includes(input.track))return error('이 조우를 완료하면 BGM을 선택할 수 있어요.',403);
         state.battleMusic=input.track;
         state.battleMusicVerified=true;
         break;

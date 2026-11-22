@@ -92,14 +92,13 @@ export function battleMusicSettings(getState,chooseTrack,ui){
   mute.onchange=()=>{musicSettings.muted=mute.checked;save();};
   loop.onchange=()=>{musicSettings.loop=loop.checked;save();};
   if(room.canSetBattleMusic){
-    const track=select('battle-track',[['auto','전투에 맞춰 자동 선택'],...Object.entries(tracks).filter(([key])=>room.unlockedBattleMusic?.includes(key))],room.unlockedBattleMusic?.includes(room.battleMusic)?room.battleMusic:'auto');
+    const track=select('battle-track',[['auto','전투에 맞춰 자동 선택'],...Object.entries(tracks)],room.battleMusic);
     track.onchange=async()=>{
       previewTrack=null;
       track.disabled=true;
       try{
         const saved=await chooseTrack(track.value);
-        const current=getState();
-        track.value=current.unlockedBattleMusic?.includes(current.battleMusic)?current.battleMusic:'auto';
+        track.value=getState().battleMusic;
         if(!saved)updateStatus('곡을 변경하지 못했어요. 다시 시도해 주세요.');
         else if(!battleMusicTrack(getState().battle,track.value)&&Object.hasOwn(tracks,track.value))
           updateStatus(tracks[track.value]+' · 재생 버튼으로 미리 들을 수 있어요.');
@@ -128,8 +127,8 @@ export function battleMusicSettings(getState,chooseTrack,ui){
   const selected=battleMusicTrack(room.battle,room.battleMusic);
   statusField.textContent=selected?tracks[selected]:'현재 재생할 전투 BGM이 없어요.';
   const play=button('전투 BGM 재생',()=>{
-    const {battle,battleMusic}=getState();
-    previewTrack=null;
+    const {battle,battleMusic,canSetBattleMusic}=getState();
+    previewTrack=canSetBattleMusic&&!battleMusicTrack(battle,battleMusic)&&Object.hasOwn(tracks,battleMusic)?battleMusic:null;
     syncBattleMusic(battle,battleMusic,true);
   });
   content.append(field('음악 음량',volume),level,field('음소거',mute),field('반복 재생',loop),play,statusField);

@@ -4333,3 +4333,22 @@ test('all new concept encounters resolve to a dedicated background track',async(
   assert.equal(gridPaths(17,1,new Set(),[18]).has(18),false);
   assert.equal(gridTravelCost(gridPaths(17,2,new Set(),[18]).get(18),[18]),2);
 });
+
+test('pit bosses can interrupt charging and escape carries the pit benefit into the next fight',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0,encounter:'decomposer01'});
+  for(const [intent,power] of [[null,1],['pitHalt',2],['pitPowerCut',2],[null,3]]){
+    if(intent)assert.equal(f.state.battle.intent.card.id,intent);
+    configureBattle(f,(b,self)=>{Object.assign(self,{pos:31,hp:100,mind:80,zero:null,collapsed:false});
+      if(b.units.enemy.pos===31)b.units.enemy.pos=20;});
+    await f.act('plan',{});
+    await f.act('round');
+    assert.equal(f.state.battle.encounter.mechanic.elevator.power,power);
+  }
+  assert.equal(f.state.battle.outcome.kind,'escape');
+  const restoredMind=f.state.profile.mind;
+  await f.act('reset');
+  await f.act('start',{solo:true,bots:0,encounter:'commute01'});
+  assert.equal(livingForm(f).stacks['구덩이의 흙'],1);
+  assert.equal(livingForm(f).mind,Math.min(100,restoredMind+2));
+});

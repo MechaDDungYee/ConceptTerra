@@ -2042,6 +2042,7 @@ function battleGrid(b,self){
     if(temporaryWall){tile.classList.add('temporary-wall');tile.title='임시 벽 · '+(temporaryWall.through-b.round+1)+'라운드 남음';}
     const mechanic=b.encounter?.mechanic;
     if(mechanic?.elevator?.tiles.includes(i)){tile.classList.add('pit-elevator');tile.title='비상 승강기';}
+    else if(mechanic?.monuments?.includes(i)){tile.classList.add('maze-entry');tile.title='비석 · 공격하지 않고 턴을 마치면 개인 봉인 하나 해제';}
     else if(mechanic?.entry===i){tile.classList.add('maze-entry');tile.title='미로 입구';}
     else if(b.tiles?.[i]?.kind==='corrosion'){tile.classList.add('concept-corrosion');tile.title='부식 지대';}
     else if(b.tiles?.[i]?.kind==='canvas'){tile.classList.add('concept-canvas');tile.title='물감 캔버스';}

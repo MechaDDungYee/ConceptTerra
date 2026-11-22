@@ -1469,14 +1469,16 @@ const conceptEncounterCards=Object.fromEntries([
   ['pitSwallow','반죽 집어삼키기','3d6+7','2~3','2타. 끌기, 유리한 효과 흡수, 포만감 증가'],
   ['pitWave','고농도 소화 파동','4d8+10','1~2','유리한 중첩을 제거하고 하나당 고정 피해 4'],
   ['pitReflux','임계 역류 · 과부하','5d6+12','1~2','빗나가거나 용해 1 이하인 대상에게 쓰면 분해자 경직'],
+  ['pitHalt','비상 정지','2d8+8','0~12','승강기 위의 대상을 노리는 대상 변경 불가 공격'],
+  ['pitPowerCut','동력 차단','0','0','이번 라운드 승강기의 동력 충전을 차단'],
   ['pitMobBite','구덩이의 잡개념물 · 물어뜯기','1d6+4','1','인접 대상 공격']
 ].map(([id,name,power,range,description])=>{
   const area=['mazeConverge','censusCross','pitMasterpiece'].includes(id);
-  const support=['scribeSuture','fleshScratch'].includes(id);
-  return [id,{...gamePreset(id,name,power,range,'normal',area?'area':1,[],0,!support),support,boardReach:area||support,
+  const support=['scribeSuture','fleshScratch','pitPowerCut'].includes(id);
+  return [id,{...gamePreset(id,name,power,range,'normal',area?'area':1,[],0,!support),support,boardReach:area||support||id==='pitHalt',
     ...(id==='pitKnife'||id==='pitSpray'?{target:'splash',splash:{range:'0',rangeShape:{kind:'rectangle',x:1,y:1}}}:{}),
     ...(['fleshNail','pitSwallow','pitTwotone'].includes(id)?{hitPowers:[power,power]}:{}),
-    unredirectable:['commuteLedger','guestAsk','clapCenter','mazeFold','fleshToss','scribeCut','pitApron','pitSwallow'].includes(id),
+    unredirectable:['commuteLedger','guestAsk','clapCenter','mazeFold','fleshToss','scribeCut','pitApron','pitSwallow','pitHalt'].includes(id),
     effects:[{publicLabel:description,when:'use'}]}];
 }));
 const encounterPresets={...conceptEncounterPresets,stop01:firstStop,collector01:collectorStop,judge01:judgeStop,railguard01:railStop,blight01:brightStop};
@@ -2416,8 +2418,16 @@ function gameHeal(b,u,n){
   const old=u.hp;
   if(u.inkBuff?.includes('yellow'))n=Math.floor(n*1.3);
   const penalty=Math.max(0,...(u.healCuts||[]).map(entry=>entry.amount));
-  const healed=Math.floor(n*(100-penalty)/100);
+  let healed=Math.floor(n*(100-penalty)/100);
   if(healed<n&&old<u.maxHp)gameLog(b,u.name+' · 회복량 '+penalty+'% 감소');
+  if(!u.enemy&&b.encounter?.id==='artist01'&&b.encounter.masterpieceRound===b.round&&gameAlive(b.units.enemy)){
+    const moved=Math.min(30-(b.encounter.masterpieceHealed||0),Math.floor(Math.min(u.maxHp-u.hp,healed)/2));
+    if(moved>0){
+      b.encounter.masterpieceHealed=(b.encounter.masterpieceHealed||0)+moved;
+      healed-=moved;
+      gameHeal(b,b.units.enemy,moved);
+    }
+  }
   u.hp=Math.min(u.maxHp,u.hp+healed);
   if(u.hp>old)gameLog(b,u.name+' 체력 회복 '+(u.hp-old));
   if(old<=u.maxHp/4&&u.hp>u.maxHp/4&&!u.rallied){u.rallied=true;gameMental(b,u,5);}
@@ -2693,7 +2703,7 @@ function gameConceptBegin(b,spec){
   if(spec.id==='artist01')foe.inks=emptyInk();
   if(spec.id==='decomposer01')foe.satiety=0;
   if(spec.id==='commute01')b.encounter.proof=0;
-  if(spec.id==='census01')b.encounter.names=[];
+  if(spec.id==='census01')Object.assign(b.encounter,{names:[],monuments:[2,5,34,37],monumentUsed:[]});
 }
 function gameConceptReach(b,card,foe,target){
   if(card.id==='pitBucket'){
@@ -2748,7 +2758,16 @@ function gameConceptIntent(b,foe,party,defaultTarget){
     if(cardId==='pitMasterpiece')return Object.values(foe.inks).reduce((a,c)=>a+c,0)>=40;
     return true;
   };
+  const rider=encounter.elevator&&party.find(unit=>encounter.elevator.tiles.includes(unit.pos));
   let card;
+  if(rider&&encounter.elevator.power===1&&!encounter.elevatorHalted){
+    encounter.elevatorHalted=true;
+    return {target:rider.id,card:conceptEncounterCards.pitHalt,reachable:true};
+  }
+  if(rider&&encounter.elevator.power===2&&!encounter.elevatorCut){
+    encounter.elevatorCut=true;
+    return {target:rider.id,card:conceptEncounterCards.pitPowerCut,reachable:false};
+  }
   if(encounter.warmRound===b.round-1)card=conceptEncounterCards.pitMasterpiece;
   else if(encounter.stunnedRound===b.round||encounter.mazeClearedRound===b.round){
     return {target:defaultTarget.id,card:firstStopCards.stopWait,reachable:false};
@@ -2831,6 +2850,10 @@ function gameConceptFleshGift(b,foe,unit,count){
 function gameConceptUse(b,ctx,target){
   const foe=ctx.actor,e=b.encounter;
   switch(ctx.card.id){
+    case 'pitPowerCut':
+      e.elevator.blockedRound=b.round;
+      gameLog(b,'비상 승강기 · 이번 라운드 동력 차단');
+      break;
     case 'commuteWatch': if(target.commuteDelay)ctx.mod+=3;break;
     case 'guestNote': {
       const record=b.guestActions?.find(action=>action.actor!==foe.id&&action.effects.length)||e.sleeve;
@@ -2864,6 +2887,7 @@ function gameConceptUse(b,ctx,target){
       break;
     }
     case 'pitMasterpiece': {
+      e.masterpieceRound=b.round;e.masterpieceHealed=0;
       const scale=e.balanced?1.5:e.stained?0.5:1;
       for(const unit of gameConceptParty(b)){
         gameRemoveShield(unit,unit.shield);
@@ -3065,7 +3089,7 @@ function gameConceptEnd(b,foe,party){
       gameMove(b,mob,target.pos,2,true);
       if(gameDistance(mob,target)===1)gameUnopposedAttack(b,gameEnemyAction(b,mob,target,conceptEncounterCards.pitMobBite));
     }
-    if(party.some(unit=>gameAlive(unit)&&e.elevator.tiles.includes(unit.pos))){
+    if(e.elevator.blockedRound!==b.round&&party.some(unit=>gameAlive(unit)&&e.elevator.tiles.includes(unit.pos))){
       e.elevator.power=Math.min(e.elevator.need,e.elevator.power+1);
       gameLog(b,'비상 승강기 · 동력 '+e.elevator.power+'/'+e.elevator.need);
     }
@@ -3079,6 +3103,14 @@ function gameConceptEnd(b,foe,party){
     gameFieldCleanse(foe);
   }
   if(e.id==='census01'){
+    for(const unit of standing){
+      if(!e.monuments?.includes(unit.pos)||e.monumentUsed?.includes(unit.id)||unit.ruleUsedAttack===b.round)continue;
+      const seal=unit.censusSeals?.find(value=>value.through>=b.round);
+      if(!seal)continue;
+      unit.censusSeals=unit.censusSeals.filter(value=>value!==seal);
+      e.monumentUsed.push(unit.id);
+      gameLog(b,unit.name+' · 비석 앞에서 이름 하나가 돌아왔다');
+    }
     e.censusBan=(e.records||[]).filter(record=>record.round===b.round&&record.inside||record.round===b.round-1&&!record.inside)
       .map(record=>record.name);
     e.records=(e.records||[]).filter(record=>record.round>=b.round);
@@ -3115,7 +3147,7 @@ function gameConceptOutcome(b,foe,party){
     const reward={commute01:'conceptCommutePendulum',guest01:'conceptGuestBowl',applause01:'conceptApplauseCold',
       maze01:'conceptMazeCorner',flesh01:'conceptFleshBead',artist01:'conceptArtistPalette',decomposer01:'pitSlimeCore'}[e.id];
     b.outcome={kind,tier:'bruteKill',extract:{rolls,total,need:10},orb:total>=10?reward:null};
-  }else b.outcome={kind,tier:failure||!orb?'none':'puzzleSolved',orb:orb||null};
+  }else b.outcome={kind,tier:failure||!orb?'none':'puzzleSolved',orb:orb||null,cleared:!['withdraw','entry','kindle'].includes(kind)};
   gameLog(b,e.name+' · '+kind);
   return true;
 }
@@ -3129,7 +3161,7 @@ function gameNext(b) {
     gameRailOutcome(b,foes,party);
   if (peaceful||!foes.length||!party.length||brightWipe) {
     b.phase='finished';
-    b.result=!peaceful&&foes.length?'패배':'승리';
+    b.result=b.outcome?.cleared===false?'철수':!peaceful&&foes.length?'패배':'승리';
     for(const unit of Object.values(b.units)){
       delete unit.lifeSteal;
       delete unit.redBleed;
@@ -3370,7 +3402,7 @@ function gameCheckpoint(state,b,kind='auto',label=''){
     memory:{intel:{}},lostCards:[],definitions:{}};
   if(b&&!Object.values(b.units).some(unit=>!unit.enemy&&!unit.bot))return;
   if(b){
-    campaign.station++;
+    if(b.outcome?.cleared!==false)campaign.station++;
     campaign.party=Object.values(b.units).filter(unit=>!unit.enemy&&!unit.bot).map(unit=>{
       for(const id of unit.configuredDeck){
         if(!gameCatalogue.some(card=>card.id===id)&&unit.library[id])campaign.definitions[id]=unit.library[id];
@@ -3541,6 +3573,7 @@ function gameBegin(state,members,settings,actor,collections) {
     const remembered=state.campaign?.memory.intel[key]||0;
     if(remembered>battle.intel[entity.id].progress)gameObserve(battle,entity,remembered-battle.intel[entity.id].progress);
   }
+  gameConceptCarry(battle,state);
   gameNext(battle);
   return battle;
 }
@@ -6095,11 +6128,37 @@ function gameResolve(b) {
       gameTakeStacks(unit,name,trait.endDecay);
     }
   }
+  for(const unit of Object.values(b.units))if(unit.conceptCarryStack){
+    gameTakeStacks(unit,unit.conceptCarryStack.tag,unit.conceptCarryStack.count);
+    delete unit.conceptCarryStack;
+  }
   if(b.extraWalls)b.extraWalls=b.extraWalls.filter(wall=>wall.through>b.round);
   if(b.tiles)for(const [pos,tile] of Object.entries(b.tiles))if(tile.through<=b.round)delete b.tiles[pos];
   for(const entity of Object.values(b.units))if(entity.enemy)gameObserve(b,entity,10);
   b.round++;
   gameNext(b);
+}
+const conceptCarryByEncounter={
+  census01:{wear:{tag:'빈칸'}},commute01:{break:{tag:'지연',move:-1}},
+  guest01:{break:{tag:'손님 자리',move:-1}},applause01:{break:{tag:'무거운 시선',move:-1}},
+  maze01:{break:{tag:'백색 미궁',maze:true}},flesh01:{break:{tag:'붉은 소양감',bleed:true}},
+  scribe01:{break:{tag:'기록 상실',mind:-10}},artist01:{break:{tag:'오점'},escape:{tag:'구덩이의 흙',mind:2}},
+  decomposer01:{break:{tag:'용해',count:2},escape:{tag:'구덩이의 흙',mind:2}}
+};
+function gameConceptCarry(b,state){
+  for(const unit of gameConceptParty(b)){
+    const profile=state.profiles[unit.id];
+    const carry=profile?.conceptCarry;
+    if(!carry)continue;
+    delete profile.conceptCarry;
+    if(carry.tag!=='붉은 소양감')gameFieldGrant(b,unit,carry.tag,carry.count||1,unit);
+    if(carry.bleed)unit.redBleed={power:4,count:1,dealer:unit.id};
+    if(carry.maze)unit.whiteMaze={pos:unit.pos,through:1,caster:null};
+    if(carry.mind)gameMental(b,unit,carry.mind);
+    if(carry.move)unit.move=Math.max(0,unit.move+carry.move);
+    if(carry.tag!=='붉은 소양감')unit.conceptCarryStack={tag:carry.tag,count:carry.count||1};
+    gameLog(b,unit.name+' · 이전 조우의 '+carry.tag);
+  }
 }
 function gameReturnToTrain(b,state){
   for(const unit of Object.values(b.units)){
@@ -6117,6 +6176,8 @@ function gameReturnToTrain(b,state){
     const profile=state.profiles[unit.id]??={cards:[],deck:[]};
     profile.mind=unit.mind;
     profile.collapsed=false;
+    const carry=conceptCarryByEncounter[b.encounter?.id]?.[b.outcome?.kind];
+    if(carry)profile.conceptCarry=carry;
     if(b.outcome?.kind==='seized')profile.debt=1;
     if(b.outcome?.kind==='break')profile.guilt=unit.stacks['죄책감']||0;
     if(b.outcome?.kind==='peace')profile.guilt=0;
@@ -6162,7 +6223,7 @@ function gameView(state,revision,actor,manager,members) {
     ...(b.encounter?{encounter:{id:b.encounter.id,name:b.encounter.name,peace:b.encounter.peace,peaceOpen:b.encounter.peaceOpen,
       deckSize:b.foeDeck.cards.length,
       ...(gameNewConcept(b)?{mechanic:{proof:b.encounter.proof,elevator:b.encounter.elevator,entry:b.encounter.entry,
-        recorded:b.encounter.names?.length,coreHits:b.encounter.coreHits,coreExposed:b.encounter.coreRound===b.round,
+        recorded:b.encounter.names?.length,monuments:b.encounter.monuments,coreHits:b.encounter.coreHits,coreExposed:b.encounter.coreRound===b.round,
         warm:b.encounter.warmRound===b.round,aura:b.encounter.aura}}:{}),subdueOrder:b.encounter.subdueOrder,rank:Array.isArray(b.encounter.rank)?b.encounter.rank:undefined,difficulty:b.encounter.difficulty??(typeof b.encounter.rank==='string'?b.encounter.rank:undefined),negotiating:b.encounter.breakRound===b.round,...(gameIsBright(b)&&(manager||b.encounter.stage>1)?{stage:b.encounter.stage}:{})},zones:b.zones,outcome:b.outcome}:{}),log:gameVisibleLog(b.log,manager),walls:b.walls,extraWalls:b.extraWalls,tiles:b.tiles,poses:b.poses||[],
     awaiting:gameActive(b)?gameAwaiting(b,members).map(u=>u.name):[],clashActor:Object.keys(b.plans||{}).find(id=>gameHasClash(b.plans[id])),
     units:Object.values(b.units).map(({library,hand,deck,grave,exile,cover,effectUsage,passives,cardMarks,configuredDeck,lifeSteal,poisonSources,shieldSlots,queuedShields,activityLocations,locationTags,stackTraits,stackDefinitions,sealedHighest,stackRuns,damageDebt,damageOverTime,delayedStrike,controlledIndex,controlledPower,cardUseCounts,keywordUses,...unit})=>({

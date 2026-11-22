@@ -1957,31 +1957,64 @@ function trainCheckpoints(){
   }
   return box;
 }
-async function openStoryGuide(){
+let lastStorySection='0',lastRuleSection='0';
+async function openStoryReader(story){
+  const title=story?'스토리 대본':'룰북';
   const content=el('div',undefined,{class:'stack'});
-  const dialog=battleDialog('GM 진행 대본과 BGM 큐시트',content);
-  content.append(note('대본을 불러오는 중입니다.'));
+  const dialog=battleDialog(title,content);
+  content.append(note(title+'을 불러오는 중입니다.'));
   document.body.append(dialog);
   dialog.addEventListener('close',()=>dialog.remove(),{once:true});
   dialog.showModal();
   try{
-    const {sections}=await request({action:'storyGuide'});
-    const chapters=select('storyChapter',sections.map((section,i)=>[String(i),section.heading]),'0');
-    const body=el('pre',undefined,{class:'story-guide-text',tabindex:'0'});
-    const update=()=>{body.textContent=sections[Number(chapters.value)]?.text||'';body.scrollTop=0;};
-    chapters.onchange=update;update();
-    const controls=el('div',undefined,{class:'row'});
+    const {sections}=await request({action:story?'sessionStory':'storyGuide'});
+    const chapters=select('storyChapter',sections.map((section,i)=>[String(i),section.heading]),story?lastStorySection:lastRuleSection);
+    const body=el(story?'div':'pre',undefined,{class:story?'story-reading':'story-guide-text',tabindex:'0'});
+    const scene=()=>story?sections[Number(chapters.value)]?.scene:Number(chapters.value);
+    const controls=el('div',undefined,{class:'story-scene-controls'});
+    const navigate=delta=>{
+      const index=Number(chapters.value)+delta;
+      if(!sections[index])return;
+      const search=chapters.closest('.searchable-effect-select')?.querySelector('input[type=search]');
+      if(search?.value){search.value='';search.dispatchEvent(new Event('input'));}
+      chapters.value=String(index);update();
+    };
+    const back=button('이전',()=>navigate(-1)),next=button('다음',()=>navigate(1));
+    const step=el('div',undefined,{class:'row'});
+    if(story)step.append(back,next);
     controls.append(
-      button('이 장면에 판정 예약',()=>openDialogueCheck(Number(chapters.value))),
+      button('이 장면에 판정 예약',()=>openDialogueCheck(scene())),
       button('이 장면 시작',async()=>{
-        if(await send('dialogueSceneStart',{scene:Number(chapters.value)})){
+        if(await send('dialogueSceneStart',{scene:scene()})){
           dialog.close();openDialogue();
         }
       })
     );
-    content.replaceChildren(searchableSelect('장면',chapters),controls,body);
+    const update=()=>{
+      const current=sections[Number(chapters.value)];
+      if(story){
+        lastStorySection=chapters.value;
+        body.replaceChildren(...(current?.blocks||[]).map(block=>{
+          const text=el('p',block.text);
+          const part=el('section',undefined,{class:block.label==='GM 메모'?'story-gm-note':'story-read-block'});
+          part.append(el('h4',block.label),text);
+          return part;
+        }));
+        back.disabled=chapters.value==='0';
+        next.disabled=Number(chapters.value)===sections.length-1;
+      }else{
+        lastRuleSection=chapters.value;
+        body.textContent=current?.text||'';
+      }
+      controls.hidden=scene()==null;
+      body.scrollTop=0;
+    };
+    chapters.onchange=update;update();
+    content.replaceChildren(searchableSelect(story?'장면':'룰북 항목',chapters),step,body,controls);
   }catch(error){content.replaceChildren(note(error.message));}
 }
+const openStoryGuide=()=>openStoryReader(false);
+const openSessionStory=()=>openStoryReader(true);
 function startPanel(){
   const root=section('빈 객차',note('눈을 뜨자 객차에는 남은 승객들뿐입니다. 존속의 집행체가 열차에 들어옵니다.'));
   const saves=saveSlotsPanel();
@@ -1990,7 +2023,7 @@ function startPanel(){
   const train=trainCheckpoints();
   if(train)root.append(train);
   if(!state.manager){root.append(note('GM 또는 방장이 전투를 시작할 때까지 기다려 주세요.'));return root;}
-  root.append(button('GM 진행 대본',openStoryGuide));
+  root.append(button('룰북',openStoryGuide),button('스토리 대본',openSessionStory));
   const form=formFor('start',(_,data)=>({solo:data.has('solo'),bots:Number(data.get('bots')),encounter:data.get('encounter'),paperOrigin:data.get('paperOrigin')||undefined}));
   const solo=input('solo','1','checkbox',{checked:!state.roster.length,disabled:!!state.roster.length});
   const bots=select('bots',[],0);
@@ -2410,7 +2443,7 @@ function battlePanel(){
   log.append(...b.log.slice().reverse().map(t=>el('li',t)));
   const activity=battleDialog('전투 기록',log), participants=battleDialog('참가자 상태',unitStats);
   menuItems.append(button('전투 기록',()=>activity.showModal()),button('참가자 상태',()=>participants.showModal()));
-  if(state.manager)menuItems.append(button('GM 진행 대본',openStoryGuide));
+  if(state.manager)menuItems.append(button('룰북',openStoryGuide),button('스토리 대본',openSessionStory));
   if(b.paper){
     const mechanics=battleDialog('시스템 파괴전 규칙',section('페이퍼 마스크',
       note('3라운드가 끝나거나 공명이 10에 도달하면 전원이 흡수됩니다.'),
@@ -3267,7 +3300,7 @@ function dialoguePanel(){
     const history=el('ol',undefined,{class:'log'});
     transcript.append(el('summary','대화 기록'),history);
     const checkTools=el('div',undefined,{class:'row'});
-    checkTools.append(button('능력치 판정 요청',()=>openDialogueCheck()),button('GM 진행 대본',openStoryGuide));
+    checkTools.append(button('능력치 판정 요청',()=>openDialogueCheck()),button('룰북',openStoryGuide),button('스토리 대본',openSessionStory));
     const checks=el('div',undefined,{class:'stack dialogue-checks','aria-live':'polite'});
     const root=section('세션 대화',stage,checkTools,checks,compose,transcript);
     dialogue={root,checks,checkTools,portraits,speaker,words,history,controls,speakerSelect,portraitControl,actors:new Map(),latest:null};

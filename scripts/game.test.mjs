@@ -4525,3 +4525,17 @@ test('dialogue checks enforce GM and target roles, apply alternative score, and 
   const direct=await playerAction('dialogueCheckAttempt',{id:immediate.body.dialogueChecks.at(-1).id,stat:0});
   assert.equal(direct.body.dialogueChecks.at(-1).results[0].success,true);
 });
+
+test('the GM story reader separates narration and private notes and keeps existing scene triggers',async()=>{
+  const f=await fixture();
+  const response=await f.send(f.endpoint,{action:'sessionStory'},f.host.cookie);
+  assert.equal(response.status,200);
+  assert.equal(response.body.sections.length,24);
+  const opening=response.body.sections[1];
+  assert.ok(opening.blocks.some(block=>block.label==='읽어 줄 장면'));
+  assert.ok(opening.blocks.some(block=>block.label.startsWith('페이퍼 마스크')));
+  const rulebook=await f.send(f.endpoint,{action:'storyGuide'},f.host.cookie);
+  assert.match(rulebook.body.sections[opening.scene].heading,/^3\.1\.1 /);
+  const guest=await f.send(f.room+'/join',{name:'승객'});
+  assert.equal((await f.send(f.endpoint,{action:'sessionStory'},guest.cookie)).status,403);
+});

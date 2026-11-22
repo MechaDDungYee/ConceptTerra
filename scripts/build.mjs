@@ -32,7 +32,21 @@ const storySections=story.split(/(?=^#{1,4} )/m).filter(part=>part.trim()).map(p
   const [heading,...lines]=part.trim().split('\n');
   return {heading:heading.replace(/^#+ /,''),text:lines.join('\n').trim()};
 });
-const storySource='const gameStorySections='+JSON.stringify(storySections)+';\n';
+const sessionStory=(await readFile('worker/session-story.md','utf8')).replace(/\r\n/g,'\n');
+const sessionScenes=sessionStory.split(/^## /m).slice(1).map(chapter=>{
+  const [heading,...lines]=chapter.trim().split('\n');
+  const reference=lines[0]?.match(/^@scene ([\d.]+)$/)?.[1];
+  if(reference)lines.shift();
+  const scene=reference===undefined?null:storySections.findIndex(section=>section.heading.split(' ')[0]===reference);
+  if(scene===-1)throw new Error('Unknown rulebook scene: '+reference);
+  const blocks=lines.join('\n').trim().split(/(?=^\[)/m).filter(Boolean).map(block=>{
+    const [label,...body]=block.trim().split('\n');
+    return {label:label.slice(1,-1),text:body.join('\n').trim()};
+  });
+  return {heading,scene,blocks};
+});
+const storySource='const gameStorySections='+JSON.stringify(storySections)+';\n'+
+  'const gameSessionScenes='+JSON.stringify(sessionScenes)+';\n';
 const rules = assets['/rules.js'].body + '\n' + assets['/grid.js'].body;
 const ruleOptions = Object.fromEntries(Object.entries({...rulesModule,...gridModule})
   .filter(([,value])=>typeof value!=='function').sort(([a],[b])=>a.localeCompare(b)));

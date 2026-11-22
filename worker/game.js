@@ -6819,7 +6819,8 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
     return json(manager?data:gamePublicView(data));
   };
   if(!input)return view();
-  if(input.action==='storyGuide')return manager&&!studio?json({sections:gameStorySections}):error('GM용 진행 대본이에요.',403);
+  if(input.action==='storyGuide')return manager&&!studio?json({sections:gameStorySections}):error('GM용 룰북이에요.',403);
+  if(input.action==='sessionStory')return manager&&!studio?json({sections:gameSessionScenes}):error('GM용 스토리 대본이에요.',403);
   if(['saveSlot','loadSlot','deleteSlot','exportSave','importSave'].includes(input.action)){
     if(!manager||studio)return error('세션의 GM 또는 방장만 저장 파일을 관리할 수 있어요.',403);
     if(input.action!=='importSave'&&!gameInt(input.slot,1,3))return error('저장 슬롯을 확인하세요.');

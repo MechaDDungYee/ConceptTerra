@@ -402,3 +402,11 @@ body:has(.battle-dummy) > main > :is(#error,#feedback):not(:empty){
 .dialogue-check-results .check-failure{color:#ffaeaa}
 .dialogue-check-history[open]{display:grid;gap:.55rem}
 .dialogue-check-form{display:grid;gap:.65rem}
+
+.story-reading{display:grid;gap:1rem;max-height:58vh;overflow:auto;padding:.2rem .8rem .4rem .1rem}
+.story-reading p{white-space:pre-wrap;line-height:1.75;margin:.45rem 0 0}
+.story-reading h4{margin:0;color:#efd096}
+.story-read-block,.story-gm-note{padding:.65rem .85rem;border-left:3px solid #b39257}
+.story-gm-note{background:#192630;border-color:#8eb7cd}
+.story-gm-note h4{color:#abd2e7}
+.story-scene-controls:not([hidden]){display:flex;gap:.5rem;flex-wrap:wrap}

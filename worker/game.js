@@ -1,5 +1,5 @@
 import {gridCanAimTile,gridIndex,gridValid, gridSize, gridTileGroups, gridDistance, gridPoint, gridLineOfSight, gridPaths, gridTravelCost, gridDisplacement, gridCardInRange,gridCardHasReach, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
-import {stackClasses,stackClassScanMetrics,combatScanConditions,combatScanResults,damageRecordDirections,damageRecordResources,damageRecordPeriods,damageMemoryModes,maxDamageRecord,maxDamageMemoryName,stackClassification,battleMusicTracks,battleMusicForEncounter,instantMoveModes,instantMoveDirections,instantMoveOffsets,instantMoveAnchors,instantMoveOrders,instantMoveStackTests,instantMoveStackMetrics,maxInstantMove,maxPortraitDataLength,maxConceptTools,keywordOwnedZones,keywordScanModes,keywordScanPeriods,stackScanScopes,stackScanMetrics,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,trainReturnMind,baseHp,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, maxOverloadCost, defaultOverloadCost, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, effectiveCardCost, applauseAttack, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
+import {statNames,statCheckValue,stackClasses,stackClassScanMetrics,combatScanConditions,combatScanResults,damageRecordDirections,damageRecordResources,damageRecordPeriods,damageMemoryModes,maxDamageRecord,maxDamageMemoryName,stackClassification,battleMusicTracks,battleMusicForEncounter,instantMoveModes,instantMoveDirections,instantMoveOffsets,instantMoveAnchors,instantMoveOrders,instantMoveStackTests,instantMoveStackMetrics,maxInstantMove,maxPortraitDataLength,maxConceptTools,keywordOwnedZones,keywordScanModes,keywordScanPeriods,stackScanScopes,stackScanMetrics,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,trainReturnMind,baseHp,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, maxOverloadCost, defaultOverloadCost, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, effectiveCardCost, applauseAttack, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
 class GameInputError extends Error {}
@@ -6802,6 +6802,9 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       (source.effects||[]).flatMap(effectStackNames))])];
     if(!studio){
       data.dialogue=state.dialogue||[];
+      data.dialogueChecks=(state.dialogueChecks||[]).filter(check=>manager||check.scene==null||check.started);
+      if(manager)data.dialogueCheckPlayers=members.filter(member=>member.seat>0||member.id===actor)
+        .map(member=>({id:member.id,name:state.profiles[member.id]?.name||member.name}));
       if(manager&&state.battle)data.dialogueFoes=Object.values(state.battle.units).filter(unit=>unit.enemy).map(unit=>{
         const key=gameDialogueFoeKey(state.battle,unit);
         return {id:unit.id,name:unit.name,portrait:!!state.enemyDialogueArt?.[key]};
@@ -6894,6 +6897,49 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
           }
           gamePaperGauge(b,paperAdjustments[input.command],{virtue:'미덕을 지킨 선택',note:'북 마스크의 메모',echo:'존속의 잔향'}[input.command]);
         }else gameFail('조정할 항목을 선택하세요.');
+        break;
+      }
+      case 'dialogueCheckCreate': {
+        if(studio||!manager)return error('세션 GM만 판정을 요청할 수 있어요.',403);
+        const title=gameText(input.title,120);
+        const players=members.filter(member=>member.seat>0||member.id===actor);
+        const targets=input.target==='all'?players.filter(member=>member.seat>0):players.filter(member=>member.id===input.target);
+        if(input.target==='all'&&!targets.length)targets.push(self);
+        const scene=input.scene;
+        if(!title||!targets.length||!gameInt(input.stat,0,statNames.length-1)||!gameInt(input.difficulty,0,100)||
+          (scene!=null&&!gameInt(scene,0,gameStorySections.length-1)))gameFail('판정 내용, 대상, 능력치와 0~100 난이도를 확인하세요.');
+        const previous=state.dialogueChecks||[];
+        const unfinished=previous.filter(check=>['queued','open'].includes(check.status));
+        if(unfinished.length>=20)gameFail('대기 중인 판정을 먼저 마감해 주세요.');
+        state.dialogueChecks=[...previous.filter(check=>!unfinished.includes(check)).slice(-19),...unfinished,{
+          id:gameId(),title,stat:input.stat,difficulty:input.difficulty,status:scene==null?'open':'queued',
+          ...(scene==null?{}:{scene}),targets:targets.map(member=>({id:member.id,name:state.profiles[member.id]?.name||member.name})),results:[]
+        }];
+        break;
+      }
+      case 'dialogueSceneStart': {
+        if(studio||!manager)return error('세션 GM만 장면을 시작할 수 있어요.',403);
+        if(!gameInt(input.scene,0,gameStorySections.length-1))gameFail('장면을 선택하세요.');
+        for(const check of state.dialogueChecks||[])if(check.status==='queued'&&check.scene===input.scene){check.status='open';check.started=true;}
+        break;
+      }
+      case 'dialogueCheckClose': {
+        if(studio||!manager)return error('세션 GM만 판정을 마감할 수 있어요.',403);
+        const check=state.dialogueChecks?.find(entry=>entry.id===input.id);
+        if(!check||!['queued','open'].includes(check.status))gameFail('진행 중이거나 예약된 판정만 마감할 수 있어요.');
+        check.status='closed';
+        break;
+      }
+      case 'dialogueCheckAttempt': {
+        const check=state.dialogueChecks?.find(entry=>entry.id===input.id);
+        const target=check?.targets.find(member=>member.id===actor);
+        if(studio||!target)return error('이 판정을 시도할 수 있는 대상이 아니에요.',403);
+        if(check.status!=='open'||check.results.some(result=>result.actor===actor))gameFail('이 판정에 이미 참여했거나 판정이 마감됐어요.');
+        if(!gameInt(input.stat,0,statNames.length-1))gameFail('판정에 사용할 능력치를 고르세요.');
+        const score=profile.stats?.[input.stat]??50;
+        const value=statCheckValue(score,input.stat!==check.stat);
+        check.results.push({actor,stat:input.stat,score,value,success:value>=check.difficulty});
+        if(check.results.length===check.targets.length)check.status='closed';
         break;
       }
       case 'dialogue': {

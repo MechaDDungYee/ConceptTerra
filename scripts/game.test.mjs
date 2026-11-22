@@ -4488,3 +4488,40 @@ test('the terminal encounter awards the Nail for the peaceful three-stage route'
   await f.act('start',{solo:true,bots:0,encounter:'paperMask01'});
   assert.equal(f.state.battle.paper.gauge,0);
 });
+
+test('dialogue checks enforce GM and target roles, apply alternative score, and open with their story scene',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'승객'});
+  const player=guest.body.me;
+  assert.equal((await f.send(f.room+'/seat',{id:player,seat:1},f.host.cookie)).status,200);
+  const playerAction=async(action,payload={})=>{
+    const current=await f.send(f.endpoint,undefined,guest.cookie);
+    return f.send(f.endpoint,{action,revision:current.body.revision,...payload},guest.cookie);
+  };
+  assert.equal((await playerAction('profile',{name:'수리공',country:'제4국',status:'하위층 시민',stats:[40,99,41,40,40,40]})).status,200);
+  const check={title:'객차 문 열기',stat:0,difficulty:75,target:player};
+  assert.equal((await playerAction('dialogueCheckCreate',check)).status,403);
+  const hostView=await f.send(f.endpoint,undefined,f.host.cookie);
+  await f.act('dialogueCheckCreate',{...check,scene:1,revision:hostView.body.revision});
+  let pending=f.state.dialogueChecks.at(-1);
+  assert.equal(pending.status,'queued');
+  assert.deepEqual((await f.send(f.endpoint,undefined,guest.cookie)).body.dialogueChecks,[]);
+  assert.equal((await playerAction('dialogueCheckAttempt',{id:pending.id,stat:1})).status,400);
+  await f.act('dialogueSceneStart',{scene:2});
+  assert.equal(f.state.dialogueChecks.at(-1).status,'queued');
+  await f.act('dialogueSceneStart',{scene:1});
+  assert.equal(f.state.dialogueChecks.at(-1).status,'open');
+  assert.equal((await f.send(f.endpoint,{action:'dialogueCheckAttempt',revision:f.state.revision,id:pending.id,stat:1},f.host.cookie)).status,403);
+  const attempt=await playerAction('dialogueCheckAttempt',{id:pending.id,stat:1,score:100});
+  assert.equal(attempt.status,200);
+  pending=attempt.body.dialogueChecks.at(-1);
+  assert.deepEqual(pending.results[0],{actor:player,stat:1,score:99,value:74,success:false});
+  assert.equal(pending.status,'closed');
+  assert.equal((await playerAction('dialogueCheckAttempt',{id:pending.id,stat:0})).status,400);
+
+  const current=await f.send(f.endpoint,undefined,f.host.cookie);
+  const immediate=await f.send(f.endpoint,{action:'dialogueCheckCreate',revision:current.body.revision,...check,difficulty:40},f.host.cookie);
+  assert.equal(immediate.status,200);
+  const direct=await playerAction('dialogueCheckAttempt',{id:immediate.body.dialogueChecks.at(-1).id,stat:0});
+  assert.equal(direct.body.dialogueChecks.at(-1).results[0].success,true);
+});

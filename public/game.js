@@ -3,7 +3,7 @@ import {blockWorkspace,describeFlow,describeValue,damageRecordEditor,combatScanE
 import {bindBattleBoardControls} from './battle-camera.js';
 import {accountPanel} from './account.js';
 import {gridCanAimTile,gridSize,gridValid,gridTileGroups,gridPoint,gridPaths,gridTravelCost,gridLineOfSight,gridCardInRange,gridCardHasReach,gridCardRangeLabel,gridTargetLimit,gridSplashTargets,gridShapeAt,rangeShapes,maxRangeX,maxRangeY,customRangeRadius,maxRangeRadius,gridRangeAt,collapseTargets} from './grid.js';
-import {stackClasses,combatScanConditions,damageMemoryModes,maxDamageMemoryName,instantMoveModes,instantMoveDirections,instantMoveOffsets,instantMoveAnchors,instantMoveOrders,instantMoveStackTests,instantMoveStackMetrics,maxPortraitDataLength,maxPortraitSide,keywordOwnedZones,keywordScanModes,stackScanScopes,maxConceptTools,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTagGroups,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,maxOverloadCost,defaultOverloadCost,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,stackFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
+import {statNames,statCheckValue,stackClasses,combatScanConditions,damageMemoryModes,maxDamageMemoryName,instantMoveModes,instantMoveDirections,instantMoveOffsets,instantMoveAnchors,instantMoveOrders,instantMoveStackTests,instantMoveStackMetrics,maxPortraitDataLength,maxPortraitSide,keywordOwnedZones,keywordScanModes,stackScanScopes,maxConceptTools,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTagGroups,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,legacyCriticalStackEffects,heldStackEffectKinds,hitTargetModes,legacyHitEvents,maxStackNameLength,effectStackNames,effectCardReferences,replacementConditions,maxPassives,maxPassiveEffects,passiveRoundTimings,passiveEffectKinds,passiveTimingsFor,baseActions,maxActions,statuses,effects,newEffects,effectSettings,temptationLimit,temptationStrain,mentalCrisisThreshold,awakeningPower,crisisRecovery,signedEffects,percentageDefaults,ratioEffects,effectRatioBases,configurableRatioEffects,ratioBasisAvailable,maxStatusRounds,healthBases,healthRatioEffects,maxDeferralRounds,applyPowerRatio,effectRecipients,diceConditions,diceConditionTimings,maxDiceTotal,effectConditions,flagConditions,maxStatusStacks,maxStackPotency,stackPotency,maxCollectiveStackConsume,stackGrantEffects,stackConsumeAmounts,stackConsumeScopes,stackConsumePriorities,taggedEffects,unnumberedEffects,discardCosts,resourceCosts,resourceScales,teamEffects,copyEffects,stagedPowerEffects,stagedPowerTimings,amplifyHitTargets,effectLimitPeriods,maxEffectActivations,timings,maxCardHits,maxCardEffects,hitEffectTimings,cardHitPowers,maxOverloadCost,defaultOverloadCost,roles,cardStates,crisisRounds,crisisVows,crisisVowRules,artForms,artPoses,artPoseLabel,cardUsable,deckSize,deckCopyLimit,cardFileFormat,passiveFileFormat,stackFileFormat,characterFileFormat,maxCardFileBytes,mentalPower,parsePower} from './rules.js';
 const panel=document.querySelector('#panel'), errors=document.querySelector('#error'), feedback=document.querySelector('#feedback');
 const studio=location.pathname==='/studio';
 const code=location.pathname.split('/')[2], endpoint=studio?'/api/studio':'/api/rooms/'+code+'/game';
@@ -19,7 +19,6 @@ if(studio){
 const countryNames=['중앙국',...Array.from({length:9},(_,i)=>'제'+(i+1)+'국')];
 const counterHelp='이번 라운드에 적의 공격을 맞고 살아남으면, 사거리 안의 공격자에게 1회 반격해요.';
 const coverHelp='사용 시 원호 방어 +1. 맵에서 아군 한 명을 지정하거나, 대상을 비워 자동 엄호로 확정할 수 있어요.';
-const statNames=['근력','민첩','체력','지능','감각','의지'];
 let state,tab=studio?'character':'battle', busy=false, edit=null, passiveEdit=null, draftDirty=false, battleDraft=null;
 const libraryFilters={values:{},effects:new Set(),stacks:new Set()};
 
@@ -62,7 +61,7 @@ async function send(action,payload={}){
     const submitAction=()=>request({action,revision:state.revision,collectionRevision:state.collectionRevision,...payload});
     try{state=await submitAction();}
     catch(error){
-      if(!['dialogue','battleMusic'].includes(action)||error.status!==409)throw error;
+      if(!['dialogue','battleMusic','dialogueCheckCreate','dialogueCheckAttempt','dialogueCheckClose','dialogueSceneStart'].includes(action)||error.status!==409)throw error;
       state=await request();
       state=await submitAction();
     }
@@ -1971,7 +1970,16 @@ async function openStoryGuide(){
     const body=el('pre',undefined,{class:'story-guide-text',tabindex:'0'});
     const update=()=>{body.textContent=sections[Number(chapters.value)]?.text||'';body.scrollTop=0;};
     chapters.onchange=update;update();
-    content.replaceChildren(searchableSelect('장면 검색',chapters),body);
+    const controls=el('div',undefined,{class:'row'});
+    controls.append(
+      button('이 장면에 판정 예약',()=>openDialogueCheck(Number(chapters.value))),
+      button('이 장면 시작',async()=>{
+        if(await send('dialogueSceneStart',{scene:Number(chapters.value)})){
+          dialog.close();openDialogue();
+        }
+      })
+    );
+    content.replaceChildren(searchableSelect('장면',chapters),controls,body);
   }catch(error){content.replaceChildren(note(error.message));}
 }
 function startPanel(){
@@ -3152,6 +3160,80 @@ function battleDialoguePanel(){
   }
   return root;
 }
+function openDialogue(){
+  tab='dialogue';draftDirty=false;render();paperHeartbeat();
+}
+function openDialogueCheck(scene){
+  const names=statNames.map((name,i)=>[String(i),name]);
+  const players=state.dialogueCheckPlayers||[];
+  const targets=[['all','플레이어 전원'],...players.map(player=>[player.id,player.name])];
+  const form=el('form');
+  const dialog=battleDialog(scene==null?'능력치 판정 요청':'이 장면에 판정 예약',form);
+  form.classList.add('dialogue-check-form');
+  form.onsubmit=async event=>{
+    event.preventDefault();
+    const data=new FormData(form);
+    if(await send('dialogueCheckCreate',{
+      title:data.get('title'),target:data.get('target'),stat:Number(data.get('stat')),
+      difficulty:Number(data.get('difficulty')),scene
+    }))dialog.close();
+  };
+  form.append(
+    field('판정 내용',input('title','','text',{required:true,maxlength:120,placeholder:'예: 닫힌 객차 문을 열기'}),'full'),
+    field('시도할 대상',select('target',targets,'all')),
+    field('지정 능력치',select('stat',names,'0')),
+    field('난이도',input('difficulty',50,'number',{required:true,min:0,max:100,step:1})),
+    submit(scene==null?'대화창에 판정 띄우기':'판정 예약')
+  );
+  document.body.append(dialog);
+  dialog.addEventListener('close',()=>dialog.remove(),{once:true});
+  dialog.showModal();
+}
+function dialogueCheckCard(check,score){
+  const row=el('article',undefined,{class:'dialogue-check stack'});
+  const status={open:'진행 중',closed:'마감',queued:'장면 시작 대기'}[check.status];
+  row.append(el('strong',check.title),note(statNames[check.stat]+' · 난이도 '+check.difficulty+' · '+status));
+  const attempts=el('ul',undefined,{class:'dialogue-check-results'});
+  for(const target of check.targets){
+    const result=check.results.find(entry=>entry.actor===target.id);
+    if(!result){
+      attempts.append(el('li',target.name+' · '+(check.status==='closed'?'미시도':'대기 중')));
+      continue;
+    }
+    const value=result.stat===check.stat?String(result.value):result.score+' → '+result.value;
+    attempts.append(el('li',target.name+' · '+statNames[result.stat]+' '+value+
+      ' · '+(result.success?'성공':'실패'),{class:result.success?'check-success':'check-failure'}));
+  }
+  row.append(attempts);
+  if(check.status==='open'&&check.targets.some(target=>target.id===state.me)&&!check.results.some(result=>result.actor===state.me)){
+    const options=statNames.map((name,stat)=>{
+      const alternative=stat!==check.stat;
+      const value=statCheckValue(score[stat]??50,alternative);
+      return [String(stat),name+' '+value+(alternative?' (대체 · −25%)':' (지정)')];
+    });
+    const choose=select('checkStat',options,String(check.stat));
+    row.append(field('사용할 능력치',choose),button('판정 시도',()=>send('dialogueCheckAttempt',{id:check.id,stat:Number(choose.value)})));
+  }
+  if(state.manager&&check.status!=='closed')row.append(button(check.status==='queued'?'예약 취소':'판정 마감',
+    ()=>send('dialogueCheckClose',{id:check.id})));
+  return row;
+}
+function updateDialogueChecks(){
+  const {checks,checkTools}=dialogue;
+  checkTools.hidden=!state.manager;
+  const entries=state.dialogueChecks||[];
+  const score=state.profile.stats||[];
+  const key=JSON.stringify([entries,score,state.me,state.manager]);
+  if(dialogue.checkKey===key)return;
+  dialogue.checkKey=key;
+  const ongoing=entries.filter(check=>check.status!=='closed').map(check=>dialogueCheckCard(check,score));
+  const finished=entries.filter(check=>check.status==='closed'&&(check.scene==null||check.started));
+  const history=el('details',undefined,{class:'dialogue-check-history'});
+  const latest=finished.pop();
+  if(finished.length)history.append(el('summary','이전 판정 '+finished.length+'건'),
+    ...finished.reverse().map(check=>dialogueCheckCard(check,score)));
+  checks.replaceChildren(...ongoing,...(latest?[dialogueCheckCard(latest,score)]:[]),...(finished.length?[history]:[]));
+}
 let dialogue;
 function dialoguePanel(){
   if(!dialogue){
@@ -3184,12 +3266,16 @@ function dialoguePanel(){
     const transcript=el('details',undefined,{class:'dialogue-history'});
     const history=el('ol',undefined,{class:'log'});
     transcript.append(el('summary','대화 기록'),history);
-    const root=section('세션 대화',stage,compose,transcript);
-    dialogue={root,portraits,speaker,words,history,controls,speakerSelect,portraitControl,actors:new Map(),latest:null};
+    const checkTools=el('div',undefined,{class:'row'});
+    checkTools.append(button('능력치 판정 요청',()=>openDialogueCheck()),button('GM 진행 대본',openStoryGuide));
+    const checks=el('div',undefined,{class:'stack dialogue-checks','aria-live':'polite'});
+    const root=section('세션 대화',stage,checkTools,checks,compose,transcript);
+    dialogue={root,checks,checkTools,portraits,speaker,words,history,controls,speakerSelect,portraitControl,actors:new Map(),latest:null};
   }
   const {root,portraits,speaker,words,history,actors}=dialogue;
   const {controls,speakerSelect,portraitControl}=dialogue;
   controls.hidden=!state.manager;
+  updateDialogueChecks();
   const foes=state.manager?state.dialogueFoes||[]:[];
   const menu=JSON.stringify(foes);
   if(dialogue.foeMenu!==menu){
@@ -3250,7 +3336,14 @@ function render(){
   if(!state)return;
   for(const list of panel.querySelectorAll('.card-list-scroll'))cardListPositions.set(list.ariaLabel,list.scrollTop);
   panel.closest('main').classList.toggle('card-studio-page',tab==='cards');
-  for(const x of document.querySelectorAll('#tabs button'))x.setAttribute('aria-pressed',String(x.dataset.tab===tab));
+  for(const x of document.querySelectorAll('#tabs button')){
+    x.setAttribute('aria-pressed',String(x.dataset.tab===tab));
+    if(x.dataset.tab==='dialogue'){
+      const pending=(state.dialogueChecks||[]).filter(check=>check.status==='open'&&
+        check.targets.some(target=>target.id===state.me)&&!check.results.some(result=>result.actor===state.me)).length;
+      x.textContent=pending?'대화창 · 판정 '+pending:'대화';
+    }
+  }
   if(tab==='dialogue'){
     const root=dialoguePanel();
     if(root.parentNode!==panel)panel.replaceChildren(root);

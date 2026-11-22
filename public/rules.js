@@ -1,3 +1,5 @@
+export const statNames=['근력','민첩','체력','지능','감각','의지'];
+export const statCheckValue=(score,alternative)=>alternative?Math.floor(score*3/4):score;
 export const battleMusicTracks={
   dark:'어두운 곳에서 더욱 빛나는',
   bright1:'밝은 곳에서 더더욱 빛나는 1차전',

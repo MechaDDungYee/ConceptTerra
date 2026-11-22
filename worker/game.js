@@ -1238,7 +1238,8 @@ const trainShop={
 };
 const gameUnlockedCards=profile=>[
   ...(profile?.orbs?.includes('orbDarkHalo')?[darkForgive]:[]),
-  ...trainShopCards.filter(card=>profile?.shopCards?.includes(card.id))
+  ...trainShopCards.filter(card=>profile?.shopCards?.includes(card.id)),
+  ...(profile?.grantedCards||[])
 ];
 function gameTrainReady(state){
   return !gameActive(state.battle)&&!!state.campaign?.checkpoints.length&&
@@ -1256,6 +1257,40 @@ function gameTrainShopView(state,actor,manager){
 }
 function gameTrainWallet(state,actor){
   return (state.trainWallets??={})[actor]??={balance:0,permits:0,tools:[]};
+}
+function gameDeliverShopItem(profile,wallet,id,quantity=1){
+  const item=trainShop[id];
+  if(item.card){
+    const cards=profile.shopCards??=[];
+    if(gameUnlockedCards(profile).some(card=>card.id===item.card))gameFail('이미 보유한 개념구 카드예요.');
+    cards.push(item.card);
+  }else if(item.effect){
+    if(wallet.tools.includes(id))gameFail('이미 보유한 개념 도구예요.');
+    const tools=profile.conceptTools??=[];
+    if(tools.length>=maxConceptTools)gameFail('개념 도구 보관함에 빈자리가 필요해요.');
+    tools.push(gamePassive({name:item.name,notes:item.description,effects:[item.effect],enabled:false}));
+    wallet.tools.push(id);
+  }else wallet.permits+=quantity;
+}
+function gameCanSeeStoryBlock(block){
+  return !!block&&block.label!=='GM 메모';
+}
+function gamePublishedStory(state){
+  return (state.publishedStory||[]).flatMap(entry=>{
+    const source=gameSessionScenes.find(section=>section.scene===entry.scene);
+    if(!source)return [];
+    const blocks=source.blocks.filter((block,index)=>entry.blocks.includes(index)&&gameCanSeeStoryBlock(block));
+    return blocks.length?[{heading:source.heading,blocks}]:[];
+  });
+}
+function gamePublishStory(state,scene,index){
+  const source=gameSessionScenes.find(section=>section.scene===scene);
+  if(!source||!gameCanSeeStoryBlock(source.blocks[index]))return false;
+  const published=state.publishedStory??=[];
+  let entry=published.find(section=>section.scene===scene);
+  if(!entry){entry={scene,blocks:[]};published.push(entry);}
+  if(!entry.blocks.includes(index))entry.blocks.push(index);
+  return true;
 }
 function gameTrainDeck(state,ids,owned){
   if(!Array.isArray(ids)||ids.length!==deckSize)gameFail('덱에 카드 '+deckSize+'장을 선택하세요.');
@@ -6881,6 +6916,12 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       (source.effects||[]).flatMap(effectStackNames))])];
     if(!studio){
       data.trainShop=gameTrainShopView(state,actor,manager);
+      data.storyPublished=state.publishedStory||[];
+      data.storyInventory=state.trainWallets?.[actor]?.items||[];
+      if(manager)data.rewardOptions={
+        items:Object.entries(trainShop).filter(([,item])=>!item.card).map(([id,item])=>({id,name:item.name})),
+        cards:[...new Map([darkForgive,...trainShopCards,...collection.cards].map(card=>[card.id,{id:card.id,name:card.name}])).values()]
+      };
       data.dialogue=state.dialogue||[];
       data.dialogueChecks=(state.dialogueChecks||[]).filter(check=>manager||check.scene==null||check.started);
       if(manager)data.dialogueCheckPlayers=members.filter(member=>member.seat>0||member.id===actor)
@@ -6905,7 +6946,10 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
   }
 
   if(input.action==='storyGuide')return manager&&!studio?json({sections:gameStorySections}):error('GM용 룰북이에요.',403);
-  if(input.action==='sessionStory')return manager&&!studio?json({sections:gameSessionScenes}):error('GM용 스토리 대본이에요.',403);
+  if(input.action==='sessionStory'){
+    if(studio||!manager&&!(self.seat>0))return error('세션에 배정된 승객 또는 GM만 대본을 볼 수 있어요.',403);
+    return json({sections:manager?gameSessionScenes:gamePublishedStory(state)});
+  }
   if(['saveSlot','loadSlot','deleteSlot','exportSave','importSave'].includes(input.action)){
     if(!manager||studio)return error('세션의 GM 또는 방장만 저장 파일을 관리할 수 있어요.',403);
     if(input.action!=='importSave'&&!gameInt(input.slot,1,3))return error('저장 슬롯을 확인하세요.');
@@ -6935,6 +6979,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
   if(collectionEdit?input.collectionRevision!==ownCollection.revision:input.revision!==revision){
     return error('저장 데이터가 먼저 변경됐어요. 다시 시도해 주세요.',409);
   }
+  let rewardEntry;
   const livingFoes=studio||!b?[]:Object.values(b.units).filter(unit=>unit.enemy&&gameAlive(unit));
   const initialJourney=state.journeyWrite?[]:journeyEarlierLines(state);
   const journeyLogs=[];
@@ -6945,23 +6990,50 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
   const profile=state.profiles[actor]??={cards:[],deck:[]};
   try{
     switch(input.action){
+      case 'grantReward': {
+        if(studio||!manager)return error('GM만 보상을 지급할 수 있어요.',403);
+        const candidates=members.filter(member=>member.seat>0||member.id===actor&&
+          (b?.units[actor]||state.campaign?.party.some(unit=>unit.id===actor)));
+        const recipients=input.target==='all'?candidates:candidates.filter(member=>member.id===input.target);
+        const quantity=input.quantity;
+        if(!recipients.length||!gameInt(quantity,1,input.kind==='currency'?9999:99))gameFail('지급 대상과 수량을 확인하세요.');
+        const card=input.kind==='card'?[...gameCatalogue,darkForgive,...trainShopCards,...ownCollection.cards].find(entry=>entry.id===input.item):null;
+        const shopItem=input.kind==='item'&&Object.hasOwn(trainShop,input.item)&&!trainShop[input.item].card?trainShop[input.item]:null;
+        const storyItem=input.kind==='storyItem'?gameText(input.name,60):'';
+        if((card||shopItem?.effect)&&quantity!==1)gameFail('카드와 개념 도구는 한 종류씩 지급하세요.');
+        if(!card&&!shopItem&&!storyItem&&input.kind!=='currency')gameFail('지급할 보상을 선택하세요.');
+        for(const member of recipients){
+          const target=state.profiles[member.id]??={cards:[],deck:[]};
+          const wallet=gameTrainWallet(state,member.id);
+          if(input.kind==='currency')wallet.balance+=quantity;
+          else if(shopItem)gameDeliverShopItem(target,wallet,input.item,quantity);
+          else if(card){
+            if(gameCatalogue.some(entry=>entry.id===card.id)||gameUnlockedCards(target).some(entry=>entry.id===card.id))
+              gameFail('대상에게 이미 보관함에 있는 카드예요.');
+            if(target.grantedCards?.length>=24)gameFail('지급 카드 보관 한도에 도달했어요.');
+            (target.grantedCards??=[]).push({...card,image:''});
+          }else{
+            const items=wallet.items??=[];
+            const existing=items.find(item=>item.name===storyItem);
+            if(existing)existing.quantity+=quantity;
+            else {
+              if(items.length>=50)gameFail('이 승객의 소지품 보관함이 가득 찼어요.');
+              items.push({name:storyItem,quantity});
+            }
+          }
+        }
+        rewardEntry='[GM 지급] '+recipients.map(member=>state.profiles[member.id]?.name||member.name).join(', ')+' · '+
+          (card?.name||shopItem?.name||storyItem||'잔향 조각')+' ×'+quantity;
+        if(b)gameLog(b,rewardEntry);
+        break;
+      }
       case 'trainPurchase': {
         if(studio||!gameTrainReady(state)||!state.campaign.party.some(unit=>unit.id===actor))gameFail('열차에 복귀한 승객만 자판기를 이용할 수 있어요.');
         const item=Object.hasOwn(trainShop,input.item)?trainShop[input.item]:null;
         if(!item)gameFail('구매할 상품을 선택하세요.');
         const wallet=gameTrainWallet(state,actor);
         if(wallet.balance<item.cost)gameFail('잔향 조각이 부족해요.');
-        if(item.card){
-          const cards=profile.shopCards??=[];
-          if(cards.includes(item.card))gameFail('이미 구매한 개념구 카드예요.');
-          cards.push(item.card);
-        }else if(item.effect){
-          if(wallet.tools.includes(input.item))gameFail('이미 구매한 개념 도구예요.');
-          const tools=profile.conceptTools??=[];
-          if(tools.length>=maxConceptTools)gameFail('개념 도구 보관함에 빈자리가 필요해요.');
-          tools.push(gamePassive({name:item.name,notes:item.description,effects:[item.effect],enabled:false}));
-          wallet.tools.push(input.item);
-        }else wallet.permits++;
+        gameDeliverShopItem(profile,wallet,input.item);
         wallet.balance-=item.cost;
         break;
       }
@@ -7064,7 +7136,15 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       case 'dialogueSceneStart': {
         if(studio||!manager)return error('세션 GM만 장면을 시작할 수 있어요.',403);
         if(!gameInt(input.scene,0,gameStorySections.length-1))gameFail('장면을 선택하세요.');
+        const scene=gameSessionScenes.find(section=>section.scene===input.scene);
+        if(scene)gamePublishStory(state,input.scene,scene.blocks.findIndex(gameCanSeeStoryBlock));
         for(const check of state.dialogueChecks||[])if(check.status==='queued'&&check.scene===input.scene){check.status='open';check.started=true;}
+        break;
+      }
+      case 'storyPublish': {
+        if(studio||!manager)return error('GM만 대본을 공개할 수 있어요.',403);
+        if(!gameInt(input.block,0,99)||!state.publishedStory?.some(section=>section.scene===input.scene)||
+          !gamePublishStory(state,input.scene,input.block))gameFail('시작한 장면에서 공개할 문단을 선택하세요.');
         break;
       }
       case 'dialogueCheckClose': {
@@ -7538,7 +7618,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       default:gameFail('알 수 없는 작업이에요.');
     }
   }catch(e){if(e instanceof GameInputError)return error(e.message);throw e;}
-  const journey=[];
+  const journey=rewardEntry&&!b?[rewardEntry]:[];
   if(livingFoes.length&&!gameIsPaper(b)){
     const paid=state.trainKills||{};
     const rewardKey=unit=>(b.id||b.encounter?.id||'legacy')+':'+unit.id;

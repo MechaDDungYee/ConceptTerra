@@ -61,7 +61,7 @@ async function send(action,payload={}){
     const submitAction=()=>request({action,revision:state.revision,collectionRevision:state.collectionRevision,...payload});
     try{state=await submitAction();}
     catch(error){
-      if(!['dialogue','battleMusic','dialogueCheckCreate','dialogueCheckAttempt','dialogueCheckClose','dialogueSceneStart','trainPurchase','trainDeckRequest','trainDeckReview'].includes(action)||error.status!==409)throw error;
+      if(!['dialogue','battleMusic','dialogueCheckCreate','dialogueCheckAttempt','dialogueCheckClose','dialogueSceneStart','trainPurchase','trainDeckRequest','trainDeckReview','storyPublish','grantReward'].includes(action)||error.status!==409)throw error;
       state=await request();
       state=await submitAction();
     }
@@ -1996,7 +1996,10 @@ async function openStoryReader(story){
   dialog.showModal();
   try{
     const {sections}=await request({action:story?'sessionStory':'storyGuide'});
-    const chapters=select('storyChapter',sections.map((section,i)=>[String(i),section.heading]),story?lastStorySection:lastRuleSection);
+    if(!sections.length){content.replaceChildren(note('아직 공개된 장면이 없습니다.'));return;}
+    const manager=state.manager;
+    const selected=story?(manager?lastStorySection:String(sections.length-1)):lastRuleSection;
+    const chapters=select('storyChapter',sections.map((section,i)=>[String(i),section.heading]),selected);
     const body=el(story?'div':'pre',undefined,{class:story?'story-reading':'story-guide-text',tabindex:'0'});
     const scene=()=>story?sections[Number(chapters.value)]?.scene:Number(chapters.value);
     const controls=el('div',undefined,{class:'story-scene-controls'});
@@ -2021,11 +2024,23 @@ async function openStoryReader(story){
     const update=()=>{
       const current=sections[Number(chapters.value)];
       if(story){
-        lastStorySection=chapters.value;
-        body.replaceChildren(...(current?.blocks||[]).map(block=>{
+        if(manager)lastStorySection=chapters.value;
+        body.replaceChildren(...(current?.blocks||[]).map((block,index)=>{
           const text=el('p',block.text);
           const part=el('section',undefined,{class:block.label==='GM 메모'?'story-gm-note':'story-read-block'});
           part.append(el('h4',block.label),text);
+          const released=state.storyPublished?.find(entry=>entry.scene===current.scene);
+          if(manager&&released&&block.label!=='GM 메모'){
+            const published=released.blocks.includes(index);
+            const publish=button(published?'공개됨':'이 문단 공개',async()=>{
+              if(await send('storyPublish',{scene:current.scene,block:index})){
+                publish.textContent='공개됨';
+                publish.disabled=true;
+              }
+            });
+            publish.disabled=published;
+            part.append(publish);
+          }
           return part;
         }));
         back.disabled=chapters.value==='0';
@@ -2034,7 +2049,7 @@ async function openStoryReader(story){
         lastRuleSection=chapters.value;
         body.textContent=current?.text||'';
       }
-      controls.hidden=scene()==null;
+      controls.hidden=!manager||scene()==null;
       body.scrollTop=0;
     };
     chapters.onchange=update;update();
@@ -2053,7 +2068,7 @@ function startPanel(){
   const shop=trainVendingMachine();
   if(shop)root.append(shop);
   if(!state.manager){root.append(note('GM 또는 방장이 전투를 시작할 때까지 기다려 주세요.'));return root;}
-  root.append(button('룰북',openStoryGuide),button('스토리 대본',openSessionStory));
+  root.append(button('룰북',openStoryGuide),button('스토리 대본',openSessionStory),button('GM 보상 지급',openRewardGrant));
   const form=formFor('start',(_,data)=>({solo:data.has('solo'),bots:Number(data.get('bots')),encounter:data.get('encounter'),paperOrigin:data.get('paperOrigin')||undefined}));
   const solo=input('solo','1','checkbox',{checked:!state.roster.length,disabled:!!state.roster.length});
   const bots=select('bots',[],0);
@@ -2473,7 +2488,7 @@ function battlePanel(){
   log.append(...b.log.slice().reverse().map(t=>el('li',t)));
   const activity=battleDialog('전투 기록',log), participants=battleDialog('참가자 상태',unitStats);
   menuItems.append(button('전투 기록',()=>activity.showModal()),button('참가자 상태',()=>participants.showModal()));
-  if(state.manager)menuItems.append(button('룰북',openStoryGuide),button('스토리 대본',openSessionStory));
+  if(state.manager)menuItems.append(button('룰북',openStoryGuide),button('스토리 대본',openSessionStory),button('GM 보상 지급',openRewardGrant));
   if(b.paper){
     const mechanics=battleDialog('시스템 파괴전 규칙',section('페이퍼 마스크',
       note('3라운드가 끝나거나 공명이 10에 도달하면 전원이 흡수됩니다.'),
@@ -3298,6 +3313,50 @@ function updateDialogueChecks(){
   checks.replaceChildren(...ongoing,...(latest?[dialogueCheckCard(latest,score)]:[]),...(finished.length?[history]:[]));
 }
 let dialogue;
+function openRewardGrant(){
+  const players=state.dialogueCheckPlayers||[];
+  const eligible=players.filter(player=>player.id!==state.me||state.battle?.units.some(unit=>unit.id===state.me)||state.trainShop?.locked||
+    state.roster.some(member=>member.id===state.me));
+  const form=el('form',undefined,{class:'dialogue-check-form'});
+  const modal=battleDialog('GM 보상 지급',form);
+  if(!eligible.length)form.append(note('먼저 지급할 플레이어를 세션에 배정하세요.'));
+  else{
+    const target=select('target',[...eligible.map(player=>[player.id,player.name]),['all','플레이어 전원']],eligible[0].id);
+    const kind=select('kind',[['currency','잔향 조각'],['item','덱 수정권·개념 도구'],['card','카드'],['storyItem','이름을 직접 적는 소지품']],'currency');
+    const quantity=input('quantity',1,'number',{min:1,max:9999,required:true});
+    const item=select('item',[],'');
+    const picker=searchableSelect('지급할 보상',item);
+    const name=input('name','','text',{maxlength:60});
+    const nameField=field('소지품 이름',name);
+    const refresh=()=>{
+      const category=kind.value;
+      picker.hidden=!['item','card'].includes(category);
+      nameField.hidden=category!=='storyItem';
+      name.required=!nameField.hidden;
+      const options=category==='card'?state.rewardOptions.cards:state.rewardOptions.items;
+      item.replaceChildren(...options.map(option=>el('option',option.name,{value:option.id})));
+      selectSearches.get(item)?.();
+      const single=category==='card'||category==='item'&&item.value!=='permit';
+      quantity.max=single?'1':category==='currency'?'9999':'99';
+      if(Number(quantity.value)>Number(quantity.max))quantity.value=quantity.max;
+    };
+    kind.onchange=refresh;
+    item.onchange=()=>{if(kind.value==='item')refreshQuantity();};
+    function refreshQuantity(){
+      quantity.max=item.value==='permit'?'99':'1';
+      if(Number(quantity.value)>Number(quantity.max))quantity.value=quantity.max;
+    }
+    refresh();
+    form.append(field('지급 대상',target),field('보상 종류',kind),picker,nameField,field('수량',quantity),submit('지급'));
+    form.onsubmit=async event=>{
+      event.preventDefault();
+      if(await send('grantReward',{target:target.value,kind:kind.value,item:item.value,name:name.value,quantity:Number(quantity.value)}))modal.close();
+    };
+  }
+  document.body.append(modal);
+  modal.addEventListener('close',()=>modal.remove(),{once:true});
+  modal.showModal();
+}
 function journeyDownloadButton(){
   const download=button('여정 기록 다운로드',async()=>{
     download.disabled=true;
@@ -3348,16 +3407,24 @@ function dialoguePanel(){
     const history=el('ol',undefined,{class:'log'});
     transcript.append(el('summary','대화 기록'),history);
     const checkTools=el('div',undefined,{class:'row'});
-    checkTools.append(button('능력치 판정 요청',()=>openDialogueCheck()),button('룰북',openStoryGuide),button('스토리 대본',openSessionStory));
+    checkTools.append(button('능력치 판정 요청',()=>openDialogueCheck()),button('룰북',openStoryGuide),button('스토리 대본',openSessionStory),button('GM 보상 지급',openRewardGrant));
     const checks=el('div',undefined,{class:'stack dialogue-checks','aria-live':'polite'});
     const download=journeyDownloadButton();
-    const root=section('세션 대화',stage,checkTools,checks,compose,transcript,download);
-    dialogue={root,checks,checkTools,download,portraits,speaker,words,history,controls,speakerSelect,portraitControl,actors:new Map(),latest:null};
+    const publicStory=button('공개된 스토리 대본',openSessionStory);
+    const inventory=el('p',undefined,{class:'notice minor'});
+    const root=section('세션 대화',stage,checkTools,publicStory,checks,compose,transcript,inventory,download);
+    dialogue={root,checks,checkTools,download,publicStory,inventory,portraits,speaker,words,history,controls,speakerSelect,portraitControl,actors:new Map(),latest:null};
   }
   const {root,portraits,speaker,words,history,actors}=dialogue;
   const {controls,speakerSelect,portraitControl}=dialogue;
   controls.hidden=!state.manager;
-  dialogue.download.hidden=!state.manager&&!state.roster.some(player=>player.id===state.me);
+  const seated=state.roster.some(player=>player.id===state.me);
+  dialogue.download.hidden=!state.manager&&!seated;
+  dialogue.publicStory.hidden=state.manager||!seated;
+  dialogue.publicStory.textContent=state.storyPublished?.length?'공개된 스토리 대본 · '+state.storyPublished.length+'장면':'공개된 스토리 대본';
+  const items=(state.storyInventory||[]).map(item=>item.name+' ×'+item.quantity);
+  dialogue.inventory.hidden=!seated&&!state.trainShop?.locked&&!items.length;
+  dialogue.inventory.textContent=['잔향 조각 '+(state.trainShop?.balance||0)+'개','덱 수정권 '+(state.trainShop?.permits||0)+'장',...items].join(' · ');
   updateDialogueChecks();
   const foes=state.manager?state.dialogueFoes||[]:[];
   const menu=JSON.stringify(foes);

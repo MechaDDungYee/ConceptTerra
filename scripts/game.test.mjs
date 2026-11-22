@@ -4619,3 +4619,45 @@ test('a draft uses exactly one voucher on approval and the following battle uses
   const saved=JSON.parse(f.DB.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(f.host.body.code).first().state);
   assert.deepEqual([...saved.battle.units[f.state.me].configuredDeck].sort(),[...cards].sort());
 });
+
+test('players see only released narration, and only the GM can grant session rewards',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'승객'});
+  const actor=guest.body.me;
+  await f.send(f.room+'/seat',{id:actor,seat:1},f.host.cookie);
+  const player=async(action,payload={})=>{
+    const {body}=await f.send(f.endpoint,undefined,guest.cookie);
+    return f.send(f.endpoint,{action,revision:body.revision,...payload},guest.cookie);
+  };
+  assert.equal((await player('storyGuide')).status,403);
+  assert.deepEqual((await player('sessionStory')).body.sections,[]);
+  const GM=(await f.send(f.endpoint,{action:'sessionStory'},f.host.cookie)).body.sections;
+  const opening=GM[1];
+  assert.equal((await player('dialogueSceneStart',{scene:opening.scene})).status,403);
+  await f.act('dialogueSceneStart',{scene:opening.scene});
+  let visible=(await player('sessionStory')).body.sections;
+  assert.equal(visible.length,1);
+  assert.deepEqual(visible[0].blocks,[opening.blocks[0]]);
+  await f.act('storyPublish',{scene:opening.scene,block:1});
+  visible=(await player('sessionStory')).body.sections;
+  assert.deepEqual(visible[0].blocks,opening.blocks.slice(0,2));
+  const privateScene=GM.find(section=>section.blocks.some(block=>block.label==='GM 메모')&&section.scene!=null);
+  await f.act('dialogueSceneStart',{scene:privateScene.scene});
+  const hidden=await f.send(f.endpoint,{action:'storyPublish',revision:f.state.revision,scene:privateScene.scene,
+    block:privateScene.blocks.findIndex(block=>block.label==='GM 메모')},f.host.cookie);
+  assert.equal(hidden.status,400);
+
+  assert.equal((await player('grantReward',{target:actor,kind:'currency',quantity:900})).status,403);
+  await f.act('grantReward',{target:'all',kind:'currency',quantity:29});
+  await f.act('grantReward',{target:actor,kind:'item',item:'permit',quantity:2});
+  await f.act('grantReward',{target:actor,kind:'item',item:'brooch',quantity:1});
+  await f.act('grantReward',{target:actor,kind:'card',item:'shopRainCalendar',quantity:1});
+  await f.act('grantReward',{target:actor,kind:'storyItem',name:'접힌 표',quantity:1});
+  const {body}=await f.send(f.endpoint,undefined,guest.cookie);
+  assert.equal(body.trainShop.balance,29);
+  assert.equal(body.trainShop.permits,2);
+  assert.equal(body.profile.conceptTools.length,1);
+  assert.ok(body.defaults.some(card=>card.id==='shopRainCalendar'));
+  assert.deepEqual(body.storyInventory,[{name:'접힌 표',quantity:1}]);
+  assert.match((await player('journeyDownload')).body.text,/GM 지급.*접힌 표/);
+});

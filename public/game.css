@@ -410,3 +410,6 @@ body:has(.battle-dummy) > main > :is(#error,#feedback):not(:empty){
 .story-gm-note{background:#192630;border-color:#8eb7cd}
 .story-gm-note h4{color:#abd2e7}
 .story-scene-controls:not([hidden]){display:flex;gap:.5rem;flex-wrap:wrap}
+
+.train-shop-item{display:grid;gap:.35rem;padding:.75rem;border:1px solid #6e5e41;border-radius:.45rem}
+.train-shop-item button{justify-self:start}

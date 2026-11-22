@@ -1221,7 +1221,51 @@ const darkForgive={...gamePreset('conceptForgive','사면 · 어둠 속의 광�
   gameEffect('hit','mind',6),gameConceptStack('죄 사함의 광배','target'),
   gameEffect('hit','transferDebuff',1)
 ],12,false),concept:true,optional:true,targetSide:'ally',includeSelf:true};
-const gameUnlockedCards=profile=>profile?.orbs?.includes('orbDarkHalo')?[darkForgive]:[];
+const trainShopCards=[
+  {...gamePreset('shopWayfarerLantern','갈 곳 잃은 등불','0','0','normal','self',[
+    gameEffect('use','shield',12,'self'),gameEffect('use','mind',4,'self')
+  ],8,false),concept:true,flavor:'가로등이 꺼져도, 누가 돌아오는 길 하나는 남겨 둔다.'},
+  {...gamePreset('shopRainCalendar','비가 들지 않는 달력','9','1~3','normal',1,[
+    gameEffect('hit','drain',5)
+  ],10),concept:true,flavor:'젖지 않은 날짜에만 돌아오지 못한 사람의 이름을 적는다.'}
+];
+const trainShop={
+  lantern:{name:trainShopCards[0].name,type:'개념구 카드',cost:35,card:trainShopCards[0].id,description:'자신에게 보호막 12와 정신력 회복 4.'},
+  calendar:{name:trainShopCards[1].name,type:'개념구 카드',cost:40,card:trainShopCards[1].id,description:'위력 9 공격. 적중 시 정신 피해 5.'},
+  permit:{name:'덱 수정권',type:'소모품',cost:15,description:'전투 밖에서 GM 승인으로 덱 구성을 1회 변경합니다.'},
+  brooch:{name:'접힌 책등 브로치',type:'개념 도구',cost:25,description:'전투 시작 시 자신에게 보호막 8.',effect:gameEffect('battleStart','shield',8,'self')},
+  needle:{name:'되돌아오는 바늘',type:'개념 도구',cost:30,description:'전투 시작 시 자신의 정신력 6 회복.',effect:gameEffect('battleStart','mind',6,'self')}
+};
+const gameUnlockedCards=profile=>[
+  ...(profile?.orbs?.includes('orbDarkHalo')?[darkForgive]:[]),
+  ...trainShopCards.filter(card=>profile?.shopCards?.includes(card.id))
+];
+function gameTrainReady(state){
+  return !gameActive(state.battle)&&!!state.campaign?.checkpoints.length&&
+    !gameIsPaper(state.battle);
+}
+function gameTrainShopView(state,actor,manager){
+  const party=state.campaign?.party||[];
+  const expenses=state.trainWallets?.[actor];
+  const requests=Object.values(state.trainDeckRequests||{});
+  return {ready:gameTrainReady(state)&&party.some(unit=>unit.id===actor),balance:expenses?.balance||0,permits:expenses?.permits||0,
+    locked:party.some(unit=>unit.id===actor),items:Object.entries(trainShop).map(([id,{effect,...item}])=>({id,...item,
+      bought:item.card?state.profiles[actor]?.shopCards?.includes(item.card)===true:effect?expenses?.tools?.includes(id)===true:false})),
+    requests:requests.filter(entry=>manager||entry.actor===actor).map(({cards,...entry})=>entry),
+    draft:requests.find(entry=>entry.actor===actor)?.cards};
+}
+function gameTrainWallet(state,actor){
+  return (state.trainWallets??={})[actor]??={balance:0,permits:0,tools:[]};
+}
+function gameTrainDeck(state,ids,owned){
+  if(!Array.isArray(ids)||ids.length!==deckSize)gameFail('덱에 카드 '+deckSize+'장을 선택하세요.');
+  const cards=ids.map(id=>owned.find(card=>card.id===id));
+  if(cards.some(card=>!card))gameFail('보관함에 있는 카드만 고를 수 있어요.');
+  const banned=new Set(state.campaign.lostCards.map(card=>gameCardNameKey(card.name)));
+  if(cards.some(card=>banned.has(gameCardNameKey(card.name))))gameFail('회귀로 소실된 이름의 카드는 넣을 수 없어요.');
+  if(cards.some(card=>ids.filter(id=>id===card.id).length>deckCopyLimit))gameFail('같은 카드는 최대 '+deckCopyLimit+'장까지 넣을 수 있어요.');
+  return cards;
+}
 const firstStop={
   id:'stop01',name:'불 꺼진 제6국 외곽 막다른 골목',foe:'어두운 곳에서 더욱 빛나는',hp:225,start:22,
   walls:[2,12,18,27,7,15,23,31,39],zones:[13,22,14,21,29,30],tags:['제6국 외곽','제8국 외곽'],
@@ -3706,7 +3750,7 @@ const gameCardNameKey=name=>name.normalize('NFKC').toLowerCase().replace(/[\s·�
 const gameNormalCard=card=>card&&!card.concept&&cardState(card.requiredState)==='any'&&!card.temporary&&!card.generated;
 function gameCampaignDeck(state,id,collection){
   const campaign=state.campaign;
-  const party=campaign?.loopCount?campaign.party.find(unit=>unit.id===id):null;
+  const party=campaign?.party.find(unit=>unit.id===id);
   const owned=[...gameCatalogue,...defenseGenerated,...fieldGenerated,guestGenerated,commuteSeize,scribeRewind,artistCards[1],applauseCards[1],...gameUnlockedCards(state.profiles[id]),...collection.cards,...Object.values(campaign?.definitions||{})];
   if(!party)return {owned,cards:gameDeck(owned,collection.deck)};
   const cards=party.deck.map(cardId=>owned.find(card=>card.id===cardId));
@@ -3851,7 +3895,7 @@ function gameBegin(state,members,settings,actor,collections) {
   units.enemy=gameUnit('enemy','존속의 집행체',22,[gameFoe],true,true);
   units.enemy.boss=true;
   units.enemy.locationTags=[...gameFoe.locationTags];
-  const battle={round:1,units,walls:[...walls],log:['빈 객차. 존속의 집행체가 남은 승객을 찾아 들어왔습니다.'],result:null};
+  const battle={id:gameId(),round:1,units,walls:[...walls],log:['빈 객차. 존속의 집행체가 남은 승객을 찾아 들어왔습니다.'],result:null};
   if(encounter){
     const foe=units.enemy;
     Object.assign(foe,{conceptEntity:true,name:encounter.foe,pos:encounter.start,hp:encounter.hp,maxHp:encounter.hp,move:0,
@@ -6820,14 +6864,23 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
     data.profile.cards=collection.cards.map(({shareOrigin,...card})=>({...card,requiredState:cardState(card.requiredState)}));
     data.profile.deck=gameDeck([...gameCatalogue,...gameUnlockedCards(state.profiles[actor]),...collection.cards],collection.deck).map(card=>card.id);
     data.profile.deckSaved=collection.deck.length===deckSize;
+    if(!studio){
+      const locked=state.campaign?.party.find(unit=>unit.id===actor);
+      if(locked)data.profile.deck=[...locked.deck];
+    }
     data.profile.customStacks=collection.stackNames;
     data.profile.stackTraits=collection.stackTraits;
     data.profile.conceptStackTraits=Object.values(gameConceptTraits);
-    data.defaults=[...gameCatalogue,...gameUnlockedCards(state.profiles[actor])];
+    const approved=studio?[]:state.campaign?.party.find(unit=>unit.id===actor)?.deck||[];
+    const frozen=approved.flatMap(id=>state.campaign?.definitions[id]?[state.campaign.definitions[id]]:[]);
+    const knownIds=new Set([...gameCatalogue,...gameUnlockedCards(state.profiles[actor]),...collection.cards].map(card=>card.id));
+    data.defaults=[...gameCatalogue,...gameUnlockedCards(state.profiles[actor]),
+      ...new Map(frozen.filter(card=>!knownIds.has(card.id)).map(card=>[card.id,card])).values()];
     const known=[...data.defaults,...collection.cards,...(data.profile.passives||[]),...(data.profile.conceptTools||[]),...(data.profile.passiveCards||[]),...gameMindSources(data.profile.mindRules)];
     data.profile.stackNames=[...new Set([...collection.stackNames,...known.flatMap(source=>
       (source.effects||[]).flatMap(effectStackNames))])];
     if(!studio){
+      data.trainShop=gameTrainShopView(state,actor,manager);
       data.dialogue=state.dialogue||[];
       data.dialogueChecks=(state.dialogueChecks||[]).filter(check=>manager||check.scene==null||check.started);
       if(manager)data.dialogueCheckPlayers=members.filter(member=>member.seat>0||member.id===actor)
@@ -6882,6 +6935,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
   if(collectionEdit?input.collectionRevision!==ownCollection.revision:input.revision!==revision){
     return error('저장 데이터가 먼저 변경됐어요. 다시 시도해 주세요.',409);
   }
+  const livingFoes=studio||!b?[]:Object.values(b.units).filter(unit=>unit.enemy&&gameAlive(unit));
   const initialJourney=state.journeyWrite?[]:journeyEarlierLines(state);
   const journeyLogs=[];
   if(b)journeyBattleLogs.set(b,journeyLogs);
@@ -6891,6 +6945,57 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
   const profile=state.profiles[actor]??={cards:[],deck:[]};
   try{
     switch(input.action){
+      case 'trainPurchase': {
+        if(studio||!gameTrainReady(state)||!state.campaign.party.some(unit=>unit.id===actor))gameFail('열차에 복귀한 승객만 자판기를 이용할 수 있어요.');
+        const item=Object.hasOwn(trainShop,input.item)?trainShop[input.item]:null;
+        if(!item)gameFail('구매할 상품을 선택하세요.');
+        const wallet=gameTrainWallet(state,actor);
+        if(wallet.balance<item.cost)gameFail('잔향 조각이 부족해요.');
+        if(item.card){
+          const cards=profile.shopCards??=[];
+          if(cards.includes(item.card))gameFail('이미 구매한 개념구 카드예요.');
+          cards.push(item.card);
+        }else if(item.effect){
+          if(wallet.tools.includes(input.item))gameFail('이미 구매한 개념 도구예요.');
+          const tools=profile.conceptTools??=[];
+          if(tools.length>=maxConceptTools)gameFail('개념 도구 보관함에 빈자리가 필요해요.');
+          tools.push(gamePassive({name:item.name,notes:item.description,effects:[item.effect],enabled:false}));
+          wallet.tools.push(input.item);
+        }else wallet.permits++;
+        wallet.balance-=item.cost;
+        break;
+      }
+      case 'trainDeckRequest': {
+        const party=state.campaign?.party.find(unit=>unit.id===actor);
+        if(studio||!gameTrainReady(state)||!party)gameFail('열차에 복귀한 뒤 덱 변경을 요청하세요.');
+        if(!state.trainWallets?.[actor]?.permits)gameFail('덱 수정권이 필요해요.');
+        const owned=[...gameCatalogue,...gameUnlockedCards(profile),...ownCollection.cards,...Object.values(state.campaign.definitions)];
+        const cards=gameTrainDeck(state,input.cards,owned);
+        if(JSON.stringify([...input.cards].sort())===JSON.stringify([...party.deck].sort()))gameFail('현재 덱과 구성이 같아요.');
+        (state.trainDeckRequests??={})[actor]={id:gameId(),actor,name:party.name,cards:input.cards,cardNames:cards.map(card=>card.name)};
+        break;
+      }
+      case 'trainDeckReview': {
+        if(studio||!manager)return error('GM만 덱 변경을 승인할 수 있어요.',403);
+        if(!gameTrainReady(state))gameFail('열차에서만 덱 변경을 처리할 수 있어요.');
+        const pending=Object.values(state.trainDeckRequests||{}).find(entry=>entry.id===input.id);
+        if(!pending||typeof input.approve!=='boolean')gameFail('대기 중인 요청을 선택하세요.');
+        if(input.approve){
+          const member=members.find(member=>member.id===pending.actor);
+          const party=state.campaign.party.find(unit=>unit.id===pending.actor);
+          const wallet=state.trainWallets?.[pending.actor];
+          if(!member||!party||!wallet?.permits)gameFail('승객과 덱 수정권을 확인하세요.');
+          const row=await query(db,'SELECT cards, deck, stack_names, revision FROM player_collections WHERE id = ?',member.account_collection_id||member.collection_id).first();
+          const target=state.profiles[pending.actor];
+          const owned=[...gameCatalogue,...gameUnlockedCards(target),...gameCollection(target,row).cards,...Object.values(state.campaign.definitions)];
+          const cards=gameTrainDeck(state,pending.cards,owned);
+          for(const card of cards)if(!gameCatalogue.includes(card))state.campaign.definitions[card.id]=card;
+          party.deck=[...pending.cards];
+          wallet.permits--;
+        }
+        delete state.trainDeckRequests[pending.actor];
+        break;
+      }
       case 'battleMusic':
         if(!canSetBattleMusic)return error('GM만 전투 BGM을 고를 수 있어요.',403);
         if(input.track!=='auto'&&(typeof input.track!=='string'||!Object.hasOwn(battleMusicTracks,input.track)))gameFail('전투 BGM을 선택하세요.');
@@ -7216,6 +7321,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
             break;
           }
           case 'deck': {
+            if(!studio&&state.campaign?.party.some(unit=>unit.id===actor))gameFail('여정 덱은 열차에서 덱 수정권으로 변경하세요.');
             const ids=input.cards;
             if(!Array.isArray(ids)||ids.length!==deckSize||ids.some(id=>!owned.some(card=>card.id===id))){
               gameFail('보관함에서 카드 '+deckSize+'장을 선택하세요.');
@@ -7307,10 +7413,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       }
       case 'requestEdit': {
         if(!gameActive(b)||!gameAlive(b.units[actor]))gameFail('전투에 참여 중일 때 변경을 요청할 수 있어요.');
-        const cards=[...gameCatalogue,...ownCollection.cards];
-        if(state.campaign?.loopCount&&state.campaign.party.some(unit=>unit.id===actor))
-          gameFail('회귀로 작성된 덱은 이번 여정 동안 전투 중에 바꿀 수 없어요.');
-        const deck=gameDeck(cards,ownCollection.deck);
+        const {owned:cards,cards:deck}=gameCampaignDeck(state,actor,ownCollection);
         const passives=gameEquippedEffects(profile);
         const library=Object.fromEntries([...cards,...(profile.passiveCards||[])].map(({image,...card})=>[card.id,card]));
         const name=profile.name||self.name;
@@ -7436,6 +7539,31 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
     }
   }catch(e){if(e instanceof GameInputError)return error(e.message);throw e;}
   const journey=[];
+  if(livingFoes.length&&!gameIsPaper(b)){
+    const paid=state.trainKills||{};
+    const rewardKey=unit=>(b.id||b.encounter?.id||'legacy')+':'+unit.id;
+    const foes=livingFoes.filter(unit=>!gameAlive(unit)&&!paid[rewardKey(unit)]);
+    if(foes.length){
+      state.trainKills=paid;
+      const amount=foes.reduce((sum,unit)=>{
+        paid[rewardKey(unit)]=true;
+        return sum+(b.encounter?Math.min(42,10+Math.ceil(unit.maxHp/30)):6);
+      },0);
+      for(const unit of Object.values(b.units))if(!unit.enemy&&!unit.bot)gameTrainWallet(state,unit.id).balance+=amount;
+      const reward='적 처치 · 승객마다 잔향 조각 +'+amount;
+      if(b===state.battle)gameLog(b,reward);
+      else journey.push(reward);
+    }
+  }
+  if(b?.encounter&&!gameIsPaper(b)&&b.result==='승리'&&b.result!==previousResult&&b.outcome?.cleared!==false){
+    const completion=(b.id||b.encounter.id)+':clear';
+    const paid=state.trainKills??={};
+    if(!paid[completion]){
+      paid[completion]=true;
+      for(const unit of Object.values(b.units))if(!unit.enemy&&!unit.bot)gameTrainWallet(state,unit.id).balance+=15;
+      gameLog(b,'정류장 해결 · 승객마다 잔향 조각 +15');
+    }
+  }
   const check=state.dialogueChecks?.find(entry=>entry.id===input.id);
   if(input.action==='dialogue')journey.push(journeyDialogueLine(state.dialogue.at(-1)));
   if(input.action==='dialogueCheckCreate'&&input.scene==null)journey.push(...journeyCheckLines(state.dialogueChecks.at(-1)));

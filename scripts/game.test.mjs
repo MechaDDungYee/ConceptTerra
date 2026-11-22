@@ -3199,7 +3199,9 @@ test('first stop loads a 225 HP foe and resolves peaceful and brute-force extrac
       assert.equal(f.state.profile.mind,100);
       assert.deepEqual(f.state.profile.orbs,['orbDarkHalo']);
       assert.ok(f.state.defaults.some(card=>card.id==='conceptForgive'));
-      await f.act('deck',{cards:['conceptForgive','strike','strike','guard','guard','hold','hold','shot','shot','rush']});
+      await f.act('trainPurchase',{item:'permit'});
+      await f.act('trainDeckRequest',{cards:['conceptForgive','strike','strike','guard','guard','hold','hold','shot','shot','rush']});
+      await f.act('trainDeckReview',{id:f.state.trainShop.requests[0].id,approve:true});
       await f.act('reset');
       await f.act('start',{solo:true,bots:0});
       configureBattle(f,(b,self)=>{
@@ -4560,4 +4562,60 @@ test('the journey download retains earlier dialogue and combat after the live hi
   assert.match(result.body.text,/결과.*통로 조사.*성공/);
   assert.match(result.body.text,/전투 시작/);
   assert.match(result.body.text,/전투 중단/);
+});
+
+test('enemy defeat pays the returned party once and shop purchases and deck vouchers respect the train boundary',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0,encounter:'stop01'});
+  configureBattle(f,(b,self)=>{
+    self.pos=21;
+    self.hand=['strike'];
+    b.units.enemy.hp=1;
+  });
+  const during=await f.send(f.endpoint,{action:'trainPurchase',item:'permit',revision:f.state.revision},f.host.cookie);
+  assert.equal(during.status,400);
+  await f.act('plan',{card:'strike',targets:['enemy'],pos:21});
+  await f.act('round');
+  assert.equal(f.state.battle.phase,'finished');
+  assert.equal(f.state.trainShop.ready,true);
+  assert.equal(f.state.trainShop.balance,33);
+  await f.act('trainPurchase',{item:'brooch'});
+  assert.equal(f.state.profile.conceptTools.length,1);
+  assert.equal(f.state.trainShop.balance,8);
+  await f.act('reset');
+  assert.equal(f.state.trainShop.balance,8);
+  await f.act('conceptToolToggle',{id:f.state.profile.conceptTools[0].id});
+  await f.act('start',{solo:true,bots:0,encounter:'stop01'});
+  assert.equal(livingForm(f).shield,8);
+  configureBattle(f,(b,self)=>{self.pos=21;self.hand=['strike'];b.units.enemy.hp=1;});
+  await f.act('plan',{card:'strike',targets:['enemy'],pos:21});
+  await f.act('round');
+  assert.equal(f.state.trainShop.balance,41);
+  await f.act('trainPurchase',{item:'calendar'});
+  assert.ok(f.state.defaults.some(card=>card.id==='shopRainCalendar'));
+  assert.equal(f.state.trainShop.balance,1);
+});
+
+test('a draft uses exactly one voucher on approval and the following battle uses the approved deck',async()=>{
+  const f=await fixture();
+  await f.act('start',{solo:true,bots:0,encounter:'stop01'});
+  configureBattle(f,(b,self)=>{self.pos=21;b.encounter.peaceOpen=true;b.encounter.peace=1;});
+  await f.act('plan',{pos:21});
+  await f.act('round');
+  await f.act('trainPurchase',{item:'permit'});
+  const previous=f.state.profile.deck;
+  const cards=['conceptForgive','strike','strike','guard','guard','hold','hold','shot','shot','rush'];
+  await f.act('trainDeckRequest',{cards});
+  assert.deepEqual(f.state.profile.deck,previous);
+  assert.equal(f.state.trainShop.permits,1);
+  await f.act('trainDeckReview',{id:f.state.trainShop.requests[0].id,approve:false});
+  assert.equal(f.state.trainShop.permits,1);
+  await f.act('trainDeckRequest',{cards});
+  await f.act('trainDeckReview',{id:f.state.trainShop.requests[0].id,approve:true});
+  assert.equal(f.state.trainShop.permits,0);
+  assert.deepEqual(f.state.profile.deck,cards);
+  await f.act('reset');
+  await f.act('start',{solo:true,bots:0});
+  const saved=JSON.parse(f.DB.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(f.host.body.code).first().state);
+  assert.deepEqual([...saved.battle.units[f.state.me].configuredDeck].sort(),[...cards].sort());
 });

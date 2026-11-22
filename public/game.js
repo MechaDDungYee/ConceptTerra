@@ -61,7 +61,7 @@ async function send(action,payload={}){
     const submitAction=()=>request({action,revision:state.revision,collectionRevision:state.collectionRevision,...payload});
     try{state=await submitAction();}
     catch(error){
-      if(!['dialogue','battleMusic','dialogueCheckCreate','dialogueCheckAttempt','dialogueCheckClose','dialogueSceneStart'].includes(action)||error.status!==409)throw error;
+      if(!['dialogue','battleMusic','dialogueCheckCreate','dialogueCheckAttempt','dialogueCheckClose','dialogueSceneStart','trainPurchase','trainDeckRequest','trainDeckReview'].includes(action)||error.status!==409)throw error;
       state=await request();
       state=await submitAction();
     }
@@ -1764,14 +1764,15 @@ function cards(){
   };
   makeCard.append(globalEditor,hitEditor,saveCard,saveError);
   makeCard.addEventListener('input',refresh);makeCard.addEventListener('change',refresh);refresh();
-  const deck=formFor('deck',(_,data)=>({
+  const shop=state.trainShop;
+  const deck=formFor(shop?.locked?'trainDeckRequest':'deck',(_,data)=>({
     cards:[...data].flatMap(([id,count])=>Array(Number(count)).fill(id))
   }));
   deck.className='stack';
   const selected=new Map();
-  for(const id of p.deck)selected.set(id,(selected.get(id)||0)+1);
+  for(const id of shop?.draft||p.deck)selected.set(id,(selected.get(id)||0)+1);
   const count=el('output','',{class:'deck-count','aria-live':'polite'});
-  const saveDeck=submit('덱 저장');
+  const saveDeck=submit(shop?.locked?'덱 저장 및 GM 승인 요청':'덱 저장');
   const quantities=[];
   const clearDeck=button('덱 선택 전체 취소',()=>{
     for(const quantity of quantities)quantity.value='0';
@@ -1781,13 +1782,17 @@ function cards(){
   const update=()=>{
     const total=quantities.reduce((sum,control)=>sum+Number(control.value),0);
     count.textContent=total+' / '+deckSize+'장';
-    saveDeck.disabled=total!==deckSize;
+    saveDeck.disabled=total!==deckSize||!!(shop?.locked&&(!shop.ready||!shop.permits));
     clearDeck.disabled=total===0;
   };
   deck.append(el('div',undefined,{class:'row deck-summary'}));
   deck.firstChild.append(count,note('카드 한 종류당 최대 '+deckCopyLimit+'장'),clearDeck);
   const cataloguePreview=libraryPreview();
   const ownedList=cardList('보관함 카드 목록',cataloguePreview);
+  if(shop?.locked)deck.append(note(
+    '덱 수정권 '+shop.permits+'장 · 열차에서 GM이 승인하면 한 장을 사용합니다.'+
+    (shop.draft?' · 승인 대기 중':'')+(!shop.ready?' · 전투가 끝나면 요청할 수 있습니다.':'')
+  ));
   deck.append(ownedList);
   const shares=state.sharedCards||[];
   const libraryEntries=[];
@@ -1909,6 +1914,29 @@ function saveSlotsPanel(){
     button('JSON 불러오기',()=>inputFile.click()),inputFile);
   return panel;
 }
+function trainVendingMachine(){
+  const shop=state.trainShop;
+  if(!shop||state.battle?.phase==='planning'||!shop.ready&&!shop.requests.length)return null;
+  const box=section('북 마스크의 자판기');
+  if(shop.ready){
+    box.append(note('잔향 조각 '+shop.balance+'개 · 덱 수정권 '+shop.permits+'장'));
+    for(const item of shop.items){
+      const buy=button(item.bought?'구매 완료':'잔향 조각 '+item.cost+'개로 구매',()=>send('trainPurchase',{item:item.id}));
+      buy.disabled=item.bought||shop.balance<item.cost;
+      const row=el('article',undefined,{class:'train-shop-item'});
+      row.append(el('strong',item.name+' · '+item.type),note(item.description),buy);
+      box.append(row);
+    }
+  }
+  if(state.manager)for(const entry of shop.requests){
+    const row=section(entry.name+' · 덱 변경 요청',el('p',entry.cardNames.join(' / ')));
+    const controls=el('div',undefined,{class:'row'});
+    controls.append(button('승인 · 수정권 1장 사용',()=>send('trainDeckReview',{id:entry.id,approve:true})),
+      button('반려',()=>send('trainDeckReview',{id:entry.id,approve:false})));
+    row.append(controls);box.append(row);
+  }
+  return box;
+}
 function trainCheckpoints(){
   const campaign=state.campaign;
   if(!campaign?.checkpoints.length)return null;
@@ -2022,6 +2050,8 @@ function startPanel(){
   root.append(battleSettingsButton());
   const train=trainCheckpoints();
   if(train)root.append(train);
+  const shop=trainVendingMachine();
+  if(shop)root.append(shop);
   if(!state.manager){root.append(note('GM 또는 방장이 전투를 시작할 때까지 기다려 주세요.'));return root;}
   root.append(button('룰북',openStoryGuide),button('스토리 대본',openSessionStory));
   const form=formFor('start',(_,data)=>({solo:data.has('solo'),bots:Number(data.get('bots')),encounter:data.get('encounter'),paperOrigin:data.get('paperOrigin')||undefined}));
@@ -3404,6 +3434,10 @@ function render(){
     return;
   }
   panel.replaceChildren(tab==='battle'?battlePanel():tab==='character'?character():cards());
+  if(tab==='battle'&&state.battle?.phase==='finished'){
+    const shop=trainVendingMachine();
+    if(shop)panel.append(shop);
+  }
   paperVisuals();
   if(!studio&&state.battle?.phase==='planning'){
     const editControls=battleEditControls();

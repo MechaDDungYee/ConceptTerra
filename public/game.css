@@ -380,3 +380,17 @@ body:has(.battle-dummy) > main > :is(#error,#feedback):not(:empty){
 
 .battle-cell.instant-move-tile { outline: 2px solid #70eac3; outline-offset: -4px; cursor: pointer; }
 .battle-cell.pit-elevator{box-shadow:inset 0 0 0 2px #84d7ae}.battle-cell.maze-entry{box-shadow:inset 0 0 0 2px #f1e8cd}.battle-cell.concept-corrosion{background:#3d5b34}.battle-cell.concept-canvas{background:#654262}
+
+.paper-overlay{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:10vw;pointer-events:none;color:#f8ecd6;font-size:clamp(1.4rem,6vw,5rem);font-weight:800;text-align:center;text-shadow:0 3px 14px #000;background:#110d16a8;animation:paper-in .35s ease-out}
+.paper-screen{background:repeating-linear-gradient(109deg,#110d16dc 0 18%,#2d1a24f5 18% 18.4%);animation:paper-tear .35s ease-out}
+.paper-residue,.paper-notice,.paper-chat{inset:auto 12px 12px;padding:12px;font-size:clamp(.95rem,3vw,1.5rem);background:#261b26e8}
+.paper-card{inset:30% 22%;padding:1rem;font-size:clamp(1rem,3vw,2rem);animation:paper-tear .6s ease-out}
+.paper-absorb{background:#06050bf5}
+.paper-intel-distorted .vn-log-window{border-color:#b77089;text-shadow:1px 0 #bd8493}
+.dialogue-input[data-paper-crack="1"],.dialogue-input[data-paper-crack="2"]{border-top:2px solid #c17b86}
+.dialogue-input[data-paper-crack="2"] textarea:disabled{filter:grayscale(1);opacity:.75}
+@keyframes paper-in{from{opacity:0;transform:translateY(.4rem)}}
+@keyframes paper-tear{from{clip-path:polygon(0 0,100% 0,100% 0,70% 2%,45% 0,0 1%)}}
+@media(prefers-reduced-motion:reduce){.paper-overlay{animation:none}}
+
+.story-guide-text{max-height:60vh;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.65;margin:0}

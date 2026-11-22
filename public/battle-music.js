@@ -13,7 +13,7 @@ try{
 }catch{}
 
 export function battleMusicTrack(battle,selection='auto'){
-  if(battle?.phase!=='planning')return null;
+  if(battle?.phase!=='planning'||['paperMask01','survival01'].includes(battle.encounter?.id))return null;
   if(Object.hasOwn(tracks,selection))return selection;
   const {id,name,stage}=battle.encounter??{};
   const encounterTracks=battleMusicForEncounter({id});
@@ -80,7 +80,8 @@ export function syncBattleMusic(battle,selection,playRequested=false){
     cycle=null;
   }
   contextTrack=automatic;
-  const track=previewTrack||automatic;
+  const silent=['paperMask01','survival01'].includes(battle?.encounter?.id)&&battle?.phase==='planning';
+  const track=silent?null:previewTrack||automatic;
   if(!track){
     if(currentTrack){
       currentTrack=null;

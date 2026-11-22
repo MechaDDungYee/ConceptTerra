@@ -27,6 +27,12 @@ await mkdir('dist/server', {recursive:true});
 await mkdir('dist/.openai', {recursive:true});
 await copyFile('.openai/hosting.json','dist/.openai/hosting.json');
 const game = (await readFile('worker/game.js','utf8')).replace(/^import .*;\r?\n/gm,'');
+const story = (await readFile('worker/last-passenger-script.md','utf8')).replace(/\r\n/g,'\n');
+const storySections=story.split(/(?=^#{1,4} )/m).filter(part=>part.trim()).map(part=>{
+  const [heading,...lines]=part.trim().split('\n');
+  return {heading:heading.replace(/^#+ /,''),text:lines.join('\n').trim()};
+});
+const storySource='const gameStorySections='+JSON.stringify(storySections)+';\n';
 const rules = assets['/rules.js'].body + '\n' + assets['/grid.js'].body;
 const ruleOptions = Object.fromEntries(Object.entries({...rulesModule,...gridModule})
   .filter(([,value])=>typeof value!=='function').sort(([a],[b])=>a.localeCompare(b)));
@@ -56,4 +62,4 @@ const reference={
   }
 };
 assets['/authoring/reference.json']={type:'application/json; charset=utf-8',body:JSON.stringify(reference,null,2)};
-await writeFile('dist/server/index.js', rules + '\n' + game + '\n' + worker.replace("import { assets } from './assets.js';", 'const assets = '+JSON.stringify(assets)+';'));
+await writeFile('dist/server/index.js', storySource + rules + '\n' + game + '\n' + worker.replace("import { assets } from './assets.js';", 'const assets = '+JSON.stringify(assets)+';'));

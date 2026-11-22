@@ -78,7 +78,7 @@ async function send(action,payload={}){
 
     if(['plan','start','round','reset','loadSlot','importSave','loopRevert'].includes(action))battleDraft=null;
     if(released)battleDraft={...released,key:state.battle.round+':'+state.me+(releasedUnit.collapsed?':collapsed':releasedUnit.zero==='crisis'?':crisis':''),card:released.card||'',discard:released.discard||''};
-    if(action==='dialogue'&&tab==='battle'&&battleDialogue?.root.isConnected)battleDialoguePanel();
+    if(action==='dialogue'&&tab==='battle'&&battleDialogue?.root.isConnected){battleDialoguePanel();paperVisuals();}
     else{
       if(action!=='dialogue')draftDirty=false;
       render();
@@ -1958,6 +1958,22 @@ function trainCheckpoints(){
   }
   return box;
 }
+async function openStoryGuide(){
+  const content=el('div',undefined,{class:'stack'});
+  const dialog=battleDialog('GM 진행 대본과 BGM 큐시트',content);
+  content.append(note('대본을 불러오는 중입니다.'));
+  document.body.append(dialog);
+  dialog.addEventListener('close',()=>dialog.remove(),{once:true});
+  dialog.showModal();
+  try{
+    const {sections}=await request({action:'storyGuide'});
+    const chapters=select('storyChapter',sections.map((section,i)=>[String(i),section.heading]),'0');
+    const body=el('pre',undefined,{class:'story-guide-text',tabindex:'0'});
+    const update=()=>{body.textContent=sections[Number(chapters.value)]?.text||'';body.scrollTop=0;};
+    chapters.onchange=update;update();
+    content.replaceChildren(searchableSelect('장면 검색',chapters),body);
+  }catch(error){content.replaceChildren(note(error.message));}
+}
 function startPanel(){
   const root=section('빈 객차',note('눈을 뜨자 객차에는 남은 승객들뿐입니다. 존속의 집행체가 열차에 들어옵니다.'));
   const saves=saveSlotsPanel();
@@ -1966,7 +1982,8 @@ function startPanel(){
   const train=trainCheckpoints();
   if(train)root.append(train);
   if(!state.manager){root.append(note('GM 또는 방장이 전투를 시작할 때까지 기다려 주세요.'));return root;}
-  const form=formFor('start',(_,data)=>({solo:data.has('solo'),bots:Number(data.get('bots')),encounter:data.get('encounter')}));
+  root.append(button('GM 진행 대본',openStoryGuide));
+  const form=formFor('start',(_,data)=>({solo:data.has('solo'),bots:Number(data.get('bots')),encounter:data.get('encounter'),paperOrigin:data.get('paperOrigin')||undefined}));
   const solo=input('solo','1','checkbox',{checked:!state.roster.length,disabled:!!state.roster.length});
   const bots=select('bots',[],0);
   const refresh=()=>{
@@ -1978,6 +1995,8 @@ function startPanel(){
   solo.onchange=refresh;refresh();bots.value=String(4-state.roster.length-Number(solo.checked));
   const encounter=select('encounter',[
     ['','객차 연습 전투'],
+    ['survival01','3막 · 종착역 「존속」'],
+    ['paperMask01','4막 · 페이퍼 마스크 시스템 파괴전'],
     ['stop01','첫 정류장 · 불 꺼진 제6국 외곽 막다른 골목'],
     ['collector01','외상 장부의 수금원 · 잿빛 세관 창고'],
     ['judge01','눈 먼 심판자 · 법원 지하 보관고'],
@@ -1993,7 +2012,11 @@ function startPanel(){
     ["artist01","예술가 · 제8국 외곽 · 구덩이 바닥"],
     ["decomposer01","세계의 분해자 · 제8국 외곽 · 구덩이 바닥"],
   ],'');
-  form.append(field('조우 선택',encounter),field('내 캐릭터로 혼자 연습',solo,'inline'),field('자동 행동 봇 동료',bots),submit('전투 시작'));
+  const origin=select('paperOrigin',[['','직전 종착역 결과'],['pioneer','개척 · 0'],['settle','순응 · 2'],['grind','존속 격파 · 3'],['collapse','전멸 · 5']],'');
+  const originField=field('시작 공명',origin);
+  const syncOrigin=()=>{originField.hidden=origin.disabled=encounter.value!=='paperMask01';};
+  encounter.onchange=syncOrigin;syncOrigin();
+  form.append(field('조우 선택',encounter),originField,field('내 캐릭터로 혼자 연습',solo,'inline'),field('자동 행동 봇 동료',bots),submit('전투 시작'));
   root.append(form,note('봇은 빈 플레이어 자리를 채우고 라운드 처리 시 이동·공격·합·원호를 자동 선택합니다.'));
   return root;
 }
@@ -2188,6 +2211,15 @@ function battlePanel(){
   const fieldView=battleGrid(b,self);
   if(b.phase==='planning'&&target&&foe&&b.intent.reachable)boardArrow(fieldView.overlay,foe.pos,target.pos,'incoming');
   const controls=el('div',undefined,{class:'battle-footer-controls row'});
+  if(b.paper){
+    controls.append(note('공명 '+b.paper.gauge+'/10 · '+Math.min(b.round,3)+'/3라운드'));
+    if(state.manager&&b.phase==='planning'){
+      controls.append(button(b.paper.paused?'시스템전 재개':'시스템전 일시정지',()=>send('paperControl',{command:'pause'})),
+        button('미덕 −1',()=>send('paperControl',{command:'virtue'})),
+        button('북 마스크 메모 −1',()=>send('paperControl',{command:'note'})),
+        button('존속의 잔향 −2',()=>send('paperControl',{command:'echo'})));
+    }
+  }
   if(self?.sealedHighest?.round===b.round){
     const locked=self.hand?.[self.sealedHighest.index];
     if(locked)controls.append(note('압류 표식 · '+locked.name+' 사본 1장 봉인 · 기대 위력 '+self.sealedHighest.power));
@@ -2370,8 +2402,32 @@ function battlePanel(){
   log.append(...b.log.slice().reverse().map(t=>el('li',t)));
   const activity=battleDialog('전투 기록',log), participants=battleDialog('참가자 상태',unitStats);
   menuItems.append(button('전투 기록',()=>activity.showModal()),button('참가자 상태',()=>participants.showModal()));
+  if(state.manager)menuItems.append(button('GM 진행 대본',openStoryGuide));
+  if(b.paper){
+    const mechanics=battleDialog('시스템 파괴전 규칙',section('페이퍼 마스크',
+      note('3라운드가 끝나거나 공명이 10에 도달하면 전원이 흡수됩니다.'),
+      note('전투 화면을 오래 떠나면 강제로 돌아옵니다. 보스 정보를 오래 열면 정보창이 봉인됩니다.'),
+      note('2·3라운드 시작에 저지불가 카드부터 파괴됩니다. 대화가 몰리면 그 라운드 동안 입력이 잠깁니다.'),
+      note('계획이 90초 동안 확정되지 않으면 미확정 행동은 카드 미사용으로 처리됩니다.')));
+    menuItems.append(button('시스템 파괴전 규칙',()=>mechanics.showModal()));
+    board.append(mechanics);
+  }
   board.append(activity,participants);
   const inspect=u=>{
+    if(b.paper&&u.enemy){
+      if(state.battle.paper.intelSealed){paperOverlay('notice','더 볼 것이 없습니다.',1700);return;}
+      paperIntel?.remove();
+      const present=state.battle.units.find(unit=>unit.id===u.id);
+      const detail=el('div',undefined,{class:'paper-intel-content'});
+      detail.append(unitIntelInspection(present));
+      const modal=battleDialog(present.enemyIntel?.displayName||present.name,detail);
+      modal.dataset.stage=state.battle.paper.intelStage;
+      modal.classList.toggle('paper-intel-distorted',state.battle.paper.intelStage>0);
+      paperIntel=modal;
+      modal.addEventListener('close',()=>{modal.remove();if(paperIntel===modal)paperIntel=null;paperHeartbeat();},{once:true});
+      document.body.append(modal);modal.showModal();paperHeartbeat();
+      return;
+    }
     const detail=unitIntelInspection(u);
     const portrait=battleArt(u,u.pose||'idle');
     if(portrait)detail.prepend(el('img',undefined,{src:portrait,alt:u.name,class:'character-art-preview-image'}));
@@ -2426,6 +2482,16 @@ function battlePanel(){
   const unitAt=i=>b.units.find(u=>u.pos===i&&u.hp>0)||b.units.find(u=>u.pos===i);
   const dock=el('div',undefined,{class:'battle-dock'});
   const status=el('p','',{class:'battle-turn-status','aria-live':'polite'});
+  if(b.survival){
+    const {stage,count,available}=b.survival;
+    const status=note('존속 '+stage+'/3단계 · 내보인 개념구 '+count+'/3');
+    controls.append(status);
+    if(b.phase==='planning'&&available.length){
+      const orbNames={orbDarkHalo:'어둠의 고리',orbSurvivalNail:'존속의 못'};
+      const orb=select('survivalOrb',available.map(id=>[id,orbNames[id]||id]),available[0]);
+      controls.append(field('내보일 개념구',orb),button('개념구 내보이기',()=>send('survivalPresent',{orb:orb.value})));
+    }
+  }
   dock.append(status,controls);
   board.append(dock);
   const lastRound=b.log.findLastIndex(line=>/^라운드 \d+ 처리$/.test(line));
@@ -2946,6 +3012,81 @@ function battlePanel(){
   refresh();
   return board;
 }
+let paperSaw, paperSeq=0, paperIntel, paperActivity=false,paperSending=false;
+function paperOverlay(kind,text,ms){
+  const box=el('div',text,{class:'paper-overlay paper-'+kind,role:'status'});
+  document.body.append(box);
+  setTimeout(()=>box.remove(),ms);
+}
+function paperVisuals(){
+  const paper=state?.battle?.paper;
+  if(!paper||state.battle.phase==='finished'){
+    if(paperIntel?.open)paperIntel.close();
+    for(const form of document.querySelectorAll('.dialogue-input[data-paper-crack]')){
+      delete form.dataset.paperCrack;
+      const message=form.elements.message;
+      message.disabled=false;
+      message.placeholder=message.dataset.normalPlaceholder;
+    }
+  }
+  if(!paper)return;
+  if(paperSaw!==paper.id){paperSaw=paper.id;paperSeq=0;}
+  for(const field of document.querySelectorAll('.dialogue-input')){
+    const locked=paper.chatLocked&&!paper.paused&&(!state.manager||state.battle.units.some(unit=>unit.id===state.me));
+    if(state.battle.phase==='finished')break;
+    field.dataset.paperCrack=paper.chatStage;
+    const message=field.elements.message;
+    message.disabled=locked;
+    if(locked)message.placeholder='지금 하신 말은 전해지지 않았습니다.';
+    else message.placeholder=message.dataset.normalPlaceholder;
+  }
+  if(paperIntel?.isConnected&&paperIntel.open){
+    const foe=state.battle.units.find(unit=>unit.enemy);
+    if(paper.intelSealed)paperIntel.close();
+    else if(paperIntel.dataset.stage!==String(paper.intelStage)){
+      paperIntel.dataset.stage=paper.intelStage;
+      paperIntel.classList.toggle('paper-intel-distorted',paper.intelStage>0);
+      paperIntel.querySelector('h3').textContent=foe.enemyIntel?.displayName||foe.name;
+      const detail=unitIntelInspection(foe);
+      paperIntel.querySelector('.paper-intel-content').replaceChildren(detail);
+    }
+  }
+  for(const event of paper.events){
+    if(event.seq<=paperSeq)continue;
+    paperSeq=event.seq;
+    switch(event.kind){
+      case 'screenTear':paperOverlay('screen','화면이 찢어졌습니다.',3000);break;
+      case 'forceBattle':
+        tab='battle';draftDirty=false;
+        for(const dialog of document.querySelectorAll('dialog.vn-log-modal[open]'))dialog.close();
+        render();
+        paperOverlay('residue','돌아오셨습니다.',5000);break;
+      case 'intelBreak':paperOverlay('intel','전투에 집중하지?',3000);break;
+      case 'cardTear':
+        paperOverlay('card',event.payload.none?'손패를 훑는 소리가 났습니다.':event.payload.name+' · 제외',1100);break;
+      case 'chatCrack':paperOverlay('chat','대화창에 금이 갔습니다.',1050);break;
+      case 'chatLock':paperOverlay('chat','지금 하신 말은 전해지지 않았습니다.',1600);break;
+      case 'idleWarn':paperOverlay('notice','남은 시간을 안내드립니다.',2500);break;
+      case 'forceRound':paperOverlay('round','준비하지 않음 · 강제 라운드',1200);break;
+      case 'absorb':paperOverlay('absorb','종이의 안쪽으로',4400);break;
+    }
+  }
+}
+async function paperHeartbeat(){
+  if(!state?.battle?.paper||state.battle.phase!=='planning'||busy||paperSending||document.hidden)return;
+  paperSending=true;
+  const old=state;
+  const activity=paperActivity;paperActivity=false;
+  try{
+    const next=await request({action:'paperUi',revision:state.revision,screen:tab==='battle'&&document.querySelector('dialog.vn-log-modal[open]')?'character':tab,
+      intel:!!(paperIntel?.isConnected&&paperIntel.open),activity});
+    if(state!==old)return;
+    state=next;
+    if(next.battle?.round!==old.battle.round||next.battle?.phase!==old.battle.phase){battleDraft=null;render();}
+    else paperVisuals();
+  }catch{if(activity)paperActivity=true;}
+  finally{paperSending=false;}
+}
 const cardListPositions=new Map();
 function battleEditControls(){
   const pending=state.pendingEdits||[];
@@ -2971,7 +3112,7 @@ function dialogueForm(label,placeholder,speaker){
   const message=area('message','',500);
   message.required=true;
   message.setAttribute('aria-label',label);
-  message.placeholder=placeholder;
+  message.placeholder=placeholder;message.dataset.normalPlaceholder=placeholder;
   const post=submit('보내기');
   const form=el('form',undefined,{class:'dialogue-input'});
   form.append(message,post);
@@ -3113,20 +3254,26 @@ function render(){
   if(tab==='dialogue'){
     const root=dialoguePanel();
     if(root.parentNode!==panel)panel.replaceChildren(root);
+    paperVisuals();
     return;
   }
   panel.replaceChildren(tab==='battle'?battlePanel():tab==='character'?character():cards());
+  paperVisuals();
   if(!studio&&state.battle?.phase==='planning'){
     const editControls=battleEditControls();
     if(editControls)panel.prepend(editControls);
   }
   for(const list of panel.querySelectorAll('.card-list-scroll'))list.scrollTop=cardListPositions.get(list.ariaLabel)||0;
 }
-for(const x of document.querySelectorAll('#tabs button'))x.onclick=()=>{tab=x.dataset.tab;draftDirty=false;errors.textContent='';feedback.textContent='';render();};
+for(const x of document.querySelectorAll('#tabs button'))x.onclick=()=>{tab=x.dataset.tab;draftDirty=false;errors.textContent='';feedback.textContent='';render();paperHeartbeat();};
 try{
   state=await request();render();
+  setInterval(paperHeartbeat,3000);
+  for(const event of ['pointerup','keydown','drop'])document.addEventListener(event,event=>{
+    if(state?.battle?.paper&&tab==='battle'&&event.target.closest?.('.battle-grid,.battle-hand,.battle-action-queue'))paperActivity=true;
+  });
   setInterval(async()=>{
-    if(busy||document.hidden)return;
+    if(busy||paperSending||document.hidden)return;
     const before=state;
     try{
       const next=await request();
@@ -3138,7 +3285,7 @@ try{
         state=next;
         syncBattleMusic(state.battle,state.battleMusic);
         if(newRound)battleDraft=null;
-        if(tab==='battle'&&sameBattle&&battleDialogue?.root.isConnected)battleDialoguePanel();
+        if(tab==='battle'&&sameBattle&&battleDialogue?.root.isConnected){battleDialoguePanel();paperVisuals();}
         else if(tab==='battle'||!draftDirty){draftDirty=false;render();}
       }
     }catch{}

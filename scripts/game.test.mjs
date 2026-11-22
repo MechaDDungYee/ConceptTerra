@@ -4426,3 +4426,65 @@ test('damage records capture actual damage and can be read by effects and numeri
   assert.equal(self.damageLedger.dealt.round.shield,6);
   assert.equal(livingForm(f,'enemy').damageLedger.taken.round.hp,14);
 });
+
+test('Paper Mask breaks cards, tears the screen, seals intel and automatically resolves an idle turn',async()=>{
+  const f=await fixture();
+  await f.act('card',{card:{name:'저지불가 확인',power:'1',range:'1',role:'normal',target:1,unstoppable:true}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('deck',{cards:[id,'strike','strike','guard','guard','hold','shot','rush','shot','rush']});
+  await f.act('start',{solo:true,bots:0,encounter:'paperMask01',paperOrigin:'pioneer'});
+  const actor=f.state.me;
+  assert.equal(f.state.battle.paper.gauge,0);
+  configureBattle(f,(b,self)=>{
+    self.hand=[];self.deck=[id];
+    const now=Date.now();
+    b.paper.players[actor]={screen:'cards',away:19000,strikes:0,beat:now-2000};
+    Object.assign(b.paper.intel,{open:{[actor]:now-3000},dwell:13000,beat:now-3000});
+  });
+  await f.act('paperUi',{screen:'cards',intel:true});
+  assert.equal(f.state.battle.paper.intelSealed,true);
+  assert.ok(f.state.battle.paper.events.some(event=>event.kind==='screenTear'));
+  configureBattle(f,b=>{b.paper.players[actor].forceAt=Date.now()-1;b.paper.activityAt=Date.now()-91000;});
+  await f.act('paperUi',{screen:'cards'});
+  assert.equal(f.state.battle.round,2);
+  assert.ok(f.state.battle.paper.events.some(event=>event.kind==='forceBattle'));
+  assert.ok(f.state.battle.paper.events.some(event=>event.kind==='forceRound'));
+  assert.ok(f.state.battle.paper.events.some(event=>event.kind==='cardTear'&&event.payload.name==='저지불가 확인'));
+  for(let n=0;n<8;n++)await f.act('dialogue',{message:'대사 '+n});
+  assert.equal(f.state.battle.paper.chatLocked,true);
+  const rejected=await f.send(f.endpoint,{action:'dialogue',message:'차단',revision:f.state.revision},f.host.cookie);
+  assert.equal(rejected.status,409);
+  await f.act('plan');
+  await f.act('round');
+  assert.equal(f.state.battle.paper.chatLocked,false);
+  await f.act('plan');
+  await f.act('round');
+  assert.equal(f.state.battle.outcome.kind,'absorbed');
+});
+
+test('the terminal encounter awards the Nail for the peaceful three-stage route',async()=>{
+  const f=await fixture();
+  const story=await f.send(f.endpoint,{action:'storyGuide'},f.host.cookie);
+  assert.equal(story.status,200);
+  assert.ok(story.body.sections.some(section=>section.heading.includes('전투 BGM 큐시트')));
+  await f.act('start',{solo:true,bots:0,encounter:'survival01'});
+  const code=f.host.body.code,actor=f.state.me;
+  const saved=JSON.parse(f.DB.prepare('SELECT state FROM game_states WHERE room_code = ?').bind(code).first().state);
+  saved.profiles[actor].orbs=['orbDarkHalo','orbCollector','orbJudge'];
+  f.DB.prepare('UPDATE game_states SET state = ? WHERE room_code = ?').bind(JSON.stringify(saved),code).run();
+  const foe=()=>f.state.battle.units.find(unit=>unit.id==='enemy');
+  assert.equal(foe().hp,900);
+  for(const [orb,hp] of [['orbDarkHalo',600],['orbCollector',300]]){
+    await f.act('survivalPresent',{orb});
+    if(hp===300)await f.act('survivalPresent',{orb:'orbJudge'});
+    await f.act('plan');
+    await f.act('round');
+    assert.equal(foe().hp,hp);
+  }
+  await f.act('plan');
+  await f.act('round');
+  assert.equal(f.state.battle.outcome.kind,'survivalTalk');
+  assert.ok(f.state.profile.orbs.includes('orbSurvivalNail'));
+  await f.act('start',{solo:true,bots:0,encounter:'paperMask01'});
+  assert.equal(f.state.battle.paper.gauge,0);
+});

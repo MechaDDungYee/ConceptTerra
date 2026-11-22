@@ -57,6 +57,13 @@
       "when": 1795302000000,
       "tag": "0007_battle_music_unlocks",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1795329000000,
+      "tag": "0008_journey_records",
+      "breakpoints": true
     }
   ]
 }

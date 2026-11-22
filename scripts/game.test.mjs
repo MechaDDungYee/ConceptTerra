@@ -4539,3 +4539,25 @@ test('the GM story reader separates narration and private notes and keeps existi
   const guest=await f.send(f.room+'/join',{name:'승객'});
   assert.equal((await f.send(f.endpoint,{action:'sessionStory'},guest.cookie)).status,403);
 });
+
+test('the journey download retains earlier dialogue and combat after the live history is replaced',async()=>{
+  const f=await fixture();
+  const viewer=await f.send(f.room+'/join',{name:'관전자'});
+  const forbidden=await f.send(f.endpoint,{action:'journeyDownload'},viewer.cookie);
+  assert.equal(forbidden.status,403);
+  for(let i=0;i<102;i++)await f.act('dialogue',{message:'객차 대사 '+i+'번'});
+  assert.equal(f.state.dialogue.length,100);
+  assert.ok(!f.state.dialogue.some(entry=>entry.message==='객차 대사 0번'));
+  await f.act('dialogueCheckCreate',{title:'통로 조사',target:'all',stat:0,difficulty:40});
+  await f.act('dialogueCheckAttempt',{id:f.state.dialogueChecks.at(-1).id,stat:0});
+  await f.act('start',{solo:true,bots:0});
+  await f.act('reset');
+  const result=await f.send(f.endpoint,{action:'journeyDownload'},f.host.cookie);
+  assert.equal(result.status,200);
+  assert.match(result.body.text,/객차 대사 0번/);
+  assert.match(result.body.text,/객차 대사 101번/);
+  assert.match(result.body.text,/판정.*통로 조사/);
+  assert.match(result.body.text,/결과.*통로 조사.*성공/);
+  assert.match(result.body.text,/전투 시작/);
+  assert.match(result.body.text,/전투 중단/);
+});

@@ -3268,6 +3268,24 @@ function updateDialogueChecks(){
   checks.replaceChildren(...ongoing,...(latest?[dialogueCheckCard(latest,score)]:[]),...(finished.length?[history]:[]));
 }
 let dialogue;
+function journeyDownloadButton(){
+  const download=button('여정 기록 다운로드',async()=>{
+    download.disabled=true;
+    try{
+      const {title,text}=await request({action:'journeyDownload'});
+      const file=new Blob(['\ufeff',text],{type:'text/plain;charset=utf-8'});
+      const url=URL.createObjectURL(file);
+      const name=title.replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').trim()||'라스트 패신저';
+      const link=el('a',undefined,{href:url,download:name+' - 여정 기록.txt'});
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+    }catch(error){errors.textContent=error.message;}
+    finally{download.disabled=false;}
+  });
+  return download;
+}
 function dialoguePanel(){
   if(!dialogue){
     const stage=el('div',undefined,{class:'dialogue-stage'});
@@ -3302,12 +3320,14 @@ function dialoguePanel(){
     const checkTools=el('div',undefined,{class:'row'});
     checkTools.append(button('능력치 판정 요청',()=>openDialogueCheck()),button('룰북',openStoryGuide),button('스토리 대본',openSessionStory));
     const checks=el('div',undefined,{class:'stack dialogue-checks','aria-live':'polite'});
-    const root=section('세션 대화',stage,checkTools,checks,compose,transcript);
-    dialogue={root,checks,checkTools,portraits,speaker,words,history,controls,speakerSelect,portraitControl,actors:new Map(),latest:null};
+    const download=journeyDownloadButton();
+    const root=section('세션 대화',stage,checkTools,checks,compose,transcript,download);
+    dialogue={root,checks,checkTools,download,portraits,speaker,words,history,controls,speakerSelect,portraitControl,actors:new Map(),latest:null};
   }
   const {root,portraits,speaker,words,history,actors}=dialogue;
   const {controls,speakerSelect,portraitControl}=dialogue;
   controls.hidden=!state.manager;
+  dialogue.download.hidden=!state.manager&&!state.roster.some(player=>player.id===state.me);
   updateDialogueChecks();
   const foes=state.manager?state.dialogueFoes||[]:[];
   const menu=JSON.stringify(foes);

@@ -27,6 +27,9 @@ export function localDb(filename = ':memory:') {
   if (!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='battle_music_unlocks'").get()) {
     db.exec(readFileSync(new URL('../drizzle/0007_battle_music_unlocks.sql', import.meta.url),'utf8'));
   }
+  if (!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='journey_records'").get()) {
+    db.exec(readFileSync(new URL('../drizzle/0008_journey_records.sql', import.meta.url),'utf8'));
+  }
   return {
     prepare(sql) {
       return {bind(...args) {

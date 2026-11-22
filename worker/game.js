@@ -2133,12 +2133,13 @@ function gameVisibility(value,card=false){
   const publicName=card?gameText(value.publicName,40):'';
   return {gmOnly:true,...(publicHint?{publicHint}:{}),...(publicName?{publicName}:{})};
 }
+const journeyBattleLogs=new WeakMap();
 function gameLog(b,message){
   const hidden=b.hiddenEffectLog;
-  if(hidden){
-    b.log.push({text:message,gmOnly:true,publicHint:hidden.reported?null:hidden.hint,round:b.round});
-    hidden.reported=true;
-  }else b.log.push(message);
+  const entry=hidden?{text:message,gmOnly:true,publicHint:hidden.reported?null:hidden.hint,round:b.round}:message;
+  if(hidden)hidden.reported=true;
+  b.log.push(entry);
+  journeyBattleLogs.get(b)?.push(entry);
   b.log=b.log.slice(-65);
 }
 function gameVisibleLog(log,manager){
@@ -6668,6 +6669,32 @@ async function gameImportSave(db,roomCode,file){
   }catch{gameFail('저장 파일을 인증할 수 없어요. 내보낸 파일을 다시 선택하세요.');}
 }
 const gameDialogueFoeKey=(battle,unit)=>[battle.encounter?.id||'practice',unit.id].join(':');
+function journeyCheckLines(check){
+  const lines=['[판정] '+check.title+' · '+statNames[check.stat]+' · 난이도 '+check.difficulty];
+  for(const result of check.results){
+    const player=check.targets.find(target=>target.id===result.actor);
+    lines.push('[결과] '+player.name+' · '+statNames[result.stat]+' '+result.score+
+      (result.stat!==check.stat?' → '+result.value:'')+' · '+(result.success?'성공':'실패'));
+  }
+  return lines;
+}
+const journeyDialogueLine=entry=>'[대화] '+entry.name+' · '+entry.message;
+const journeyBattleName=battle=>battle.encounter?.name||'객차 전투';
+function journeyEarlierLines(state){
+  const lines=[];
+  for(const point of state.campaign?.checkpoints||[])lines.push('[책갈피] '+point.label+' · 정류장 '+point.station);
+  for(const entry of state.dialogue||[])lines.push(journeyDialogueLine(entry));
+  for(const check of state.dialogueChecks||[])if(check.scene==null||check.started)lines.push(...journeyCheckLines(check));
+  if(state.battle)lines.push('[전투 기록] '+journeyBattleName(state.battle),...gameVisibleLog(state.battle.log,false));
+  return lines.length?['[기존 세션에 남아 있던 기록]',...lines]:[];
+}
+async function journeyDownload(db,room,state){
+  const {results}=await query(db,'SELECT recorded_at,lines FROM journey_records WHERE room_code = ? ORDER BY revision',room.code).all();
+  const formatTime=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',dateStyle:'short',timeStyle:'short'});
+  const groups=results.map(row=>formatTime.format(new Date(row.recorded_at))+' KST\n'+JSON.parse(row.lines).join('\n'));
+  if(!state.journeyWrite)groups.push(journeyEarlierLines(state).join('\n'));
+  return json({title:room.title,text:room.title+' · 여정 기록\n\n'+(groups.filter(Boolean).join('\n\n')||'아직 저장된 여정 기록이 없습니다.')+'\n'});
+}
 async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=null,studio=false){
   const {results:members}=await query(db,'SELECT id, name, seat, collection_id, account_collection_id FROM members WHERE room_code = ? ORDER BY seat, joined_at',room.code).all();
   const self=members.find(m=>m.id===actor);
@@ -6819,6 +6846,11 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
     return json(manager?data:gamePublicView(data));
   };
   if(!input)return view();
+  if(input.action==='journeyDownload'){
+    if(studio||!manager&&!(self.seat>0))return error('이 여정에 배정된 승객 또는 GM만 기록을 받을 수 있어요.',403);
+    return journeyDownload(db,room,state);
+  }
+
   if(input.action==='storyGuide')return manager&&!studio?json({sections:gameStorySections}):error('GM용 룰북이에요.',403);
   if(input.action==='sessionStory')return manager&&!studio?json({sections:gameSessionScenes}):error('GM용 스토리 대본이에요.',403);
   if(['saveSlot','loadSlot','deleteSlot','exportSave','importSave'].includes(input.action)){
@@ -6850,6 +6882,12 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
   if(collectionEdit?input.collectionRevision!==ownCollection.revision:input.revision!==revision){
     return error('저장 데이터가 먼저 변경됐어요. 다시 시도해 주세요.',409);
   }
+  const initialJourney=state.journeyWrite?[]:journeyEarlierLines(state);
+  const journeyLogs=[];
+  if(b)journeyBattleLogs.set(b,journeyLogs);
+  const previousResult=b?.result;
+  const previousCheckpoint=state.campaign?.checkpoints.at(-1)?.id;
+  const previousOpen=new Set((state.dialogueChecks||[]).filter(check=>check.status==='open').map(check=>check.id));
   const profile=state.profiles[actor]??={cards:[],deck:[]};
   try{
     switch(input.action){
@@ -7397,6 +7435,30 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       default:gameFail('알 수 없는 작업이에요.');
     }
   }catch(e){if(e instanceof GameInputError)return error(e.message);throw e;}
+  const journey=[];
+  const check=state.dialogueChecks?.find(entry=>entry.id===input.id);
+  if(input.action==='dialogue')journey.push(journeyDialogueLine(state.dialogue.at(-1)));
+  if(input.action==='dialogueCheckCreate'&&input.scene==null)journey.push(...journeyCheckLines(state.dialogueChecks.at(-1)));
+  if(input.action==='dialogueCheckAttempt'){
+    const result=journeyCheckLines(check).at(-1);
+    journey.push(result.replace('[결과]','[결과 · '+check.title+']'));
+  }
+  if(input.action==='dialogueSceneStart'){
+    journey.push('[장면 시작] '+gameStorySections[input.scene].heading);
+    for(const opened of state.dialogueChecks||[])
+      if(opened.status==='open'&&!previousOpen.has(opened.id))journey.push(...journeyCheckLines(opened));
+  }
+  if(input.action==='start')journey.push('[전투 시작] '+journeyBattleName(state.battle),...gameVisibleLog(state.battle.log,false));
+  else if(journeyLogs.length)journey.push(...gameVisibleLog(journeyLogs,false));
+  if(b?.result&&b.result!==previousResult)journey.push('[전투 결과] '+journeyBattleName(b)+' · '+b.result);
+  const point=state.campaign?.checkpoints.at(-1);
+  if(input.action==='loopRevert'){
+    const campaign=state.campaign;
+    journey.push('[회귀] '+campaign.loopCount+'회차 · 정류장 '+campaign.station);
+  }else if(point&&point.id!==previousCheckpoint)journey.push('[책갈피] '+point.label+' · 정류장 '+point.station);
+  if(input.action==='reset'&&b?.phase!=='finished'&&b)journey.push('[전투 중단] '+journeyBattleName(b));
+  if(input.action==='loadSlot'||input.action==='importSave')journey.push('[저장 불러오기] '+(state.battle?journeyBattleName(state.battle):'열차'));
+  if(journey.length)state.journeyWrite=gameId();
   state.lastSavedAt=new Date().toISOString();
   const serialized=JSON.stringify(state);
   if(['art','dialogueEnemyArt','characterImport','characterAccountSelect'].includes(input.action)&&new TextEncoder().encode(serialized).length>1500000)
@@ -7405,15 +7467,18 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
   const saveState=current?
     query(db,'UPDATE game_states SET revision = revision+1, state = ? WHERE room_code = ? AND revision = ?',serialized,room.code,revision):
     query(db,'INSERT OR IGNORE INTO game_states(room_code,revision,state) VALUES (?,1,?)',room.code,serialized);
-  let saved;
-  if(musicAwards.length){
-    const statements=musicAwards.map(({collection,track})=>query(db,
-      `INSERT OR IGNORE INTO battle_music_unlocks(collection_id,track)
-        SELECT ?,? FROM game_states WHERE room_code=? AND revision=? AND json_extract(state,'$.battle.musicCompletionId')=?`,
-      collection,track,room.code,revision+1,b.musicCompletionId));
-    [saved]=await db.batch([saveState,...statements]);
-    if(saved.meta.changes)unlockedMusic=[...new Set([...unlockedMusic,...musicAwards.filter(award=>award.collection===self.collection_id).map(award=>award.track)])];
-  }else saved=await saveState.run();
+  const statements=musicAwards.map(({collection,track})=>query(db,
+    `INSERT OR IGNORE INTO battle_music_unlocks(collection_id,track)
+      SELECT ?,? FROM game_states WHERE room_code=? AND revision=? AND json_extract(state,'$.battle.musicCompletionId')=?`,
+    collection,track,room.code,revision+1,b.musicCompletionId));
+  if(journey.length)statements.push(query(db,
+    `INSERT INTO journey_records(room_code,revision,recorded_at,lines)
+      SELECT room_code,revision,?,? FROM game_states
+      WHERE room_code=? AND revision=? AND json_extract(state,'$.journeyWrite')=?`,
+    state.lastSavedAt,JSON.stringify([...initialJourney,...journey]),room.code,revision+1,state.journeyWrite));
+  const saved=statements.length?(await db.batch([saveState,...statements]))[0]:await saveState.run();
+  if(saved.meta.changes&&musicAwards.length)
+    unlockedMusic=[...new Set([...unlockedMusic,...musicAwards.filter(award=>award.collection===self.collection_id).map(award=>award.track)])];
   if(!saved.meta.changes)return error('동시에 변경이 들어왔어요. 다시 시도해 주세요.',409);
   return view(revision+1);
 }

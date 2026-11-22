@@ -3297,20 +3297,29 @@ function dialogueCheckCard(check,score){
   return row;
 }
 function updateDialogueChecks(){
-  const {checks,checkTools}=dialogue;
+  const {checks,checkTools,checkHistory,checkSummary,checkArchive}=dialogue;
   checkTools.hidden=!state.manager;
   const entries=state.dialogueChecks||[];
   const score=state.profile.stats||[];
   const key=JSON.stringify([entries,score,state.me,state.manager]);
   if(dialogue.checkKey===key)return;
   dialogue.checkKey=key;
-  const ongoing=entries.filter(check=>check.status!=='closed').map(check=>dialogueCheckCard(check,score));
-  const finished=entries.filter(check=>check.status==='closed'&&(check.scene==null||check.started));
-  const history=el('details',undefined,{class:'dialogue-check-history'});
-  const latest=finished.pop();
-  if(finished.length)history.append(el('summary','이전 판정 '+finished.length+'건'),
-    ...finished.reverse().map(check=>dialogueCheckCard(check,score)));
-  checks.replaceChildren(...ongoing,...(latest?[dialogueCheckCard(latest,score)]:[]),...(finished.length?[history]:[]));
+  const pending=entries.filter(check=>check.status==='open'&&
+    check.targets.some(target=>target.id===state.me)&&!check.results.some(result=>result.actor===state.me));
+  const pendingIds=new Set(pending.map(check=>check.id));
+  const previousSelections=new Map([...checks.querySelectorAll('select[data-check]')].map(select=>[select.dataset.check,select.value]));
+  const active=pending.map(check=>{
+    const card=dialogueCheckCard(check,score);
+    const choice=card.querySelector('select');
+    choice.dataset.check=check.id;
+    if(previousSelections.has(check.id))choice.value=previousSelections.get(check.id);
+    return card;
+  });
+  checks.replaceChildren(...active);
+  const archived=entries.filter(check=>!pendingIds.has(check.id)&&(check.status!=='closed'||check.scene==null||check.started));
+  checkHistory.hidden=!archived.length;
+  checkSummary.textContent='판정 기록 '+archived.length+'건';
+  checkArchive.replaceChildren(...archived.reverse().map(check=>dialogueCheckCard(check,score)));
 }
 let dialogue;
 function openRewardGrant(){
@@ -3408,12 +3417,17 @@ function dialoguePanel(){
     transcript.append(el('summary','대화 기록'),history);
     const checkTools=el('div',undefined,{class:'row'});
     checkTools.append(button('능력치 판정 요청',()=>openDialogueCheck()),button('룰북',openStoryGuide),button('스토리 대본',openSessionStory),button('GM 보상 지급',openRewardGrant));
-    const checks=el('div',undefined,{class:'stack dialogue-checks','aria-live':'polite'});
+    const checks=el('div',undefined,{class:'stack dialogue-checks','aria-live':'polite','aria-label':'응답할 능력치 판정'});
+    stage.append(checks);
+    const checkHistory=el('details',undefined,{class:'dialogue-check-history'});
+    const checkSummary=el('summary');
+    const checkArchive=el('div',undefined,{class:'stack dialogue-check-archive'});
+    checkHistory.append(checkSummary,checkArchive);
     const download=journeyDownloadButton();
     const publicStory=button('공개된 스토리 대본',openSessionStory);
     const inventory=el('p',undefined,{class:'notice minor'});
-    const root=section('세션 대화',stage,checkTools,publicStory,checks,compose,transcript,inventory,download);
-    dialogue={root,checks,checkTools,download,publicStory,inventory,portraits,speaker,words,history,controls,speakerSelect,portraitControl,actors:new Map(),latest:null};
+    const root=section('세션 대화',stage,checkTools,publicStory,compose,checkHistory,transcript,inventory,download);
+    dialogue={root,checks,checkTools,checkHistory,checkSummary,checkArchive,download,publicStory,inventory,portraits,speaker,words,history,controls,speakerSelect,portraitControl,actors:new Map(),latest:null};
   }
   const {root,portraits,speaker,words,history,actors}=dialogue;
   const {controls,speakerSelect,portraitControl}=dialogue;

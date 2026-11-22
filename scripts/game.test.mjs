@@ -4704,3 +4704,18 @@ test('an owner playing a character only reads published story and cannot reserve
   const visible=(await call(f.host.cookie,'sessionStory',started.body.revision)).body.sections;
   assert.deepEqual(visible,[{heading:book.heading,blocks:[book.blocks[0]]}]);
 });
+
+test('expanded story supplies original encounter and virtue narration without releasing it on scene start',async()=>{
+  const f=await fixture();
+  const guest=await f.send(f.room+'/join',{name:'승객'});
+  await f.send(f.room+'/seat',{id:guest.body.me,seat:1},f.host.cookie);
+  const {body:{sections}}=await f.send(f.endpoint,{action:'sessionStory'},f.host.cookie);
+  const opening=sections[1];
+  assert.ok(opening.blocks.some(block=>block.label.includes('비상등이 켜졌을 때')));
+  assert.ok(sections.flatMap(section=>section.blocks).some(block=>block.label.includes('구덩이, 승강기 앞')));
+  assert.ok(sections.flatMap(section=>section.blocks).some(block=>block.label.includes('룰북이 찢기는 소리')));
+  assert.ok(sections.flatMap(section=>section.blocks).filter(block=>block.label.startsWith('개념물 원문')).length>=16);
+  await f.act('dialogueSceneStart',{scene:opening.scene});
+  const guestView=(await f.send(f.endpoint,{action:'sessionStory'},guest.cookie)).body.sections;
+  assert.deepEqual(guestView,[{heading:opening.heading,blocks:[opening.blocks[0]]}]);
+});

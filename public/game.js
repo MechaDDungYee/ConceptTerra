@@ -2007,6 +2007,13 @@ async function openStoryReader(story){
     const chapters=select('storyChapter',sections.map((section,i)=>[String(i),section.heading]),selected);
     const body=el(story?'div':'pre',undefined,{class:story?'story-reading':'story-guide-text',tabindex:'0'});
     const scene=()=>story?sections[Number(chapters.value)]?.scene:Number(chapters.value);
+    const cue=select('storyCue',[],'');
+    const cueField=field('낭독 대목으로 이동',cue);
+    cue.onchange=()=>{
+      if(!cue.value)return;
+      const target=body.children[Number(cue.value)-1];
+      if(target)body.scrollTop+=target.getBoundingClientRect().top-body.getBoundingClientRect().top;
+    };
     const controls=el('div',undefined,{class:'story-scene-controls'});
     const navigate=delta=>{
       const index=Number(chapters.value)+delta;
@@ -2048,6 +2055,9 @@ async function openStoryReader(story){
           }
           return part;
         }));
+        cueField.hidden=(current?.blocks.length||0)<2;
+        cue.replaceChildren(el('option','대목 선택',{value:''}),
+          ...(current?.blocks||[]).map((block,index)=>el('option',(index+1)+'. '+block.label,{value:index+1})));
         back.disabled=chapters.value==='0';
         next.disabled=Number(chapters.value)===sections.length-1;
       }else{
@@ -2058,7 +2068,7 @@ async function openStoryReader(story){
       body.scrollTop=0;
     };
     chapters.onchange=update;update();
-    content.replaceChildren(searchableSelect(story?'장면':'룰북 항목',chapters),step,body,controls);
+    content.replaceChildren(searchableSelect(story?'장면':'룰북 항목',chapters),step,...(story?[cueField]:[]),body,controls);
   }catch(error){content.replaceChildren(note(error.message));}
 }
 const openStoryGuide=()=>openStoryReader(false);

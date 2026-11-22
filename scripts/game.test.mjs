@@ -4374,3 +4374,55 @@ test('pit bosses can interrupt charging and escape carries the pit benefit into 
   assert.equal(livingForm(f).stacks['구덩이의 흙'],1);
   assert.equal(livingForm(f).mind,Math.min(100,restoredMind+2));
 });
+
+test('stack classification survives files and can select recipients or count matching units',async()=>{
+  const f=await fixture();
+  await f.act('stackCreate',{name:'분류의 흔적'});
+  await f.act('stackEdit',{name:'분류의 흔적',classification:'negative',effects:[]});
+  const file=await f.send(f.endpoint,{action:'stackExport',name:'분류의 흔적'},f.host.cookie);
+  assert.equal(file.body.stacks[0].classification,'negative');
+  const other=await fixture();
+  await other.act('stackImport',{file:file.body});
+  assert.equal(other.state.profile.stackTraits[0].classification,'negative');
+  const filter={condition:'stackClassScan',scope:'party',classification:'negative',metric:'count',minimum:2,maximum:3,result:'units',op:'eq',threshold:1};
+  await f.act('card',{card:{name:'분류 감지',role:'normal',target:'self',range:'0',power:'0',effects:[
+    {kind:'stack',when:'use',to:'self',tag:'분류의 흔적',amount:2},
+    {kind:'stack',when:'use',to:'self',tag:'집중',amount:3},
+    {kind:'shield',when:'use',to:'stackClassHolders',amount:7,recipientScan:filter},
+    {kind:'mind',when:'use',to:'self',amount:4,conditionScan:filter},
+    {kind:'mind',when:'use',to:'self',amount:2,flow:[{kind:'if',id:1,branch:'then',test:{type:'condition',...filter}}]}
+  ]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('start',{solo:true,bots:1});
+  configureBattle(f,(b,self)=>{self.hand=[id];self.mind=50;b.units.enemy.blockedRounds=1;b.units.bot0.blockedRounds=1;});
+  await f.act('plan',{card:id});
+  await f.act('round');
+  assert.equal(livingForm(f).shield,7);
+  assert.equal(livingForm(f).mind,56);
+  assert.equal(livingForm(f,'bot0').shield,0);
+});
+
+test('damage records capture actual damage and can be read by effects and numerical blocks',async()=>{
+  const f=await fixture();
+  const damage={direction:'dealt',resource:'hp',period:'round'};
+  const memory={period:'memory',name:'타격 기록'};
+  await f.act('card',{card:{name:'기록할 타격',role:'normal',target:1,range:'1',power:'20',effects:[]}});
+  const id=f.state.profile.cards[0].id;
+  await f.act('passive',{passive:{name:'피해 관측',effects:[
+    {kind:'saveDamageRecord',when:'turnEnd',to:'self',amount:1,damageName:'타격 기록',damageMode:'replace',damageRead:damage},
+    {kind:'shield',when:'turnStart',to:'self',amount:1,amountExpr:{type:'damageRecord',subject:'self',damage:memory},
+      conditionScan:{condition:'damageScan',scope:'self',damage:memory,minimum:1,threshold:1}}
+  ]}});
+  await f.act('start',{solo:true,bots:0});
+  configureBattle(f,(b,self)=>{
+    self.pos=21;self.hand=[id];self.mind=50;
+    Object.assign(b.units.enemy,{pos:22,shield:6,blockedRounds:1});
+  });
+  await f.act('plan',{card:id,targets:['enemy']});
+  await f.act('round');
+  const self=livingForm(f);
+  assert.equal(self.damageMemories['record:타격 기록'],14);
+  assert.equal(self.shield,14);
+  assert.equal(self.damageLedger.dealt.round.shield,6);
+  assert.equal(livingForm(f,'enemy').damageLedger.taken.round.hp,14);
+});

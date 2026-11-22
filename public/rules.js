@@ -297,7 +297,7 @@ export function applyPowerRatio(power,percent){
   return Math.max(0,Math.trunc(power*(100+percent)/100));
 }
 export const effectRecipients = {
-  keywordHolders:'특정 키워드 카드 보유자',
+  keywordHolders:'특정 키워드 카드 보유자',stackClassHolders:'분류별 중첩 조건을 충족한 유닛',damageRecordHolders:'피해 기록 조건을 충족한 유닛',
   target:'카드 대상',primary:'주 대상',secondary:'부 대상 전원',self:'자신',
   allAllies:'아군 전원 (자신 제외)',party:'자신과 아군 전원',
   allBosses:'강적 전원',nearestBoss:'가장 가까운 강적',lowestHpBoss:'현재 체력이 가장 적은 강적',
@@ -430,9 +430,10 @@ export const copyEffects = ['copySelf','copyFixed','copyChosen'];
 export const stagedPowerEffects = ['basePower','finalPower'];
 export const stagedPowerTimings = ['base','battleStart','turnStart','turnEnd','use','clash','unopposed','counter','roll'];
 export const amplifyHitTargets = {next:'다음 타격',last:'마지막 타격',number:'지정 타격',remaining:'이후 모든 타격'};
-export const unnumberedEffects = ['replaceCard','discardAllCost','return','exile','replay','replayHit','unblockAction','clearStatus','topdeck','bottomdeck','rootNext','provoke','cleanseStacks','shuffleDeck','positionAnchor',
+export const unnumberedEffects = ['saveDamageRecord','replaceCard','discardAllCost','return','exile','replay','replayHit','unblockAction','clearStatus','topdeck','bottomdeck','rootNext','provoke','cleanseStacks','shuffleDeck','positionAnchor',
   'clearActionPenalty','clearActionBonus','clearRoot','collapseImmune','clearAwakening','clearMindBuffs','clearMindDebuffs','purgeDefense','purgeOffense','purgeRegen','clearCardMark'];
 export const effects = {
+  saveDamageRecord:'피해 수치 저장',
   draw:'드로우', discard:'손패 버리기', recover:'묘지에서 회수', return:'이 카드 손으로 복귀', exile:'이 카드 전투에서 제외', replay:'즉시 재사용', replayHit:'이 타격 재사용', amplifyHit:'다른 타격 효과 증폭',
   damage:'추가 피해', percent:'기본 피해 비율 추가', heal:'체력 회복', shield:'보호막', reduce:'피해 경감', power:'이번 판정 위력',basePower:'기본 위력 증가',finalPower:'최종 위력 증가',
   move:'즉시 이동', movement:'이번 라운드 이동 수', nextMove:'다음 라운드 이동 수', push:'넉백', pull:'끌어오기',
@@ -451,10 +452,27 @@ export const maxCardHits = 8;
 export const maxCardEffects = 24;
 export const maxPassives = 8;
 export const maxConceptTools = 10;
-export const stackScanScopes={allies:'다른 아군',party:'아군 전체(자신 포함)',enemies:'적',everyone:'전장 전체',targets:'현재 카드의 대상들',named:'이름으로 지정한 유닛들'};
+export const stackScanScopes={self:'자신',allies:'다른 아군',party:'아군 전체(자신 포함)',enemies:'적',everyone:'전장 전체',targets:'현재 카드의 대상들',named:'이름으로 지정한 유닛들'};
 export const keywordScanModes={any:'모든 키워드 효과',grant:'중첩 부여',consume:'중첩 소모',remove:'중첩 제거',other:'그 외 키워드 효과'};
 export const keywordOwnedZones={active:'손패·덱·묘지',hand:'손패',deck:'덱',grave:'묘지',exile:'제외',all:'모든 카드 위치',configured:'전투에 등록한 덱'};
 export const keywordScanPeriods={round:'이번 라운드',previous:'직전 라운드',battle:'이번 전투 전체'};
+export const stackClasses={positive:'긍정',negative:'부정',neutral:'일반'};
+export const stackClassScanMetrics={types:'서로 다른 중첩 종류 수',count:'중첩 횟수 합계',power:'중첩 위력 합계'};
+export const combatScanConditions={stackClassScan:'분류별 중첩 감지',damageScan:'피해 기록 감지'};
+export const combatScanResults={units:'조건에 맞는 유닛 수',total:'조건에 맞는 유닛의 수치 합계'};
+export const damageRecordDirections={taken:'받은 피해',dealt:'준 피해'};
+export const damageRecordResources={all:'전체 피해',hp:'체력 피해',mind:'정신 피해',shield:'보호막 흡수량'};
+export const damageRecordPeriods={last:'마지막 피해 사건',round:'이번 라운드 누적',previous:'직전 라운드 누적',battle:'이번 전투 누적',memory:'저장한 기록'};
+export const damageMemoryModes={replace:'덮어쓰기',add:'합산',max:'가장 큰 값 유지'};
+export const maxDamageRecord=1000000;
+export const maxDamageMemoryName=24;
+const negativeStackNames=['충전 과압','삼면점','인양의 명패','파단 증언','미수금','죄책감','용해','출혈','무거운 시선','백색 미궁','지연','손님 자리','빈칸','기록 상실','오점'];
+const positiveStackNames=['집중','강타','철벽 빗장','바위 껍질','비축 금화','죄 사함의 광배','미식가의 식탁','귀환의 문턱','백색 봉합','정각의 거주','맑은 물결','구덩이의 흙'];
+export function stackClassification(name,definition){
+  return Object.hasOwn(stackClasses,definition?.classification)?definition.classification:
+    basicStacks[name]?.damage||negativeStackNames.includes(name)?'negative':
+    basicStacks[name]?.sub||positiveStackNames.includes(name)?'positive':'neutral';
+}
 export const stackScanMetrics={count:'중첩 횟수',power:'중첩 총 위력'};
 export const maxPassiveEffects = 8;
 export const heldStackEffectKinds = ['conceptIncomingCut','critChance','critMultiplier','outgoingDamage','incomingDamage','moveMod','forcedMoveImmune','leaveTrail'];
@@ -547,6 +565,7 @@ export const zoneCardFilters={same:'이 카드',other:'이 카드 이외의 카�
 export const zoneOwnerFilters={self:'자신',ally:'아군 (자신 제외)',party:'자신 또는 아군',enemy:'적',other:'자신을 제외한 전원',any:'누구든',named:'이름으로 지정한 캐릭터'};
 export const passiveTimings = [...passiveRoundTimings,...planningTimings,...cardZoneTimings,'replace','use','unopposed','counter','end','clash','win','lose','tie','hit','damage','critical','noncritical','attackEnd','struck','hurt'];
 export const passiveEffectKinds = [
+  'saveDamageRecord',
   'replaceCard','giveCard','markCard','clearCardMark',
   'clearActionPenalty','clearActionBonus','clearRoot','collapseResist','collapseImmune','clearCollapse','clearAwakening','clearTemptation',
   'transferDebuff','mindGuard','mindRecoveryCut','mindRegen','mindBurn','clearMindBuffs','clearMindDebuffs','purgeDefense','purgeOffense','purgeRegen',

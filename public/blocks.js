@@ -1,4 +1,4 @@
-import {maxFlowDepth,maxFlowRepeat,maxExpressionDepth,maxMathTerms,flowMathTerms,flowArithmetic,flowComparisons,flowStats,effectConditions,
+import {stackClasses,stackClassScanMetrics,combatScanConditions,combatScanResults,damageRecordDirections,damageRecordResources,damageRecordPeriods,damageMemoryModes,maxDamageRecord,maxDamageMemoryName,maxFlowDepth,maxFlowRepeat,maxExpressionDepth,maxMathTerms,flowMathTerms,flowArithmetic,flowComparisons,flowStats,effectConditions,
   keywordOwnedZones,keywordScanModes,keywordScanPeriods,stackScanScopes,stackScanMetrics,flagConditions,diceConditions,maxDiceTotal,hitResultTests,flowGates,maxGateInputs,timings} from './rules.js';
 
 const create=(name,content,cls)=>{
@@ -39,10 +39,71 @@ const math=(first=literal(1))=>({type:'math',op:'add',terms:[first,literal(1)]})
 const isAction=node=>node.kind==='action';
 const isControl=node=>node.kind==='if'||node.kind==='repeat';
 
+export function damageRecordEditor(value={},onChange=()=>{},{memory=true}={}){
+  const root=create('fieldset',null,'stack');
+  const data={direction:'taken',resource:'hp',period:'round',...value};
+  const write=(key,next)=>{data[key]=next;onChange();};
+  const name=create('input');
+  name.type='text';name.maxLength=maxDamageMemoryName;
+  name.value=data.name||'';name.placeholder='저장한 피해 기록 이름';name.setAttribute('aria-label','피해 기록 이름');
+  name.oninput=()=>write('name',name.value);
+  const sync=()=>{name.hidden=name.disabled=data.period!=='memory';name.required=!name.disabled;};
+  const periods=memory?damageRecordPeriods:Object.fromEntries(Object.entries(damageRecordPeriods).filter(([key])=>key!=='memory'));
+  root.append(choose('피해 집계 기간',periods,data.period,period=>{write('period',period);sync();}),
+    choose('피해 방향',damageRecordDirections,data.direction,direction=>write('direction',direction)),
+    choose('피해 자원',damageRecordResources,data.resource,resource=>write('resource',resource)),name);
+  sync();
+  root.value=()=>({...data});
+  return root;
+}
+export function combatScanEditor(kind,value={},onChange=()=>{},{comparison=true,expression}={}){
+  const root=create('fieldset',null,'stack');
+  const data={scope:'party',classification:'negative',metric:'types',result:'units',op:'gte',minimum:1,threshold:1,...value,condition:kind};
+  const write=(key,next)=>{data[key]=next;onChange();};
+  const label=(text,control)=>{const node=create('label',text);node.append(control);return node;};
+  const names=create('input');
+  names.type='text';names.value=data.names||'';names.placeholder='대상 이름을 쉼표로 구분';names.setAttribute('aria-label','대상 이름');
+  names.oninput=()=>write('names',names.value);
+  const syncNames=()=>{names.hidden=names.disabled=data.scope!=='named';names.required=!names.disabled;};
+  root.append(label('대상 범위',choose('대상 범위',stackScanScopes,data.scope,scope=>{write('scope',scope);syncNames();})),names);
+  syncNames();
+  const damage=kind==='damageScan'?damageRecordEditor(data.damage,onChange):null;
+  if(damage)root.append(damage);
+  else root.append(label('중첩 분류',choose('중첩 분류',stackClasses,data.classification,value=>write('classification',value))),
+    label('유닛별 수치',choose('유닛별 수치',stackClassScanMetrics,data.metric,value=>write('metric',value))));
+  const maximum=number('유닛별 최대 수치',data.maximum??'',0,maxDamageRecord,value=>write('maximum',Number.isNaN(value)?undefined:value));
+  maximum.required=false;
+  maximum.placeholder='제한 없음';
+  root.append(label('유닛별 최소 수치',number('유닛별 최소 수치',data.minimum,0,maxDamageRecord,value=>write('minimum',value))),
+    label('유닛별 최대 수치',maximum));
+  if(comparison){
+    const threshold=number('비교 기준값',data.threshold,0,maxDamageRecord,value=>write('threshold',value));
+    root.append(label('감지 결과',choose('감지 결과',combatScanResults,data.result,value=>write('result',value))),
+      label('비교',choose('비교 연산자',flowComparisons,data.op,value=>write('op',value))),label('비교 기준값',threshold));
+    if(expression)root.append(expression(threshold,data.thresholdExpr,value=>write('thresholdExpr',value)));
+  }
+  root.value=()=>({...data,...(damage?{damage:damage.value()}:{} )});
+  return root;
+}
+export function describeDamageRecord(query){
+  return query.period==='memory'?'저장 기록 「'+query.name+'」':
+    damageRecordPeriods[query.period]+' · '+damageRecordDirections[query.direction]+' · '+damageRecordResources[query.resource];
+}
+export function describeCombatScan(test,comparison=true){
+  const scope=test.scope==='named'?test.names:stackScanScopes[test.scope];
+  const metric=test.condition==='damageScan'?describeDamageRecord(test.damage):
+    stackClasses[test.classification]+' 중첩 · '+stackClassScanMetrics[test.metric];
+  const range=test.minimum+'~'+(test.maximum??'제한 없음');
+  const subject=scope+' 중 '+metric+' '+range;
+  if(!comparison)return subject;
+  return subject+' · '+combatScanResults[test.result]+' '+flowComparisons[test.op]+' '+
+    (test.thresholdExpr?describeValue(test.thresholdExpr):test.threshold);
+}
 export function describeValue(node){
   if(node.type==='number')return String(node.value);
   if(node.type==='percent')return node.value+'%';
   if(node.type==='stat')return flowStats[node.stat];
+  if(node.type==='damageRecord')return (node.subject==='self'?'자신의 ':'대상의 ')+describeDamageRecord(node.damage);
   const terms=flowMathTerms(node).map(describeValue);
   const op=flowArithmetic[node.op];
   if(['min','max'].includes(node.op))return op+'('+terms.join(', ')+')';
@@ -51,6 +112,7 @@ export function describeValue(node){
 
 export function describeTest(node){
   if(node.type==='hitResult')return hitResultTests[node.result];
+  if(node.type==='condition'&&Object.hasOwn(combatScanConditions,node.condition))return describeCombatScan(node);
   if(node.type==='condition'&&node.condition?.startsWith('keywordOwned'))return (node.scope==='named'?node.names:stackScanScopes[node.scope||'allies'])+' 중 '+keywordOwnedZones[node.zone||'active']+'에 '+(node.tag||'키워드')+' 카드 '+(node.minimum??1)+'장 이상 보유'+(node.condition==='keywordOwned'?'한 대상 있음':'한 인원 '+flowComparisons[node.op||'gte']+' '+(node.thresholdExpr?describeValue(node.thresholdExpr):node.threshold));
   if(node.type==='condition'&&node.condition==='keywordScan')return (node.scope==='named'?node.names:stackScanScopes[node.scope||'allies'])+' 중 '+keywordScanPeriods[node.period||'round']+' '+(node.tag||'키워드')+' 카드 '+(node.minimum??1)+'회 이상 사용한 인원 '+flowComparisons[node.op||'gte']+' '+(node.thresholdExpr?describeValue(node.thresholdExpr):node.threshold);
   if(node.type==='condition'&&node.condition==='stackScan')return (node.scope==='named'?node.names:stackScanScopes[node.scope||'allies'])+' 중 '+(node.tag||'중첩')+' '+stackScanMetrics[node.metric||'count']+' '+(node.minimum??1)+' 이상인 인원 '+flowComparisons[node.op||'gte']+' '+(node.thresholdExpr?describeValue(node.thresholdExpr):node.threshold);
@@ -69,7 +131,7 @@ export function describeFlow(flow=[]){
     '['+(step.branch==='then'?'만약 ':'아니면 · ')+describeTest(step.test)+'] ').join('');
 }
 
-const valueTypes={number:'고정값',percent:'비율값 (%)',stat:'전투 값',math:'연산'};
+const valueTypes={number:'고정값',percent:'비율값 (%)',stat:'전투 값',damageRecord:'피해 기록 값',math:'연산'};
 const unitValue=(unit,current)=>({type:unit==='percent'?'percent':'number',value:['number','percent'].includes(current?.type)?current.value:unit==='percent'?50:1});
 const testTypes={compare:'두 값 비교',condition:'전투 조건',gate:'논리 게이트',not:'NOT · 조건 뒤집기'};
 const newGate=(gate='and',first=compare())=>({type:'gate',gate,inputs:[first,compare()]});
@@ -79,7 +141,8 @@ function upgradeTest(node){
   if(node.type==='not')return {...node,test:upgradeTest(node.test)};
   return structuredClone(node);
 }
-const newValue=(type,current)=>type==='math'?math(current?.type==='math'?flowMathTerms(current)[0]:current):type==='stat'?stat('selfHp'):unitValue(type,current);
+const newValue=(type,current)=>type==='math'?math(current?.type==='math'?flowMathTerms(current)[0]:current):type==='stat'?stat('selfHp'):
+  type==='damageRecord'?{type,subject:'self',damage:{direction:'taken',resource:'hp',period:'round'}}:unitValue(type,current);
 function newTest(type,current){
   switch(type){
     case 'compare': return compare();
@@ -299,10 +362,13 @@ export function blockWorkspace(config){
       onChange();
       return next;
     };
-    field.append(choose('수치 블록 종류',depth<maxExpressionDepth?valueTypes:{number:'고정값',percent:'비율값 (%)',stat:'전투 값'},node.type,type=>replace(newValue(type,node))));
+    field.append(choose('수치 블록 종류',depth<maxExpressionDepth?valueTypes:{number:'고정값',percent:'비율값 (%)',stat:'전투 값',damageRecord:'피해 기록 값'},node.type,type=>replace(newValue(type,node))));
     if(node.type==='number'||node.type==='percent'){
       field.append(number(node.type==='percent'?'비율값 (%)':'숫자 블록 값',node.value,-10000,10000,value=>{node.value=value;onChange();}));
       if(node.type==='percent')field.append(create('small','연산식에서 50%는 0.5로 계산해요.'));
+    }else if(node.type==='damageRecord'){
+      const editor=damageRecordEditor(node.damage,()=>{node.damage=editor.value();onChange();});
+      field.append(choose('피해를 읽을 유닛',{self:'자신',target:'대상'},node.subject,value=>{node.subject=value;onChange();}),editor);
     }else if(node.type==='stat'){
       field.append(choose('읽어올 전투 값',flowStats,node.stat,value=>{node.stat=value;onChange();}));
     }else{
@@ -360,7 +426,7 @@ export function blockWorkspace(config){
     field.append(choose('조건 블록 종류',options,type,type=>replace(safeTest(type))));
     if(type==='condition'){
       const isResult=node.type==='hitResult';
-      const conditions={...effectConditions,stackScan:'특정 중첩을 가진 대상 수',keywordScan:'특정 키워드 카드를 사용한 대상 수',keywordOwned:'특정 키워드 카드를 보유한 대상 있음',keywordOwnedCount:'특정 키워드 카드를 보유한 대상 수'};delete conditions[''];
+      const conditions={...effectConditions,...combatScanConditions,stackScan:'특정 중첩을 가진 대상 수',keywordScan:'특정 키워드 카드를 사용한 대상 수',keywordOwned:'특정 키워드 카드를 보유한 대상 있음',keywordOwnedCount:'특정 키워드 카드를 보유한 대상 수'};delete conditions[''];
       if(when==='hit')for(const [result,label] of Object.entries(hitResultTests))conditions['hit:'+result]=label;
       const current=isResult?'hit:'+node.result:node.condition;
       field.append(choose('전투 조건',conditions,current,condition=>{
@@ -368,7 +434,11 @@ export function blockWorkspace(config){
           {type:'condition',condition,subject:node.subject||'self',threshold:1});
       }));
       if(isResult&&node.result==='wall')field.append(create('small','넉백이나 끌어오기 뒤에 연결하세요.'));
-      if(!isResult&&['stackScan','keywordScan','keywordOwned','keywordOwnedCount'].includes(node.condition)){
+      if(!isResult&&Object.hasOwn(combatScanConditions,node.condition)){
+        const editor=combatScanEditor(node.condition,node,()=>{Object.assign(node,editor.value());onChange();},{expression:numberSocket});
+        Object.assign(node,editor.value());
+        field.append(editor);
+      }else if(!isResult&&['stackScan','keywordScan','keywordOwned','keywordOwnedCount'].includes(node.condition)){
         const holding=node.condition.startsWith('keywordOwned');
         const keyword=holding||node.condition==='keywordScan';
         const set=(key,value)=>{node[key]=value;onChange();};

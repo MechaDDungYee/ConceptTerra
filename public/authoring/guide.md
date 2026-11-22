@@ -109,6 +109,15 @@ JSON은 블록의 화면 배치와 달리 각 효과에 자신의 조건·반복
 - 반복은 `{"kind":"repeat","id":2,"count":3}`입니다. 조건 단계는 `branch:"then"` 또는 `"else"`를 사용합니다. 단계 ID는 1~10000 정수이며 한 효과 경로 안에서 유일해야 합니다. 여러 효과가 같은 분기나 반복을 공유하면 동일한 단계 ID와 동일한 설정을 쓰세요.
 - 효과당 제어 경로 최대 4단계, 반복 1~5회, 수식과 조건 깊이 최대 4, 수식 항 2~12개입니다. 반복을 포함한 전체 실행 상한은 64회입니다. 카드 교체와 대가 효과에는 반복을 연결할 수 없습니다.
 
+## 중첩 분류와 피해 기록
+
+- 제작 중첩의 `classification`은 `positive`(긍정), `negative`(부정), `neutral`(일반)입니다. 생략된 제작 중첩은 일반으로 처리합니다.
+- 효과 자체 조건에는 `conditionScan`을 사용합니다. 조건 블록에서는 여기에 해당하는 객체에 `type:"condition"`을 추가합니다. `condition:"stackClassScan"`은 `classification`과 `metric:"types"`, `"count"` 또는 `"power"`를 사용합니다.
+- 공통 필드는 `scope`, `minimum`, `maximum`, `result`, `op`, `threshold`입니다. `result:"units"`는 유닛 수, `"total"`은 범위에 맞는 유닛의 수치 합계입니다. 대상 지정에는 `to:"stackClassHolders"` 또는 `"damageRecordHolders"`와 `recipientScan`을 사용합니다.
+- `condition:"damageScan"`에서는 `damage`에 `{"direction":"taken","resource":"hp","period":"round"}` 같은 조회 설정을 넣습니다. 방향은 `taken` 또는 `dealt`, 자원은 `hp`·`mind`·`shield`·`all`, 기간은 `last`·`round`·`previous`·`battle`입니다. 저장한 값을 읽으려면 `{"period":"memory","name":"반격 기록"}`을 사용합니다.
+- 효과 `saveDamageRecord`는 `damageRead`로 조회한 값을 `damageName`이라는 이름으로 효과 대상에게 저장합니다. `damageFrom`은 `self`·`target`·`recipient`, `damageMode`는 `replace`·`add`·`max`입니다. 저장한 값과 실제 피해는 전투가 바뀌면 새로 집계합니다.
+- 연산 블록의 `{"type":"damageRecord","subject":"self","damage":{"period":"memory","name":"반격 기록"}}`은 그 기록의 수치를 읽습니다. 대상의 기록을 읽으려면 `subject:"target"`을 사용합니다.
+
 ## 카드·중첩 참조를 함께 전달하기
 
 - 카드 참조 필드의 값은 **카드 이름이 아니라 ID**입니다. 예를 들어 `copyId`, `zoneCardId`, `conditionCardId`, `givenCardId`, `replacementId`, `fromCardId`가 해당합니다. 이름을 받는 `zoneCardName`과 구분하세요.

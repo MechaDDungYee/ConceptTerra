@@ -1,5 +1,5 @@
 import {gridCanAimTile,gridIndex,gridValid, gridSize, gridTileGroups, gridDistance, gridPoint, gridLineOfSight, gridPaths, gridTravelCost, gridDisplacement, gridCardInRange,gridCardHasReach, gridTargetLimit, gridSplashTargets, maxRangeX, maxRangeY, customRangeRadius, maxRangeRadius, collapseTargets} from '../public/grid.js';
-import {battleMusicTracks,battleMusicForEncounter,instantMoveModes,instantMoveDirections,instantMoveOffsets,instantMoveAnchors,instantMoveOrders,instantMoveStackTests,instantMoveStackMetrics,maxInstantMove,maxPortraitDataLength,maxConceptTools,keywordOwnedZones,keywordScanModes,keywordScanPeriods,stackScanScopes,stackScanMetrics,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,trainReturnMind,baseHp,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, maxOverloadCost, defaultOverloadCost, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, effectiveCardCost, applauseAttack, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
+import {stackClasses,stackClassScanMetrics,combatScanConditions,combatScanResults,damageRecordDirections,damageRecordResources,damageRecordPeriods,damageMemoryModes,maxDamageRecord,maxDamageMemoryName,stackClassification,battleMusicTracks,battleMusicForEncounter,instantMoveModes,instantMoveDirections,instantMoveOffsets,instantMoveAnchors,instantMoveOrders,instantMoveStackTests,instantMoveStackMetrics,maxInstantMove,maxPortraitDataLength,maxConceptTools,keywordOwnedZones,keywordScanModes,keywordScanPeriods,stackScanScopes,stackScanMetrics,stackGainLimits,stackGainLimitMax,durationPolicies,durationPolicyKinds,maxDurationCap,shieldGrantEffects,shieldStackModes,locationTags,locationTagAliases,revealThresholds,trainReturnMind,baseHp,characterCombatStats,lifeStealDamageTypes,lifeStealVictims,lifeStealHealers,lifeStealDamageResources,lifeStealBases,lifeStealShieldModes,lifeStealRecoveryResources,shieldConversionOutputs,damageConversionFormulaModes,damageConversionUnits,stackRatioBases,stackRatioEffects,effectNumberBounds,conceptStacks,basicStacks,planningTimings,cardZoneTimings,zoneCardFilters,zoneOwnerFilters,heldStackEffectKinds,hitTargetModes, hitResultTests, flowGates, maxGateInputs, maxGateTests, maxCustomStacks, maxStackNameLength, effectStackNames, effectCardReferences, mapEffectCardReferences, maxFlowDepth, maxFlowRepeat, maxFlowActivations, maxExpressionDepth, maxMathTerms, maxMathParts, flowMathTerms, flowArithmetic, flowComparisons, flowStats, flagConditions, replacementConditions, maxPassives, maxPassiveEffects, passiveRoundTimings, passiveEffectKinds, passiveTimingsFor, baseActions, maxActions, statuses, effects, effectSettings, temptationLimit, temptationStrain, mentalCrisisThreshold, awakeningPower, crisisRecovery, signedEffects, percentageDefaults, ratioEffects, effectRatioBases, configurableRatioEffects, ratioBasisAvailable, maxStatusRounds, healthBases, healthRatioEffects, maxDeferralRounds, applyPowerRatio, effectRecipients, diceConditions, diceConditionTimings, maxDiceTotal, effectConditions, maxStatusStacks, maxStackPotency, stackPotency, maxCollectiveStackConsume, bossDamageModifiers, stackGrantEffects, stackConsumeAmounts, stackConsumeScopes, stackConsumePriorities, taggedEffects, discardCosts, resourceCosts, resourceScales, teamEffects, copyEffects, unnumberedEffects, stagedPowerEffects, stagedPowerTimings, amplifyHitTargets, effectLimitPeriods, maxEffectActivations, timings, maxCardHits, maxCardEffects, hitEffectTimings, cardHitPowers, maxOverloadCost, defaultOverloadCost, roles, cardStates, cardState, crisisRounds, crisisVows, artForms, artPoses, effectiveCardCost, applauseAttack, cardUsable, deckSize, deckCopyLimit, cardFileFormat, passiveFileFormat, characterFileFormat, parsePower, mentalPower} from '../public/rules.js';
 
 const gameFail = message => { throw new GameInputError(message); };
 class GameInputError extends Error {}
@@ -42,12 +42,36 @@ function gameRangeShape(shape){
   }
   gameFail('격자 범위의 모양과 칸을 확인하세요.');
 }
+function gameDamageRead(raw,allowMemory=true){
+  const period=raw?.period||'round',direction=raw?.direction||'taken',resource=raw?.resource||'hp';
+  const name=gameText(raw?.name,maxDamageMemoryName);
+  if(!Object.hasOwn(damageRecordPeriods,period)||!Object.hasOwn(damageRecordDirections,direction)||
+     !Object.hasOwn(damageRecordResources,resource)||period==='memory'&&(!allowMemory||!name))
+    gameFail('피해 기록의 방향, 종류, 기간 또는 이름을 확인하세요.');
+  return {period,direction,resource,...(period==='memory'?{name}:{})};
+}
+function gameCombatScan(raw,condition){
+  const scope=raw?.scope||'party',result=raw?.result||'units',op=raw?.op||'gte';
+  const min=raw?.minimum??1,max=raw?.maximum??maxDamageRecord,threshold=raw?.threshold??1;
+  const names=typeof raw?.names==='string'?[...new Set(raw.names.split(/[,\n]/).map(name=>name.trim().normalize('NFKC')).filter(Boolean))]:[];
+  if(!Object.hasOwn(stackScanScopes,scope)||!Object.hasOwn(combatScanResults,result)||!Object.hasOwn(flowComparisons,op)||
+    !gameInt(min,0,maxDamageRecord)||!gameInt(max,min,maxDamageRecord)||!gameInt(threshold,0,maxDamageRecord)||
+    scope==='named'&&(!names.length||names.length>12||names.some(name=>name.length>50)))gameFail('감지할 범위와 수치를 확인하세요.');
+  const filter=condition==='stackClassScan'?
+    {classification:raw?.classification||'negative',metric:raw?.metric||'types'}:
+    {damage:gameDamageRead(raw?.damage)};
+  if(condition==='stackClassScan'&&(!Object.hasOwn(stackClasses,filter.classification)||!Object.hasOwn(stackClassScanMetrics,filter.metric)))
+    gameFail('중첩 분류와 수치 기준을 선택하세요.');
+  return {condition,scope,result,op,minimum:min,maximum:max,threshold,...filter,
+    ...(scope==='named'?{names:names.join(', ')}:{}),...(raw?.thresholdExpr?{thresholdExpr:gameExpression(raw.thresholdExpr)}:{})};
+}
 function gameExpression(raw,depth=0,budget={left:maxMathParts}){
   if(--budget.left<0)gameFail('수식 하나에 연결하는 파츠는 최대 '+maxMathParts+'개예요.');
   if(!raw||depth>maxExpressionDepth)gameFail('수치 블록의 연결이 너무 깊거나 비어 있어요.');
   const {type}=raw;
   if(['number','percent'].includes(type)&&gameInt(raw.value,-10000,10000))return {type,value:raw.value};
   if(type==='stat'&&Object.hasOwn(flowStats,raw.stat))return {type,stat:raw.stat};
+  if(type==='damageRecord'&&['self','target'].includes(raw.subject))return {type,subject:raw.subject,damage:gameDamageRead(raw.damage)};
   if(type==='math'&&Object.hasOwn(flowArithmetic,raw.op)){
     if(raw.terms!==undefined){
       if(!Array.isArray(raw.terms)||!gameInt(raw.terms.length,2,maxMathTerms))gameFail('연산 블록에는 항을 2~'+maxMathTerms+'개 연결할 수 있어요.');
@@ -77,6 +101,7 @@ function gameFlowTest(raw,row,id,owned,depth=0,budget={left:maxGateTests}){
     return {type,left:gameFlowTest(raw.left,row,id,owned,depth+1,budget),right:gameFlowTest(raw.right,row,id,owned,depth+1,budget)};
   }
   if(type==='not')return {type,test:gameFlowTest(raw.test,row,id,owned,depth+1,budget)};
+  if(type==='condition'&&Object.hasOwn(combatScanConditions,raw.condition))return {type,...gameCombatScan(raw,raw.condition)};
   if(type==='condition'&&['stackScan','keywordScan','keywordOwned','keywordOwnedCount'].includes(raw.condition)){
     const holding=raw.condition.startsWith('keywordOwned');
     const keyword=holding||raw.condition==='keywordScan',period=raw.period??'round',mode=raw.mode??'any',zone=raw.zone??'active';
@@ -300,6 +325,9 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
     const tag=gameText(row.tag,22);
     if (Object.hasOwn(Object.prototype,tag)) gameFail('다른 중첩 이름을 입력하세요.');
     if (taggedEffects.includes(row.kind)&&!tag) gameFail('중첩 이름을 입력하세요.');
+    const conditionScan=row.conditionScan?.condition;
+    if(row.conditionScan!=null&&!Object.hasOwn(combatScanConditions,conditionScan))gameFail('감지 조건 종류를 확인하세요.');
+    const combatCondition=conditionScan?gameCombatScan(row.conditionScan,conditionScan):null;
     const condition=row.condition||'';
     if(!Object.hasOwn(effectConditions,condition)) gameFail('효과 조건을 확인하세요.');
     const conditionCardId=condition==='cardUsed'?row.conditionCardId:undefined;
@@ -376,8 +404,16 @@ function gameCard(input,id=gameId(),owned=[],passive=false,stack=false) {
       if(key==='durationCap'&&!timed)gameFail('이 효과에는 유지 라운드 상한을 연결할 수 없어요.');
       numberExprs[key]=gameExpression(expr);
     }
+    const recipientScan=['stackClassHolders','damageRecordHolders'].includes(row.to)?
+      gameCombatScan(row.recipientScan,row.to==='stackClassHolders'?'stackClassScan':'damageScan'):null;
+    const damageName=row.kind==='saveDamageRecord'?gameText(row.damageName,maxDamageMemoryName):'';
+    const damageMode=row.damageMode||'replace';
+    const damageFrom=row.damageFrom||'self';
+    if(row.kind==='saveDamageRecord'&&(!damageName||!Object.hasOwn(damageMemoryModes,damageMode)||
+      !['self','target','recipient'].includes(damageFrom)))gameFail('저장할 피해 기록 이름과 방식을 확인하세요.');
+    const damageRead=row.kind==='saveDamageRecord'?gameDamageRead(row.damageRead,false):null;
     const recipientKeyword=row.to==='keywordHolders'?gameFlowTest({...row.recipientKeyword,type:'condition',condition:'keywordOwned'},row,id,owned):null;
-    return {...axisOptions,...(ratioStackTag?{ratioStackTag}:{}),...(independent?{stackAxes:true,...(axisPower!=null?{axisPower}:{}),...(axisCount!=null?{axisCount}:{})}:{}),...(recipientKeyword?{recipientKeyword}:{}),...settings,...gainLimits,...gameVisibility(row),...(Object.keys(numberExprs).length?{numberExprs}:{}),...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
+    return {...axisOptions,...(recipientScan?{recipientScan}:{}),...(combatCondition?{conditionScan:combatCondition}:{}),...(damageRead?{damageRead,damageMode,damageName,damageFrom}:{}),...(ratioStackTag?{ratioStackTag}:{}),...(independent?{stackAxes:true,...(axisPower!=null?{axisPower}:{}),...(axisCount!=null?{axisCount}:{})}:{}),...(recipientKeyword?{recipientKeyword}:{}),...settings,...gainLimits,...gameVisibility(row),...(Object.keys(numberExprs).length?{numberExprs}:{}),...(gameText(row.flavor,180)?{flavor:gameText(row.flavor,180)}:{}),...(flow.length?{flow}:{}),...(amountExpr?{amountExpr}:{}),...(ratioBasis?{ratioBasis}:{}),...(dotRounds!=null?{dotRounds}:{}),kind:row.kind,when:row.when,amount,to:row.to,tag,condition,threshold:gameInt(row.threshold,1,diceCondition?maxDiceTotal:100)?row.threshold:1,
       ...(grantsShield?{shieldDuration,shieldCap,stackMode,...(shieldSource?{shieldSource}:{}),
         ...(row.refreshDuration===false?{refreshDuration:false}:{})}:{}),
       ...(durationPolicy!=='default'?{durationPolicy}:{}),...(durationCap?{durationCap}:{}),
@@ -493,12 +529,14 @@ function gameStackTrait(input,owned){
     holdLimits[key]=input[key];
   }
   const stackAxesMode=['both','power','count'].includes(input.stackAxesMode)?input.stackAxesMode:'both';
-  return {name:input.name,stackAxesMode,...gameVisibility(input),...(flavor?{flavor}:{}),...holdLimits,gainLimits:gameStackGainLimits(input.gainLimits),effects:normalized.map((effect,index)=>({...effect,
+  const classification=input.classification??'neutral';
+  if(!Object.hasOwn(stackClasses,classification))gameFail('중첩 분류를 선택하세요.');
+  return {name:input.name,stackAxesMode,classification,...gameVisibility(input),...(flavor?{flavor}:{}),...holdLimits,gainLimits:gameStackGainLimits(input.gainLimits),effects:normalized.map((effect,index)=>({...effect,
     ...(effects[index].scaleStack==='count'?{scaleStack:'count'}:{})
   }))};
 }
-function gameUpgradeStackTrait({name,effects,critical,flavor,gainLimits,holdCount,holdPower,stackAxesMode,...visibility}){
-  const entry={name,effects,...(stackAxesMode?{stackAxesMode}:{}),...gameVisibility(visibility),...(flavor?{flavor}:{}),...(gainLimits?{gainLimits}:{}),
+function gameUpgradeStackTrait({name,effects,critical,flavor,gainLimits,holdCount,holdPower,stackAxesMode,classification,...visibility}){
+  const entry={name,effects,...(classification?{classification}:{}),...(stackAxesMode?{stackAxesMode}:{}),...gameVisibility(visibility),...(flavor?{flavor}:{}),...(gainLimits?{gainLimits}:{}),
     ...(holdCount?{holdCount}:{}),...(holdPower?{holdPower}:{})};
   if(!critical)return entry;
   return {...entry,effects:[...effects,{when:'held',kind:'critChance',amount:critical,to:'self',scaleStack:'count'}]};
@@ -2171,6 +2209,60 @@ function gameRemoveShield(u,n){
   return removed;
 }
 const gameBoss=unit=>!!(unit?.boss??(unit?.enemy&&unit.id==='enemy'));
+function gameDamageLedger(b,actor,victim,values){
+  if(!Object.values(values).some(Boolean))return;
+  const record=(unit,direction)=>{
+    const ledger=unit.damageLedger??={};
+    const entry=ledger[direction]??={battle:{},round:{},previous:{},last:{}};
+    if(entry.at!==b.round){
+      entry.previous=entry.at===b.round-1?entry.round:{};
+      entry.round={};entry.at=b.round;
+    }
+    entry.last=values;
+    for(const [key,amount] of Object.entries(values)){
+      entry.round[key]=(entry.round[key]||0)+amount;
+      entry.battle[key]=(entry.battle[key]||0)+amount;
+    }
+  };
+  record(victim,'taken');
+  record(actor,'dealt');
+}
+function gameReadDamage(b,unit,query){
+  if(!unit)return 0;
+  if(query.period==='memory')return unit.damageMemories?.['record:'+query.name]||0;
+  const entry=unit.damageLedger?.[query.direction];
+  if(!entry)return 0;
+  const values=query.period==='round'?(entry.at===b.round?entry.round:{}):
+    query.period==='previous'?(entry.at===b.round?entry.previous:entry.at===b.round-1?entry.round:{}):entry[query.period];
+  return query.resource==='all'?Object.values(values).reduce((sum,amount)=>sum+amount,0):values[query.resource]||0;
+}
+function gameCombatScanEntries(b,ctx,test){
+  return gameScanCandidates(b,ctx,test).map(unit=>{
+    if(test.condition==='damageScan')return {unit,value:gameReadDamage(b,unit,test.damage)};
+    const tags=new Set([...Object.keys(unit.stacks||{}),...Object.keys(unit.stackTraits||{})]);
+    const relevant=[...tags].filter(tag=>gameStackActive(unit,tag)&&
+      stackClassification(tag,unit.stackTraits?.[tag]||unit.stackDefinitions?.[tag])===test.classification);
+    const value=test.metric==='types'?relevant.length:relevant.reduce((sum,tag)=>sum+
+      (test.metric==='power'?stackPotency(unit,tag):unit.stacks[tag]||0),0);
+    return {unit,value};
+  }).filter(({value})=>value>=test.minimum&&value<=test.maximum);
+}
+function gameCompare(left,op,right){
+  switch(op){
+    case 'lt':return left<right;
+    case 'lte':return left<=right;
+    case 'eq':return left===right;
+    case 'ne':return left!==right;
+    case 'gt':return left>right;
+    default:return left>=right;
+  }
+}
+function gameCombatScanPasses(b,ctx,test){
+  const matches=gameCombatScanEntries(b,ctx,test);
+  const value=test.result==='total'?matches.reduce((sum,item)=>sum+item.value,0):matches.length;
+  const threshold=test.thresholdExpr?Math.trunc(gameFlowValue(b,ctx,ctx.actor,test.thresholdExpr)):test.threshold;
+  return gameCompare(value,test.op,threshold);
+}
 function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=false,origin={kind:'other'}) {
   if(!gameAlive(u))return 0;
   const bonus=attack&&amount>0?u.expose||0:0;
@@ -2275,6 +2367,7 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
   if(gameBrightSafe(b,u)&&u.id!=='conceptDawn'||gameIsBright(b)&&u.enemy&&b.encounter.stage<3&&b.encounter.holder&&gameAlive(b.units[b.encounter.holder]))
     actual=Math.min(actual,u.hp-1);
   u.hp-=actual;
+  gameDamageLedger(b,actor,u,{hp:actual,shield:absorbed});
   if(gameNewConcept(b)&&actual){
     const e=b.encounter;
     if(u===b.units.enemy){
@@ -2334,6 +2427,7 @@ function gameDamage(b,u,amount,actor,piercing=false,attack=false,fixedDamage=fal
 function gameMentalDamage(b,victim,amount,actor,origin){
   if(victim.enemy||victim.collapsed||!gameAlive(victim)||amount<=0)return 0;
   const actual=Math.max(0,-gameMental(b,victim,-amount));
+  gameDamageLedger(b,actor,victim,{mind:actual});
   gameTriggerLifeSteal(b,victim,{actual,raw:amount,resource:'mind'},actor,origin);
   return actual;
 }
@@ -3747,6 +3841,7 @@ function gameActionGroups(b,ctx){
   return {primary,secondary};
 }
 function gameEffectCondition(b,ctx,u,e,target,when){
+  if(e.conditionScan&&!gameCombatScanPasses(b,ctx,e.conditionScan))return false;
   const n=e.thresholdExpr?bounded(Math.trunc(gameFlowValue(b,ctx,u,e.thresholdExpr)),0,maxDiceTotal):e.threshold,other=u===ctx.actor?target:ctx.actor;
   if(Object.hasOwn(diceConditions,e.condition)){
     const rolls=e.hitIndex?[ctx.diceRolls?.[e.hitIndex-1]]:ctx.diceRolls;
@@ -4120,6 +4215,7 @@ function gameConsumeGroup(b,ctx,effect,target){
 function gameFlowValue(b,ctx,unit,node,hitIndex=ctx.hitIndex||0){
   if(node.type==='number')return node.value;
   if(node.type==='percent')return node.value/100;
+  if(node.type==='damageRecord')return gameReadDamage(b,node.subject==='self'?ctx.actor:unit,node.damage);
   if(node.type==='stat'){
     const actor=ctx.actor;
     switch(node.stat){
@@ -4207,6 +4303,7 @@ function gameScanCandidates(b,ctx,test){
   const match=unit=>{
     const ally=unit.enemy===ctx.actor.enemy&&!unit.brainwashed;
     switch(test.scope){
+      case 'self':return unit===ctx.actor;
       case 'allies':return ally&&unit.id!==ctx.actor.id;
       case 'party':return ally;
       case 'enemies':return !ally;
@@ -4235,6 +4332,7 @@ function gameStackScan(b,ctx,test){
   }
 }
 function gameFlowTestValue(b,ctx,target,test,effect){
+  if(test.type==='condition'&&Object.hasOwn(combatScanConditions,test.condition))return gameCombatScanPasses(b,ctx,test);
   if(test.type==='condition'&&['stackScan','keywordScan','keywordOwned','keywordOwnedCount'].includes(test.condition))return gameStackScan(b,ctx,test);
   if(test.type==='hitResult')return !!ctx.hitResult&&ctx.hitResult.target===target&&ctx.hitResult[test.result]===true;
   if(test.type==='condition'){
@@ -4259,14 +4357,7 @@ function gameFlowTestValue(b,ctx,target,test,effect){
   if(test.type==='and')return gameFlowTestValue(b,ctx,target,test.left,effect)&&gameFlowTestValue(b,ctx,target,test.right,effect);
   if(test.type==='or')return gameFlowTestValue(b,ctx,target,test.left,effect)||gameFlowTestValue(b,ctx,target,test.right,effect);
   const a=gameFlowValue(b,ctx,target,test.left,effect.hitIndex), c=gameFlowValue(b,ctx,target,test.right,effect.hitIndex);
-  switch(test.op){
-    case 'lt': return a<c;
-    case 'lte': return a<=c;
-    case 'eq': return a===c;
-    case 'gte': return a>=c;
-    case 'gt': return a>c;
-    case 'ne': return a!==c;
-  }
+  return gameCompare(a,test.op,c);
 }
 // The flat saved rows retain their IDs and references. Rebuild the connected stacks at the event boundary.
 function* gameRunBlocks(b,ctx,target,entries){
@@ -4386,7 +4477,7 @@ function gameTriggers(b,ctx,when,target,depth=0,hitIndex=0) {
     }
     let selection=ctx.effectRecipients.get(effect);
     if(!selection){
-      selection={units:effect.to==='keywordHolders'?gameKeywordHolders(b,ctx,effect.recipientKeyword):gameEffectRecipients(b,actor,effect.to),applied:new Set()};
+      selection={units:effect.to==='keywordHolders'?gameKeywordHolders(b,ctx,effect.recipientKeyword):effect.recipientScan?gameCombatScanEntries(b,ctx,effect.recipientScan).map(entry=>entry.unit):gameEffectRecipients(b,actor,effect.to),applied:new Set()};
       ctx.effectRecipients.set(effect,selection);
     }
     for(const unit of selection.units){
@@ -5018,6 +5109,18 @@ function gameApplyVisibleEffect(b,ctx,when,target,depth,effect,u,applied,consume
       case 'perStack': if(ctx.usedPotency)damage(ctx.usedPotency*n);break;
       case 'transferDebuff': gameTransferDebuff(b,u,actor);break;
       case 'mind': gameMental(b,u,n);break;
+      case 'saveDamageRecord': {
+        const subject=effect.damageFrom==='target'?target:effect.damageFrom==='recipient'?u:actor;
+        if(!subject)break;
+        const value=gameReadDamage(b,subject,effect.damageRead);
+        const records=u.damageMemories??={};
+        const key='record:'+effect.damageName;
+        if(!Object.hasOwn(records,key)&&Object.keys(records).length>=32)delete records[Object.keys(records)[0]];
+        records[key]=Math.min(maxDamageRecord,effect.damageMode==='add'?(records[key]||0)+value:
+          effect.damageMode==='max'?Math.max(records[key]||0,value):value);
+        gameLog(b,u.name+' · 피해 기록 '+effect.damageName+' '+records[key]);
+        break;
+      }
       case 'drain': gameMentalDamage(b,u,n,actor,origin);break;
       case 'pierce':
       case 'recoil': damage(n,true);break;

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>펜타 R 컴퍼니 — YouCan 멀티플레이</title>
+<style>
+:root{color-scheme:dark;--base:#101612;--panel:#1e2820;--line:#53634f;--ink:#e5e4d6;--muted:#afbaaa;--gold:#f2bd79;--mint:#a3cda5}
+*{box-sizing:border-box}body{margin:0;color:var(--ink);font:14px/1.5 system-ui,sans-serif;background:var(--base);overflow:hidden}[hidden]{display:none!important}button,input{font:inherit}button{cursor:pointer;color:var(--ink);background:#283328;border:1px solid var(--line);padding:.55rem .8rem}button:hover{border-color:var(--gold)}button:disabled{opacity:.45;cursor:default}button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}.primary{background:var(--gold);color:#241b13;border-color:var(--gold);font-weight:800}
+#game{position:fixed;inset:0;width:100vw;height:100dvh;image-rendering:pixelated;cursor:crosshair;touch-action:none;background:#121513}.utility{position:fixed;right:12px;top:12px;z-index:3;display:flex;gap:6px}.utility button{background:#1a241deb}.overlay{position:fixed;inset:0;display:grid;place-items:center;overflow:auto;padding:54px 12px 16px;background:#0b100de0}.card{width:min(720px,100%);padding:clamp(16px,4vw,34px);background:linear-gradient(140deg,#273226,#182019 70%);border:1px solid var(--line);box-shadow:0 16px 60px #080d09cc}.heading{display:flex;justify-content:space-between;gap:12px;align-items:start}.code{color:var(--mint);font:12px monospace;white-space:nowrap;padding:6px 9px;border:1px solid var(--line)}h1{margin:0;font-size:clamp(24px,5vw,37px);letter-spacing:-.055em}h2{font-size:17px;margin:.8rem 0 .4rem}.muted{color:var(--muted)}.join{display:grid;grid-template-columns:1fr 1fr;gap:8px}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}label{display:grid;gap:4px}input{width:100%;padding:.5rem;color:var(--ink);background:#111b14;border:1px solid var(--line)}#crew{display:grid;grid-template-columns:repeat(8,1fr);gap:5px}.choice{padding:3px 1px;display:grid;justify-items:center}.choice canvas{width:38px;height:42px;image-rendering:pixelated}.choice[aria-pressed=true]{border-color:var(--gold);color:var(--gold);background:#3a3024}.roster{padding-left:22px;margin:0;display:grid;gap:3px}#lobbyStatus{color:var(--gold);min-height:1.5em}.gameHud{position:fixed;inset:0;pointer-events:none}.ship{position:absolute;left:12px;top:12px;padding:10px 13px;border:1px solid var(--line);background:#17241deb;display:grid;gap:3px;min-width:150px}.ship strong{color:var(--mint)}.lower{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);width:min(620px,94vw);display:grid;justify-items:center;gap:7px}.slots{display:flex;gap:5px}.slot{min-width:95px;text-align:center;background:#17241dec;border:1px solid var(--line);padding:3px 9px}.slot.selected{border-color:var(--gold);color:var(--gold)}.notice{margin:0;background:#131a14e8;padding:3px 9px;text-align:center;color:var(--gold)}#charge{width:105px;height:7px;accent-color:var(--gold)}#connection{position:fixed;top:58px;right:12px;color:var(--gold);background:#18231a;padding:4px 8px}#report p{margin:.6rem 0}.keys{font-size:12px;color:var(--muted);margin-bottom:0}@media(max-width:520px){#crew{grid-template-columns:repeat(4,1fr)}.ship{font-size:12px}.code{font-size:10px}}
+</style>
+</head>
+<body>
+<canvas id="game" width="480" height="300" aria-label="YouCan 게임 화면" tabindex="0"></canvas>
+<div class="utility"><button id="fullscreen">전체 화면</button></div>
+<main id="lobby" class="overlay">
+  <section class="card">
+    <div class="heading"><h1>펜타 R 컴퍼니</h1><span id="roomCode" class="code">YOUCAN</span></div>
+    <div id="entry">
+      <div class="join"><label>호출명<input id="nickname" maxlength="18" placeholder="수거원"></label><label>방 코드<input id="joinCode" maxlength="8" autocomplete="off" placeholder="친구의 방 코드"></label></div>
+      <div class="actions"><button id="create" class="primary">선택한 캐릭터로 방 만들기</button><button id="join">방 참가</button></div>
+    </div>
+    <h2>수거원 선택</h2><div id="crew"></div><p id="ability" class="muted"></p>
+    <div id="roomPanel" hidden><h2>출격 대기</h2><ul id="roster" class="roster"></ul>
+      <div class="actions"><button id="ready" class="primary">준비</button><button id="start" disabled>출격 시작</button><button id="leave">나가기</button></div>
+    </div>
+    <p id="lobbyStatus" role="status"></p>
+    <p class="keys">WASD 이동 · Shift 달리기 · F 줍기/던지기 · E 상호작용 · Q 감지 · G 능력<br>마우스 시선 · 휠 인벤토리 · 좌클릭 공격 · 우클릭 방어 · R 방장 이륙</p>
+  </section>
+</main>
+<section id="hud" class="gameHud" aria-label="게임 상태" hidden>
+  <aside id="ship" class="ship" aria-label="함선 단말기" hidden>
+    <strong>함선 단말기</strong><span id="clock"></span><span id="money"></span><span id="quota"></span><span id="loaded"></span>
+  </aside>
+  <div class="lower"><p class="notice" id="message" role="status"></p><progress id="charge" max="1" value="0" aria-label="던지기 충전" hidden></progress><div class="slots"><div class="slot" id="slot0"></div><div class="slot" id="slot1"></div></div></div>
+</section>
+<section id="report" class="overlay" hidden><div class="card"><h2>출격 종료</h2><p id="result"></p><p id="shipReport" hidden></p><div class="actions"><button id="next" class="primary">다음 브리핑</button><button id="reportLeave">나가기</button></div></div></section>
+<div id="connection" role="status" hidden></div>
+<script src="/core.js" defer></script><script src="/view.js" defer></script><script src="/client.js" defer></script>
+</body>
+</html>

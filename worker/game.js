@@ -1818,6 +1818,34 @@ function gameSurvivalEnd(b,contexts){
   if(s.stage===3&&s.presented.length>=3&&!attack)s.talk=true;
 }
 const encounterPresets={...conceptEncounterPresets,paperMask01:paperMaskStop,survival01:survivalStop,stop01:firstStop,collector01:collectorStop,judge01:judgeStop,railguard01:railStop,blight01:brightStop};
+const storyStops=[
+  {default:['stop01','3.1.3']},
+  {obedience:['commute01','3.2.1'],pioneer:['guest01','3.2.2']},
+  {obedience:['applause01','3.3.1'],pioneer:['railguard01','3.2.3']},
+  {default:['maze01','3.3.3']},
+  {default:['flesh01','3.3.5']},
+  {obedience:['judge01','3.4.1'],pioneer:['scribe01','3.4.2']},
+  {default:['blight01','3.4.5']},
+  {default:['survival01','3.5.3']},
+  {default:['paperMask01','3.6.3']}
+];
+function gameStoryStop(index,route){
+  const stop=storyStops[index];
+  return stop?.[route]||stop?.default;
+}
+function gameStartPublishedScene(state,reference){
+  const scene=gameStorySections.findIndex(section=>section.heading.split(' ')[0]===reference);
+  if(scene<0)return;
+  gameOpenStoryScene(state,scene);
+}
+function gameOpenStoryScene(state,index){
+  const scene=gameSessionScenes.find(section=>section.scene===index);
+  if(scene)gamePublishStory(state,index,scene.blocks.findIndex(gameCanSeeStoryBlock));
+  for(const check of state.dialogueChecks||[])if(check.status==='queued'&&check.scene===index){
+    check.status='open';check.started=true;
+  }
+}
+
 const railCards=Object.fromEntries([
   ['railBlock','차단 명령','2d6+6','1~4','hit','다음 라운드 이동 수 −2. 방패병이 대상 쪽으로 전진'],
   ['railReturn','선로 복귀 강제','2d8+6','1~3','hit','대상 변경 불가. 2칸 밀기, 벽 충돌 시 고정 피해 6'],
@@ -3814,6 +3842,7 @@ function gameCheckpoint(state,b,kind='auto',label=''){
   const checkpoint={id:'ck_'+(++campaign.sequence),kind,label:label||'열차 복귀 '+campaign.station,
     station:campaign.station,party:structuredClone(campaign.party),lossCount:campaign.lostCards.length,
     refilled:campaign.lostCards.flatMap(loss=>loss.replacedBy?[loss.replacedBy]:[])};
+  if(state.storyRun)checkpoint.storyRun=structuredClone(state.storyRun);
   campaign.checkpoints.push(checkpoint);
   while(campaign.checkpoints.length>12)campaign.checkpoints.splice(campaign.checkpoints.findIndex(entry=>entry.kind==='auto'),1);
 }
@@ -3848,6 +3877,7 @@ function gameLoopRevert(state,input){
   campaign.residue++;
   campaign.station=checkpoint.station;
   campaign.party=party;
+  if(checkpoint.storyRun)state.storyRun=structuredClone(checkpoint.storyRun);
   campaign.checkpoints=campaign.checkpoints.slice(0,campaign.checkpoints.indexOf(checkpoint)+1);
   for(const unit of party)Object.assign(state.profiles[unit.id]??={cards:[],deck:[]},{mind:unit.mind,orbs:unit.orbs});
   state.battle=null;
@@ -6685,7 +6715,7 @@ function gameSaveSnapshot(state){
   const party=Object.fromEntries(Object.entries(state.profiles).map(([id,profile])=>[
     id,{mind:profile.mind,orbs:profile.orbs,guilt:profile.guilt,debt:profile.debt,collapsed:profile.collapsed}
   ]));
-  return {saveVersion:gameSaveVersion,battle,campaign:state.campaign??null,party};
+  return {saveVersion:gameSaveVersion,battle,campaign:state.campaign??null,party,storyRun:state.storyRun??null};
 }
 function gameLoadSnapshot(state,snapshot,members){
   if(!snapshot||snapshot.saveVersion!==gameSaveVersion||!snapshot.party)
@@ -6702,6 +6732,7 @@ function gameLoadSnapshot(state,snapshot,members){
   state.battle=snapshot.battle;
   gamePaperRebase(state.battle);
   state.campaign=saved;
+  if(Object.hasOwn(snapshot,'storyRun'))state.storyRun=snapshot.storyRun;
   if(live&&saved){
     saved.memory??={intel:{}};
     saved.memory.intel??={};
@@ -6920,6 +6951,10 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       (source.effects||[]).flatMap(effectStackNames))])];
     if(!studio){
       data.trainShop=gameTrainShopView(state,actor,manager);
+      const run=state.storyRun;
+      const index=run?.index??0;
+      const names=Object.fromEntries(Object.entries(storyStops[index]||{}).map(([route,[id]])=>[route,encounterPresets[id].foe]));
+      data.storyMode={index,route:run?.route||null,length:storyStops.length,names};
       data.storyPublished=state.publishedStory||[];
       data.storyInventory=state.trainWallets?.[actor]?.items||[];
       if(canGrantRewards)data.rewardOptions={
@@ -7140,9 +7175,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       case 'dialogueSceneStart': {
         if(!canManageStory)return error('세션 GM만 장면을 시작할 수 있어요.',403);
         if(!gameInt(input.scene,0,gameStorySections.length-1))gameFail('장면을 선택하세요.');
-        const scene=gameSessionScenes.find(section=>section.scene===input.scene);
-        if(scene)gamePublishStory(state,input.scene,scene.blocks.findIndex(gameCanSeeStoryBlock));
-        for(const check of state.dialogueChecks||[])if(check.status==='queued'&&check.scene===input.scene){check.status='open';check.started=true;}
+        gameOpenStoryScene(state,input.scene);
         break;
       }
       case 'storyPublish': {
@@ -7492,7 +7525,27 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
           return [member.id,gameCollection(state.profiles[member.id],row)];
         })));
         collections.set(actor,ownCollection);
-        state.battle=gameBegin(state,members,input,self,collections);
+        if(input.mode!=null&&!['story','custom'].includes(input.mode))gameFail('전투 모드를 선택하세요.');
+        const settings={...input};
+        if(input.mode==='story'){
+          if(!canManageStory)return error('GM석에서만 스토리 모드를 진행할 수 있어요.',403);
+          const run=state.storyRun??={index:0,route:null};
+          if(run.index===1&&!run.route){
+            if(!['obedience','pioneer'].includes(input.route))gameFail('순응 또는 개척 노선을 선택하세요.');
+            run.route=input.route;
+          }
+          const stop=gameStoryStop(run.index,run.route);
+          if(!stop)gameFail('스토리 모드의 모든 전투를 마쳤어요.');
+          const [encounter,reference]=stop;
+          settings.encounter=encounter;
+          delete settings.paperOrigin;
+          if(run.index===0)gameStartPublishedScene(state,'3.1.1');
+          gameStartPublishedScene(state,reference);
+        }
+        const source=input.mode==='custom'?{...state,campaign:null,profiles:structuredClone(state.profiles)}:state;
+        state.battle=gameBegin(source,members,settings,self,collections);
+        if(input.mode)state.battle.mode=input.mode;
+        if(input.mode==='story')state.battle.storyIndex=state.storyRun.index;
         break;
       }
       case 'requestEdit': {
@@ -7600,8 +7653,8 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
         if(gameAwaiting(b,members).length)gameFail('플레이어가 행동을 확정할 때까지 기다려 주세요.');
         gameResolve(b);
         if(b.phase==='finished'){
-          if(gameIsSurvival(b))state.paperOrigin=b.outcome.kind==='survivalTalk'?'pioneer':b.outcome.kind==='survivalBreak'?'grind':'collapse';
-          if(!gameIsPaper(b))gameReturnToTrain(b,state);
+          if(b.mode!=='custom'&&gameIsSurvival(b))state.paperOrigin=b.outcome.kind==='survivalTalk'?'pioneer':b.outcome.kind==='survivalBreak'?'grind':'collapse';
+          if(b.mode!=='custom'&&!gameIsPaper(b))gameReturnToTrain(b,state);
           if(b.result==='승리'&&b.outcome?.cleared!==false){
             const tracks=battleMusicForEncounter(b.encounter);
             const collections=new Set(members.filter(member=>
@@ -7614,7 +7667,7 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
         break;
       case 'reset':
         if(!manager)return error('GM 또는 방장만 전투를 정리할 수 있어요.',403);
-        if(b&&b.phase!=='finished')gameReturnToTrain(b,state);
+        if(b&&b.mode!=='custom'&&b.mode!=='story'&&b.phase!=='finished')gameReturnToTrain(b,state);
         state.battle=null;break;
       case 'rest':
         if(gameActive(b))gameFail('전투를 마친 후 휴식할 수 있어요.');
@@ -7622,6 +7675,14 @@ async function gameApi(db,room,actor,input,artQuery,account=null,collectionId=nu
       default:gameFail('알 수 없는 작업이에요.');
     }
   }catch(e){if(e instanceof GameInputError)return error(e.message);throw e;}
+  if(b?.mode==='story'&&b.phase==='finished'&&b.storyIndex===state.storyRun?.index&&
+    ((b.result==='승리'&&b.outcome?.cleared!==false)||gameIsSurvival(b)||gameIsPaper(b))){
+    state.storyRun.index++;
+    if(b.storyIndex===0)gameStartPublishedScene(state,'3.1.4');
+    if(gameIsPaper(b))gameStartPublishedScene(state,'3.7.1');
+    const checkpoint=state.campaign?.checkpoints.at(-1);
+    if(checkpoint&&checkpoint.id!==previousCheckpoint)checkpoint.storyRun=structuredClone(state.storyRun);
+  }
   const journey=rewardEntry&&!b?[rewardEntry]:[];
   if(livingFoes.length&&!gameIsPaper(b)){
     const paid=state.trainKills||{};

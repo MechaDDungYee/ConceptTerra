@@ -4719,3 +4719,24 @@ test('expanded story supplies original encounter and virtue narration without re
   const guestView=(await f.send(f.endpoint,{action:'sessionStory'},guest.cookie)).body.sections;
   assert.deepEqual(guestView,[{heading:opening.heading,blocks:[opening.blocks[0]]}]);
 });
+
+test('story mode enforces its route and custom encounters do not advance it',async()=>{
+  const f=await fixture();
+  const start={solo:true,bots:0};
+  assert.equal(f.state.storyMode.index,0);
+  await f.act('start',{...start,mode:'story',encounter:'paperMask01'});
+  assert.equal(f.state.battle.encounter.id,'stop01');
+  assert.equal(f.state.storyPublished.length,2);
+  configureBattle(f,(b,self)=>{self.pos=21;b.encounter.peaceOpen=true;b.encounter.peace=1;});
+  await f.act('plan',{pos:21});
+  await f.act('round');
+  assert.equal(f.state.storyMode.index,1);
+  await f.act('reset');
+  await f.act('start',{...start,mode:'custom',encounter:'judge01'});
+  assert.equal(f.state.battle.encounter.id,'judge01');
+  await f.act('reset');
+  assert.equal(f.state.storyMode.index,1);
+  await f.act('start',{...start,mode:'story',route:'pioneer'});
+  assert.equal(f.state.battle.encounter.id,'guest01');
+  assert.equal(f.state.storyMode.route,'pioneer');
+});

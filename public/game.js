@@ -2078,6 +2078,7 @@ function addStoryButtons(container){
   else if(state.roster.some(player=>player.id===state.me))
     container.append(button('공개된 스토리 대본',openSessionStory));
 }
+let selectedBattleMode;
 function startPanel(){
   const root=section('빈 객차',note('눈을 뜨자 객차에는 남은 승객들뿐입니다. 존속의 집행체가 열차에 들어옵니다.'));
   const saves=saveSlotsPanel();
@@ -2090,7 +2091,21 @@ function startPanel(){
   addStoryButtons(root);
   if(!state.manager){root.append(note('GM 또는 방장이 전투를 시작할 때까지 기다려 주세요.'));return root;}
   if(state.canGrantRewards)root.append(button('GM 보상 지급',openRewardGrant));
-  const form=formFor('start',(_,data)=>({solo:data.has('solo'),bots:Number(data.get('bots')),encounter:data.get('encounter'),paperOrigin:data.get('paperOrigin')||undefined}));
+  const progress=state.storyMode;
+  const modes=el('div',undefined,{class:'row'});
+  const chooseMode=mode=>{selectedBattleMode=mode;render();};
+  const story=button('스토리 모드',()=>chooseMode('story'),selectedBattleMode==='story');
+  const custom=button('커스텀 모드',()=>chooseMode('custom'),selectedBattleMode==='custom');
+  story.setAttribute('aria-pressed',String(selectedBattleMode==='story'));
+  custom.setAttribute('aria-pressed',String(selectedBattleMode==='custom'));
+  if(state.canManageStory)modes.append(story);
+  else if(selectedBattleMode==='story')selectedBattleMode=null;
+  modes.append(custom);
+  root.append(modes);
+  if(!selectedBattleMode)return root;
+  const storyMode=selectedBattleMode==='story';
+  if(storyMode&&progress.index===progress.length){root.append(note('스토리 모드의 모든 전투를 마쳤습니다.'));return root;}
+  const form=formFor('start',(_,data)=>({mode:selectedBattleMode,route:data.get('route'),solo:data.has('solo'),bots:Number(data.get('bots')),encounter:data.get('encounter'),paperOrigin:data.get('paperOrigin')||undefined}));
   const solo=input('solo','1','checkbox',{checked:!state.roster.length,disabled:!!state.roster.length});
   const bots=select('bots',[],0);
   const refresh=()=>{
@@ -2123,7 +2138,16 @@ function startPanel(){
   const originField=field('시작 공명',origin);
   const syncOrigin=()=>{originField.hidden=origin.disabled=encounter.value!=='paperMask01';};
   encounter.onchange=syncOrigin;syncOrigin();
-  form.append(field('조우 선택',encounter),originField,field('내 캐릭터로 혼자 연습',solo,'inline'),field('자동 행동 봇 동료',bots),submit('전투 시작'));
+  if(storyMode){
+    const needsRoute=progress.index===1&&!progress.route;
+    const heading=el('strong');
+    const route=select('route',[['obedience','순응'],['pioneer','개척']],progress.route||'obedience');
+    const describe=()=>{heading.textContent=(progress.index+1)+' / '+progress.length+' · '+(progress.names[route.value]||progress.names.default);};
+    route.onchange=describe;describe();
+    form.append(heading);
+    if(needsRoute)form.append(field('진행 노선',route));
+  }else form.append(searchableSelect('상대',encounter),originField);
+  form.append(field('내 캐릭터로 혼자 연습',solo,'inline'),field('자동 행동 봇 동료',bots),submit('전투 시작'));
   root.append(form,note('봇은 빈 플레이어 자리를 채우고 라운드 처리 시 이동·공격·합·원호를 자동 선택합니다.'));
   return root;
 }
